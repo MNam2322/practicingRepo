@@ -22,7 +22,7 @@ public sealed class BookingPolicy
 
     /// <summary>
     /// Checks a requested booking against the resource and the policy. Everything except "is the slot free",
-    /// which only the store can answer atomically.
+    /// which only the repository can answer atomically.
     /// </summary>
     public Error? Check(Resource resource, Venue venue, TimeRange time, DateTimeOffset now)
     {

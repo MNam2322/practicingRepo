@@ -31,7 +31,7 @@ public sealed record Resource(
 }
 
 /// <summary>Reads the venue and its resources. The starter keeps them in configuration; TASKS.md moves them to the database.</summary>
-public interface IResourceCatalog
+public interface IResourceRepository
 {
     Venue Venue { get; }
     IReadOnlyList<Resource> Resources { get; }

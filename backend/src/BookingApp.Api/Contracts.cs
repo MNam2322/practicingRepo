@@ -3,7 +3,7 @@ using BookingApp.Core.Scheduling;
 
 namespace BookingApp.Api;
 
-// Request and response shapes. Endpoints never return domain objects, so the domain can change without
+// Request and response shapes. Controllers never return domain objects, so the domain can change without
 // breaking clients. The React app mirrors these in frontend/src/lib/api.ts. Keep the two in step.
 // Times: "start"/"end" are UTC instants (ISO 8601 with Z); "localStart"/"localEnd" are venue wall-clock
 // times without an offset, for display only.
@@ -40,14 +40,14 @@ public sealed record BookingResponse(
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
     DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel)
 {
-    public static BookingResponse From(Booking b, IResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now)
+    public static BookingResponse From(Booking b, VenueService venue, DateTimeOffset now)
     {
-        var tz = catalog.Venue.TimeZone;
+        var tz = venue.Venue.TimeZone;
         return new BookingResponse(
-            b.Id, b.ResourceId, catalog.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
+            b.Id, b.ResourceId, venue.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
             TimeZoneInfo.ConvertTime(b.Time.Start, tz).ToString("yyyy-MM-ddTHH:mm"),
             TimeZoneInfo.ConvertTime(b.Time.End, tz).ToString("yyyy-MM-ddTHH:mm"),
             b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
-            b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff);
+            b.Status == BookingStatus.Confirmed && b.Time.Start - now >= venue.Policy.CancellationCutoff);
     }
 }

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
 
 namespace BookingApp.Api;
 
@@ -8,6 +10,8 @@ namespace BookingApp.Api;
 /// </summary>
 internal sealed class BadRequestHandler(IProblemDetailsService problems) : IExceptionHandler
 {
+    public const string Title = "The request could not be read.";
+
     public async ValueTask<bool> TryHandleAsync(HttpContext http, Exception exception, CancellationToken cancellationToken)
     {
         if (exception is not BadHttpRequestException bad) return false;
@@ -16,7 +20,18 @@ internal sealed class BadRequestHandler(IProblemDetailsService problems) : IExce
         {
             HttpContext = http,
             Exception = exception,
-            ProblemDetails = { Title = "The request could not be read.", Detail = bad.Message, Status = bad.StatusCode },
+            ProblemDetails = { Title = Title, Detail = bad.Message, Status = bad.StatusCode },
         });
+    }
+
+    /// <summary>
+    /// [ApiController] answers model binding failures itself, before the action runs. Keep the same title as above,
+    /// and list the fields that could not be read.
+    /// </summary>
+    public static IActionResult InvalidModelState(ActionContext context)
+    {
+        var factory = context.HttpContext.RequestServices.GetRequiredService<ProblemDetailsFactory>();
+        var problem = factory.CreateValidationProblemDetails(context.HttpContext, context.ModelState, StatusCodes.Status400BadRequest, title: Title);
+        return new BadRequestObjectResult(problem) { ContentTypes = { "application/problem+json" } };
     }
 }

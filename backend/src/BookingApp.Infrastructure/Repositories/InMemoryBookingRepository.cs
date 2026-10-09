@@ -1,15 +1,15 @@
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
 
-namespace BookingApp.Infrastructure.Storage;
+namespace BookingApp.Infrastructure.Repositories;
 
 /// <summary>
 /// Keeps bookings in memory: lost on restart, fine for the starter and for tests.
 /// The overlap check and the insert run under one lock, so two simultaneous requests for the same slot
-/// cannot both succeed. A database store must give the same guarantee with a constraint or a transaction,
+/// cannot both succeed. A database repository must give the same guarantee with a constraint or a transaction,
 /// not with a check-then-insert in application code (TASKS.md, task 4).
 /// </summary>
-internal sealed class InMemoryBookingStore : IBookingStore
+internal sealed class InMemoryBookingRepository : IBookingRepository
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, Booking> _bookings = [];
@@ -31,7 +31,7 @@ internal sealed class InMemoryBookingStore : IBookingStore
         lock (_gate)
         {
             // In memory the stored object is the same instance, so there is no stale copy to detect.
-            // A database store compares the version it loaded with the one in the row.
+            // A database repository compares the version it loaded with the one in the row.
             if (!_bookings.ContainsKey(booking.Id)) return Task.FromResult(false);
             booking.MarkSaved();
             return Task.FromResult(true);

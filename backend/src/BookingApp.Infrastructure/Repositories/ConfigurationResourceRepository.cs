@@ -1,7 +1,7 @@
 using BookingApp.Core.Scheduling;
 using Microsoft.Extensions.Options;
 
-namespace BookingApp.Infrastructure.Catalog;
+namespace BookingApp.Infrastructure.Repositories;
 
 /// <summary>Shape of the "Venue" configuration section (appsettings.json).</summary>
 public sealed class VenueOptions
@@ -26,11 +26,11 @@ public sealed class VenueOptions
 }
 
 /// <summary>Builds the venue and resources from configuration once, at startup, and validates them.</summary>
-internal sealed class ConfigurationResourceCatalog : IResourceCatalog
+internal sealed class ConfigurationResourceRepository : IResourceRepository
 {
     private readonly Dictionary<string, Resource> _byId;
 
-    public ConfigurationResourceCatalog(IOptions<VenueOptions> options)
+    public ConfigurationResourceRepository(IOptions<VenueOptions> options)
     {
         var o = options.Value;
         Venue = new Venue(o.Name, o.TimeZoneId);

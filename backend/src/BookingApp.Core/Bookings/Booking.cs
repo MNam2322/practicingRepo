@@ -54,7 +54,7 @@ public sealed class Booking
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset? CancelledAt { get; private set; }
 
-    /// <summary>Incremented by the store on every save. Used for optimistic concurrency.</summary>
+    /// <summary>Incremented by the repository on every save. Used for optimistic concurrency.</summary>
     public int Version { get; private set; }
 
     /// <summary>Holds a slot: only Confirmed bookings block other bookings.</summary>
@@ -82,6 +82,6 @@ public sealed class Booking
         return Result<Booking>.Ok(this);
     }
 
-    /// <summary>Called by a store after a successful save.</summary>
+    /// <summary>Called by a repository after a successful save.</summary>
     public void MarkSaved() => Version++;
 }

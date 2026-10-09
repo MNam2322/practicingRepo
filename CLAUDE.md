@@ -57,6 +57,11 @@ The library is the team's engineering handbook. **Before designing any task, loo
 - **The contract** is `backend/src/BookingApp.Api/Contracts.cs`, mirrored in `frontend/src/lib/api.ts`. Change both in the same task. After backend task 2 adds OpenAPI, generate the frontend types instead.
 - A frontend task marked **Needs backend N** waits for that backend task. If it isn't ticked, stop and tell the user.
 
+## Backend style
+
+- The backend is layered **controller → service → repository** (see `backend/CLAUDE.md`). Controllers call services; services call repositories; controllers never touch a repository or a `DbContext`.
+- Never use minimal APIs for application endpoints.
+
 ## Working rules
 
 - **"Do the next step"** means: open `PLAYBOOK.md`, find the first step that isn't ticked, and run it as "How every step runs" there describes.
