@@ -1,10 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Adapters for the ports in BookingApp.Core: storage, the resource catalogue, seeding. -->
+  <!-- Adapters for the ports in BookingApp.Core: repositories (in-memory, EF Core), seeding. -->
   <PropertyGroup>
     <RootNamespace>BookingApp.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <!-- Design-time only: lets dotnet-ef create migrations from this project. Not shipped. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\BookingApp.Core\BookingApp.Core.csproj" />

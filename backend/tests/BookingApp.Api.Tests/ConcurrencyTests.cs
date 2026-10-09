@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,7 +12,7 @@ namespace BookingApp.Api.Tests;
 /// The rule that matters most: two blocking bookings for one resource never overlap, even when requests arrive together.
 /// Library: 7.4 "Optimistic and pessimistic concurrency", 7.9 "Atomic conditional update".
 /// </summary>
-public sealed class ConcurrencyTests : ApiTest
+public abstract class ConcurrencyTests(StorageProvider provider) : ApiTest(provider)
 {
     [Fact]
     public async Task Fifty_parallel_bookings_for_one_slot_give_exactly_one_201()
@@ -53,7 +54,8 @@ public sealed class ConcurrencyTests : ApiTest
         await Task.WhenAll(tasks);
 
         // Read what was actually saved: at least one booking won, and no two saved bookings overlap.
-        var repository = Factory.Services.GetRequiredService<IBookingRepository>();
+        using var scope = Factory.Services.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
         var day = TimeRange.Create(ApiFactory.At(ApiFactory.Tomorrow, 0), ApiFactory.At(ApiFactory.Tomorrow.AddDays(1), 0));
         var saved = await repository.BlockingAsync("court-1", day, Ct);
         Assert.NotEmpty(saved);
@@ -62,3 +64,8 @@ public sealed class ConcurrencyTests : ApiTest
                 Assert.False(saved[i].Time.Overlaps(saved[j].Time), $"{saved[i].Time} overlaps {saved[j].Time}");
     }
 }
+
+public sealed class ConcurrencyTestsInMemory() : ConcurrencyTests(StorageProvider.InMemory);
+
+/// <summary>On SQLite the guard is BEGIN IMMEDIATE in EfBookingRepository; the requests really do contend for the file lock.</summary>
+public sealed class ConcurrencyTestsSqlite() : ConcurrencyTests(StorageProvider.Sqlite);

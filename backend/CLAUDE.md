@@ -18,9 +18,14 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
-src/BookingApp.Infrastructure  adapters: Repositories/ (ConfigurationResourceRepository, InMemoryBookingRepository), DemoSeeder, DI
+src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite)
+  Repositories/                ConfigurationResourceRepository, InMemoryBookingRepository, EfBookingRepository
+  Persistence/                 BookingDbContext, BookingRow (the stored shape), StorageOptions, DatabaseInitializer (migrate + WAL),
+                               Migrations/ (generated; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Controllers/ (ApiControllerBase, Venue, Resources, Bookings),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
+tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
+                               Api.Tests (WebApplicationFactory; booking and concurrency tests run on InMemory and Sqlite)
 http/booking.http              one request per route
 openapi/v1.json                the API contract, generated from the controllers; a test fails if it drifts
 ```
@@ -33,7 +38,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 ## Rules that must always hold
 
-1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
+1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
 2. **Times are UTC everywhere except at the edges.** Store and compare `DateTimeOffset` in UTC. Venue-local time is used only for opening hours, the slot grid and display. Never use `DateTime.Now`; use `TimeProvider`.
 3. **State changes go through the aggregate.** `Booking` methods enforce the lifecycle. Controllers and services never set fields directly.
 4. **Errors are problem details with a stable `code`:**
@@ -63,4 +68,5 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - `dotnet build`
 - `dotnet test` (from task 1). After an intended API contract change: `UPDATE_OPENAPI=1 dotnet test`, then commit `openapi/v1.json`.
 - `dotnet format --verify-no-changes`
-- `dotnet run --project src/BookingApp.Api`: http://localhost:5080. In Development it seeds demo bookings for tomorrow, and serves the API reference at http://localhost:5080/scalar and the document at `/openapi/v1.json`.
+- New migration (after changing BookingDbContext): `dotnet ef migrations add <Name> --project src/BookingApp.Infrastructure --startup-project src/BookingApp.Infrastructure --output-dir Persistence/Migrations` (`dotnet tool restore` first). Read the generated file before committing.
+- `dotnet run --project src/BookingApp.Api`: http://localhost:5080. Bookings are stored in `src/BookingApp.Api/.data/bookings.db` (SQLite, git-ignored); delete that folder to start empty. In Development it seeds demo bookings for tomorrow, and serves the API reference at http://localhost:5080/scalar and the document at `/openapi/v1.json`.

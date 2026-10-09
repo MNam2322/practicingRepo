@@ -10,7 +10,7 @@ using BookingApp.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---- application and infrastructure ----
-builder.Services.AddBookingInfrastructure(builder.Configuration);
+builder.Services.AddBookingInfrastructure(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<VenueService>();
 

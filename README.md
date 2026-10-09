@@ -82,7 +82,7 @@ npm run dev
 
 You only need `npm install` the first time. Then open http://localhost:5173.
 
-In Development the API books two demo slots per resource for tomorrow, so you can see booked slots straight away. Bookings are kept in memory until playbook step 7 adds a database, so they reset when the API restarts.
+In Development the API books two demo slots per resource for tomorrow, so you can see booked slots straight away. Bookings are stored in a SQLite file, `backend/src/BookingApp.Api/.data/bookings.db`, so they survive restarts. Stop the API and delete the `.data` folder to start with an empty database.
 
 To stop either one, press **Ctrl+C** in its terminal.
 

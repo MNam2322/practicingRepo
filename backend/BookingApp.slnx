@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/BookingApp.Api.Tests/BookingApp.Api.Tests.csproj" />
     <Project Path="tests/BookingApp.Core.Tests/BookingApp.Core.Tests.csproj" />
+    <Project Path="tests/BookingApp.Infrastructure.Tests/BookingApp.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

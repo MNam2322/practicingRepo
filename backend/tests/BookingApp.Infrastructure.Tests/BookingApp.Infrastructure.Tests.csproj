@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The repositories against their contract, on every storage provider. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BookingApp.Infrastructure\BookingApp.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

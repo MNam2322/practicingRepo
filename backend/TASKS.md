@@ -54,12 +54,12 @@ Read first: 8.5 "Validation in ASP.NET Core".
 
 ### 4. EF Core with SQLite
 Read first: 7.7 ORMs and EF Core, 7.5 Schema design and migrations, 7.4 "Optimistic and pessimistic concurrency".
-- [ ] Add `BookingDbContext`:
+- [x] Add `BookingDbContext`:
   - a `Bookings` table with an index for the availability query (resource, start)
   - a concurrency token
   - migrations
-- [ ] Implement `EfBookingRepository : IBookingRepository` in `Infrastructure/Repositories/`. `TryAddAsync` must be atomic: on SQLite, run the overlap check and the insert in one transaction that takes the write lock first (`BEGIN IMMEDIATE`). `UpdateAsync` uses the concurrency token.
-- [ ] Choose the repository through configuration (`Storage:Provider` = `InMemory` | `Sqlite`). The tests run against both.
+- [x] Implement `EfBookingRepository : IBookingRepository` in `Infrastructure/Repositories/`. `TryAddAsync` must be atomic: on SQLite, run the overlap check and the insert in one transaction that takes the write lock first (`BEGIN IMMEDIATE`). `UpdateAsync` uses the concurrency token.
+- [x] Choose the repository through configuration (`Storage:Provider` = `InMemory` | `Sqlite`). The tests run against both.
 
 **Done when:** bookings survive a restart, and the 50-parallel-requests test passes on SQLite.
 
@@ -180,3 +180,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 1: xUnit tests — Core (TimeRange, policy rules, availability incl. Europe/London DST days, cancel rules, BookingService with FakeTimeProvider) and API (every route, every error code, cookie, 50 parallel bookings → one 201).
 - Task 2: OpenAPI (`/openapi/v1.json`) and Scalar (`/scalar`) in Development; every action named, summarised, with its error codes; `ProblemDetails.code` in the schema; contract committed as `backend/openapi/v1.json` with a drift test.
 - Task 3: request validation with DataAnnotations on `CreateBookingRequest` (resourceId, start, slots 1–24, name ≤ 80); 400 `validation_failed` with camelCase field errors; business rules still 422; strict JSON numbers.
+- Task 4: EF Core with SQLite: `BookingDbContext` (bookings table, (resource, start) and customer indexes, `version` concurrency token, UTC ticks on SQLite), migrations applied at start-up, `EfBookingRepository` with `BEGIN IMMEDIATE` for the atomic insert; `Storage:Provider` InMemory | Sqlite; API booking/concurrency tests run on both.

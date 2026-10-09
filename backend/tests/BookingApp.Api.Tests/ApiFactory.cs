@@ -1,9 +1,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BookingApp.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
@@ -14,7 +16,7 @@ namespace BookingApp.Api.Tests;
 /// The real app in-process. Only time is replaced, so tests can move the clock. Library: 4.6 "Integration testing an API"
 /// ("replace as little as possible") and "TimeProvider — testing time-dependent code".
 /// </summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemory, string? databaseFile = null) : WebApplicationFactory<Program>
 {
     /// <summary>Monday 1 June 2026, 07:00 at the venue (Asia/Ho_Chi_Minh, UTC+7).</summary>
     public static readonly DateTimeOffset Now = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
@@ -24,15 +26,44 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     public FakeTimeProvider Time { get; } = new(Now);
 
+    public StorageProvider Provider => provider;
+
+    /// <summary>The SQLite file for this app: a fresh temp file unless a test passes one to share between two apps.</summary>
+    public string DatabaseFile { get; } = databaseFile ?? Path.Combine(Path.GetTempPath(), $"booking-test-{Guid.NewGuid():N}.db");
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Not Development: no demo bookings, so every test starts from an empty store.
+        // Not Development: no demo bookings, so every test starts from an empty database.
         builder.UseEnvironment("Testing");
+        builder.UseSetting("Storage:Provider", provider.ToString());
+        builder.UseSetting("ConnectionStrings:Bookings", $"Data Source={DatabaseFile}");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Time);
         });
+    }
+
+    /// <summary>
+    /// Deletes the SQLite file and its WAL files. A connection can still be on its way back to the pool when a test
+    /// ends, so this retries briefly and then leaves the temp file behind rather than failing the test.
+    /// </summary>
+    public static void DeleteDatabase(string file)
+    {
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            SqliteConnection.ClearAllPools();
+            try
+            {
+                foreach (var path in new[] { file, file + "-wal", file + "-shm" })
+                    if (File.Exists(path)) File.Delete(path);
+                return;
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(100);
+            }
+        }
     }
 
     /// <summary>Venue-local time on a day, as the UTC instant the API expects.</summary>
@@ -48,9 +79,9 @@ public abstract class ApiTest : IDisposable
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    protected ApiTest()
+    protected ApiTest(StorageProvider provider = StorageProvider.InMemory)
     {
-        Factory = new ApiFactory();
+        Factory = new ApiFactory(provider);
         Client = Factory.CreateClient();
     }
 
@@ -88,6 +119,7 @@ public abstract class ApiTest : IDisposable
     {
         Client.Dispose();
         Factory.Dispose();
+        if (Factory.Provider == StorageProvider.Sqlite) ApiFactory.DeleteDatabase(Factory.DatabaseFile);
         GC.SuppressFinalize(this);
     }
 }

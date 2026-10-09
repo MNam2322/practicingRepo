@@ -2,10 +2,12 @@ using System.Net;
 using System.Net.Http.Json;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Persistence;
 
 namespace BookingApp.Api.Tests;
 
-public sealed class BookingEndpointTests : ApiTest
+/// <summary>Every booking route and error code, on each storage provider.</summary>
+public abstract class BookingEndpointTests(StorageProvider provider) : ApiTest(provider)
 {
     [Fact]
     public async Task Booking_returns_201_with_location_and_the_booking()
@@ -170,3 +172,7 @@ public sealed class BookingEndpointTests : ApiTest
         await AssertProblem(await Client.PostAsync($"/api/bookings/{Guid.NewGuid()}/cancel", null, Ct), 404, "booking_not_found");
     }
 }
+
+public sealed class BookingEndpointTestsInMemory() : BookingEndpointTests(StorageProvider.InMemory);
+
+public sealed class BookingEndpointTestsSqlite() : BookingEndpointTests(StorageProvider.Sqlite);

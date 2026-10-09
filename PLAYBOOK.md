@@ -97,7 +97,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 ## Phase 2: A real database
 
 ### Step 7: Backend 4, EF Core with SQLite
-- [ ] **Prompt:** "Do backend task 4 (EF Core with SQLite)."
+- [x] **Prompt:** "Do backend task 4 (EF Core with SQLite)."
 - **Check:** book a slot, stop the API (Ctrl+C), and start it again: the booking is still there. `dotnet test` runs the parallel test on SQLite too.
 
 ### Step 8: Backend 5, resources and closures in the database
