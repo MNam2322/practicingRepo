@@ -66,7 +66,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 ## Phase 1: Safety net
 
 ### Step 1: Backend 1, tests
-- [ ] **Prompt:** "Do backend task 1 (tests)."
+- [x] **Prompt:** "Do backend task 1 (tests)."
 - **Check:**
   - `dotnet test` in `backend/` shows every test passing
   - the parallel booking test is there, and the DST tests use `Europe/London`

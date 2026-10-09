@@ -23,18 +23,18 @@ A task is finished when its **Done when** holds and `dotnet build`, `dotnet test
 
 ### 1. Tests
 Read first: 4.6 "API integration tests", 4.6 "TimeProvider — testing time-dependent code (.NET 8+)", 1.2 "Time zones and DST in practice".
-- [ ] `tests/BookingApp.Core.Tests` (xUnit), covering:
+- [x] `tests/BookingApp.Core.Tests` (xUnit), covering:
   - `TimeRange` (touching ranges don't overlap)
   - `BookingPolicy.Check`, one test per rule
   - `AvailabilityCalculator`, including a DST day: use `Europe/London` on its spring-forward and fall-back dates
   - `Booking.Cancel` for every rule
   - `BookingService` with a `FakeTimeProvider` and the in-memory repository
-- [ ] `tests/BookingApp.Api.Tests` (WebApplicationFactory), covering:
+- [x] `tests/BookingApp.Api.Tests` (WebApplicationFactory), covering:
   - every controller action's status code and shape
   - each error code
   - the cookie being issued and reused
   - **50 parallel bookings for one slot give exactly one 201**
-- [ ] Add the test projects to `BookingApp.slnx`.
+- [x] Add the test projects to `BookingApp.slnx`.
 
 **Done when:** `dotnet test` passes, and deliberately breaking `TimeRange.Overlaps` makes tests fail.
 
@@ -177,3 +177,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 
 - Starter: domain, availability, booking, cancel, in-memory store with atomic overlap check, problem codes, rate limits, demo seed.
 - Switched the API from minimal APIs to `[ApiController]` controllers (controller → service → repository): `IBookingStore` → `IBookingRepository`, `IResourceCatalog` → `IResourceRepository`, new `VenueService`; same routes, codes and rate limits.
+- Task 1: xUnit tests — Core (TimeRange, policy rules, availability incl. Europe/London DST days, cancel rules, BookingService with FakeTimeProvider) and API (every route, every error code, cookie, 50 parallel bookings → one 201).

@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unit tests for the domain and use cases. BookingService runs against the real in-memory store. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BookingApp.Core\BookingApp.Core.csproj" />
+    <ProjectReference Include="..\..\src\BookingApp.Infrastructure\BookingApp.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
