@@ -57,7 +57,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 ---
 
 ## Step 0: Check the setup
-- [ ] **Prompt:** "Check this repo builds. In `backend/` run `dotnet build`. In `frontend/` run `npm install`, then `npm run build`. Run `node library/find.mjs "booking state machine"` to check the library works. Don't change any files. Report what happened."
+- [x] **Prompt:** "Check this repo builds. In `backend/` run `dotnet build`. In `frontend/` run `npm install`, then `npm run build`. Run `node library/find.mjs "booking state machine"` to check the library works. Don't change any files. Report what happened."
 - **Check:**
   - start both halves as above and open http://localhost:5173
   - pick a court, pick tomorrow: some slots are already booked (demo data)
