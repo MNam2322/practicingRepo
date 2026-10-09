@@ -1,16 +1,28 @@
 import { useEffect, useState } from 'react';
 import { api, formatDay, type Booking } from '../lib/api';
 import { useApi } from '../lib/useApi';
-import { ErrorBox, Loading } from '../components/Layout';
+import { useToast } from '../lib/toast';
+import { Button } from '../components/Button';
+import { ErrorNotice } from '../components/Notice';
+import { BookingsSkeleton } from '../components/Skeleton';
+
+function when(b: Booking) {
+  return `${formatDay(b.localStart.slice(0, 10), 'long')}, ${b.localStart.slice(11)}–${b.localEnd.slice(11)}`;
+}
 
 function Row({ b, onCancelled }: { b: Booking; onCancelled: () => void }) {
+  const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function cancel() {
     setBusy(true); setError(null);
-    try { await api.cancel(b.id); onCancelled(); }
+    try {
+      await api.cancel(b.id);
+      toast({ text: `Cancelled ${b.resourceName}, ${when(b)}.` });
+      onCancelled();
+    }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); setConfirming(false); }
   }
@@ -19,17 +31,17 @@ function Row({ b, onCancelled }: { b: Booking; onCancelled: () => void }) {
     <li className={`booking ${b.status}`}>
       <div>
         <strong>{b.resourceName}</strong>
-        <span className="muted"> · {formatDay(b.localStart.slice(0, 10), 'long')}, {b.localStart.slice(11)}–{b.localEnd.slice(11)}</span>
+        <span className="muted"> · {when(b)}</span>
         <div className="small muted">Under {b.customerName} · <span className={`status ${b.status}`}>{b.status}</span></div>
-        {error && <div className="small error-text">{error}</div>}
+        {error && <div className="small error-text" role="alert">{error}</div>}
       </div>
       {b.canCancel && (confirming ? (
         <span className="actions">
-          <button type="button" className="btn danger" disabled={busy} onClick={() => void cancel()}>{busy ? 'Cancelling…' : 'Yes, cancel'}</button>
-          <button type="button" className="btn ghost" onClick={() => setConfirming(false)}>Keep</button>
+          <Button variant="danger" disabled={busy} onClick={() => void cancel()}>{busy ? 'Cancelling…' : 'Yes, cancel'}</Button>
+          <Button variant="ghost" onClick={() => setConfirming(false)}>Keep</Button>
         </span>
       ) : (
-        <button type="button" className="btn ghost" onClick={() => setConfirming(true)}>Cancel</button>
+        <Button variant="ghost" onClick={() => setConfirming(true)}>Cancel</Button>
       ))}
     </li>
   );
@@ -46,8 +58,8 @@ export function MyBookings() {
   return (
     <>
       <h1>My bookings</h1>
-      {mine.status === 'loading' && <Loading />}
-      {mine.status === 'error' && <ErrorBox message={mine.error} retry={reload} />}
+      {mine.status === 'loading' && <><h2 className="section-title">Upcoming</h2><BookingsSkeleton /></>}
+      {mine.status === 'error' && <ErrorNotice message={mine.error} retry={reload} />}
       {mine.status === 'ready' && (
         <>
           <h2 className="section-title">Upcoming</h2>

@@ -1,4 +1,6 @@
-import { Layout, ErrorBox, Loading } from './components/Layout';
+import { Layout } from './components/Layout';
+import { ErrorNotice } from './components/Notice';
+import { CardsSkeleton } from './components/Skeleton';
 import { api } from './lib/api';
 import { useRoute } from './lib/router';
 import { useApi } from './lib/useApi';
@@ -13,11 +15,11 @@ export default function App() {
   const resources = basics.status === 'ready' ? basics.data[1] : [];
 
   let page;
-  if (basics.status === 'loading') page = <Loading />;
+  if (basics.status === 'loading') page = <CardsSkeleton />;
   else if (basics.status === 'error') page = (
     <>
       <h1>Can't reach the booking service</h1>
-      <ErrorBox message={basics.error} retry={reload} />
+      <ErrorNotice message={basics.error} retry={reload} />
       <p className="muted">Start the backend first: <code>dotnet run --project backend/src/BookingApp.Api</code></p>
     </>
   );

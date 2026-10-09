@@ -1,3 +1,4 @@
+import { Card } from '../components/Card';
 import type { Resource, Venue } from '../lib/api';
 
 const KIND_LABEL: Record<string, string> = { court: 'Court', room: 'Room', table: 'Table', other: 'Space' };
@@ -14,7 +15,7 @@ export function Home({ venue, resources }: { venue: Venue; resources: Resource[]
       </section>
       <div className="cards">
         {resources.map((r) => (
-          <a key={r.id} className="card resource-card" href={`#/r/${r.id}`}>
+          <Card key={r.id} className="resource-card" href={`#/r/${r.id}`}>
             <span className="pill">{KIND_LABEL[r.kind] ?? r.kind}</span>
             <h2>{r.name}</h2>
             <p className="muted small">
@@ -24,7 +25,7 @@ export function Home({ venue, resources }: { venue: Venue; resources: Resource[]
               {r.hours.map((h) => <li key={h.day}><span>{h.day.slice(0, 3)}</span>{h.open}–{h.close}</li>)}
             </ul>
             <span className="cta">See times →</span>
-          </a>
+          </Card>
         ))}
       </div>
     </>

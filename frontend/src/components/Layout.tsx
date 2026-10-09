@@ -15,16 +15,3 @@ export function Layout({ venueName, route, children }: { venueName: string; rout
     </>
   );
 }
-
-export function Loading() {
-  return <p className="muted">Loading…</p>;
-}
-
-export function ErrorBox({ message, retry }: { message: string; retry?: () => void }) {
-  return (
-    <div className="notice error" role="alert">
-      <p>{message}</p>
-      {retry && <button type="button" className="btn ghost" onClick={retry}>Try again</button>}
-    </div>
-  );
-}

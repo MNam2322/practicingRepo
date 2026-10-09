@@ -81,7 +81,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 - **Check:** in `backend/http/booking.http`, send a booking with an empty name. It should come back 400 with a field error for `name`. A booking too far ahead should still be 422 `too_far_ahead`.
 
 ### Step 4: Frontend 1, UI foundation
-- [ ] **Prompt:** "Do frontend task 1 (UI foundation)."
+- [x] **Prompt:** "Do frontend task 1 (UI foundation)."
 - **Check:** the pages look the same or better. You see grey skeletons while slots load (throttle the network in browser dev tools to see them). A toast appears after booking and after cancelling.
 
 ### Step 5: Frontend 2, better availability

@@ -15,9 +15,9 @@ Do these one at a time, in the order `../PLAYBOOK.md` gives. Before you plan, lo
 
 ### 1. UI foundation
 Read first: 9.4 Components and state, 9.5 React today.
-- [ ] Pull the repeated pieces into small components in `src/components/`: Button, Card, Field, Notice, Skeleton.
-- [ ] Add loading skeletons for slots and bookings.
-- [ ] Show a toast after booking and after cancelling.
+- [x] Pull the repeated pieces into small components in `src/components/`: Button, Card, Field, Notice, Skeleton.
+- [x] Add loading skeletons for slots and bookings.
+- [x] Show a toast after booking and after cancelling.
 
 **Done when:** the pages look the same or better, and no page has copy-pasted markup for these pieces.
 
@@ -79,3 +79,4 @@ Needs backend 20.
 ## Changelog
 
 - Starter: resources, availability, booking, my bookings with cancel, themes, mobile layout.
+- Task 1: Button, Card, Field, Notice and Skeleton components; skeletons for resources, slots and bookings; toasts after booking and cancelling (polite live region, reduced-motion aware).

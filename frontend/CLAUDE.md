@@ -10,7 +10,9 @@ The goal is a **clean, fast, usable UI**, not a showpiece. The backend does the 
 src/lib/api.ts          the only place that calls fetch; types mirror backend Contracts.cs; ApiError has status + code
 src/lib/useApi.ts       tiny load/reload hook (replaced by TanStack Query in task 4)
 src/lib/router.ts       hash routes: #/  #/r/:id[/:date]  #/mine   (add routes here)
-src/components/Layout.tsx  top bar, Loading, ErrorBox
+src/components/Layout.tsx  top bar and page frame
+src/components/Button.tsx, Card.tsx, Field.tsx, Notice.tsx (Notice, ErrorNotice), Skeleton.tsx (Slots/Bookings/Cards skeletons)
+src/components/Toaster.tsx + src/lib/toast.ts   toasts: <Toaster> in main.tsx, useToast() anywhere
 src/pages/Home.tsx      resources
 src/pages/ResourcePage.tsx  day picker, slot grid, booking panel
 src/pages/MyBookings.tsx    upcoming and past, cancel with confirm
@@ -29,6 +31,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
   - works at 390px wide
   - visible focus states
   - no CSS framework or component library unless a task says so
+- **Components:** use `Button`, `Card`, `Field`, `Notice`/`ErrorNotice` and the skeletons from `src/components/` rather than writing their markup by hand. Loading states are skeletons at the size of the real content.
 - **Accessibility:** use real buttons and links, labelled inputs, `aria-pressed` and `aria-current` where they apply, and keep everything usable with the keyboard alone.
 
 ## Commands (run from `frontend/`)
