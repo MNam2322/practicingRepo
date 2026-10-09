@@ -4,6 +4,9 @@
 ### Health
 GET {{base}}/health
 
+### API reference (Development): open http://localhost:5080/scalar in a browser
+GET {{base}}/openapi/v1.json
+
 ### Venue and booking rules
 GET {{base}}/api/venue
 

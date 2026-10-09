@@ -40,8 +40,8 @@ Read first: 4.6 "API integration tests", 4.6 "TimeProvider — testing time-depe
 
 ### 2. OpenAPI and API docs
 Read first: 8.2 API design.
-- [ ] Add `Microsoft.AspNetCore.OpenApi` (`AddOpenApi`, `MapOpenApi`) and Scalar (`MapScalarApiReference`), both in Development only.
-- [ ] Give every controller action a name, a summary (XML comments or `[EndpointSummary]`) and its error responses (`[ProducesResponseType]` with `ProblemDetails`).
+- [x] Add `Microsoft.AspNetCore.OpenApi` (`AddOpenApi`, `MapOpenApi`) and Scalar (`MapScalarApiReference`), both in Development only.
+- [x] Give every controller action a name, a summary (XML comments or `[EndpointSummary]`) and its error responses (`[ProducesResponseType]` with `ProblemDetails`).
 
 **Done when:** `/scalar` lists every route with schemas, and `/openapi/v1.json` is served. (Unblocks frontend task 5.)
 
@@ -178,3 +178,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Starter: domain, availability, booking, cancel, in-memory store with atomic overlap check, problem codes, rate limits, demo seed.
 - Switched the API from minimal APIs to `[ApiController]` controllers (controller → service → repository): `IBookingStore` → `IBookingRepository`, `IResourceCatalog` → `IResourceRepository`, new `VenueService`; same routes, codes and rate limits.
 - Task 1: xUnit tests — Core (TimeRange, policy rules, availability incl. Europe/London DST days, cancel rules, BookingService with FakeTimeProvider) and API (every route, every error code, cookie, 50 parallel bookings → one 201).
+- Task 2: OpenAPI (`/openapi/v1.json`) and Scalar (`/scalar`) in Development; every action named, summarised, with its error codes; `ProblemDetails.code` in the schema; contract committed as `backend/openapi/v1.json` with a drift test.

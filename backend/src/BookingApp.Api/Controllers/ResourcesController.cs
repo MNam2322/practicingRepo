@@ -9,10 +9,19 @@ public sealed class ResourcesController(VenueService venue, BookingService booki
 {
     /// <summary>Courts and rooms, with opening hours.</summary>
     [HttpGet]
+    [EndpointName("GetResources")]
+    [ProducesResponseType<List<ResourceResponse>>(StatusCodes.Status200OK, Json)]
     public ActionResult<List<ResourceResponse>> List() => venue.Resources.Select(ResourceResponse.From).ToList();
 
-    /// <summary>A resource's slots for one venue-local day (yyyy-MM-dd); defaults to today at the venue.</summary>
+    /// <summary>A resource's slots for one venue-local day.</summary>
+    /// <param name="id">The resource id, such as court-1.</param>
+    /// <param name="date">A venue-local day (yyyy-MM-dd). Leave it out for today at the venue.</param>
+    /// <param name="ct">Cancelled when the client goes away.</param>
     [HttpGet("{id}/availability")]
+    [EndpointName("GetAvailability")]
+    [ProducesResponseType<AvailabilityResponse>(StatusCodes.Status200OK, Json)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "The date could not be read.")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "resource_not_found")]
     public async Task<ActionResult<AvailabilityResponse>> Availability(string id, DateOnly? date, CancellationToken ct)
     {
         var day = date ?? venue.Today();

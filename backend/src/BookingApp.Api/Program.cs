@@ -27,6 +27,7 @@ builder.Services.AddControllers(o =>
 builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
 builder.Services.AddProblemDetails();
+builder.Services.AddBookingOpenApi();
 builder.Services.AddExceptionHandler<BadRequestHandler>();
 builder.Services.AddHealthChecks();
 builder.Services.AddRateLimiter(o =>
@@ -51,9 +52,10 @@ app.UseCors();
 app.UseRateLimiter();
 
 // Operational routes only; application endpoints are controllers (Controllers/).
-app.MapGet("/", () => TypedResults.Ok(new { name = "Booking API", requests = "see backend/http/booking.http", health = "/health" }))
+app.MapGet("/", () => TypedResults.Ok(new { name = "Booking API", requests = "see backend/http/booking.http", health = "/health", docs = "/scalar (Development)" }))
     .ExcludeFromDescription();
 app.MapHealthChecks("/health");
+app.MapBookingApiDocs();
 app.MapControllers();
 
 app.Run();

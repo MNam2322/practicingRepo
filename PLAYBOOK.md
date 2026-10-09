@@ -73,7 +73,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
   - ask: "Break `TimeRange.Overlaps` on purpose, run the tests, show me which fail, then undo it."
 
 ### Step 2: Backend 2, OpenAPI
-- [ ] **Prompt:** "Do backend task 2 (OpenAPI and API docs)."
+- [x] **Prompt:** "Do backend task 2 (OpenAPI and API docs)."
 - **Check:** with the API running, open http://localhost:5080/scalar. Every endpoint is listed with its errors. Try `GET /api/resources` from that page.
 
 ### Step 3: Backend 3, validation

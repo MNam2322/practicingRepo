@@ -22,6 +22,7 @@ src/BookingApp.Infrastructure  adapters: Repositories/ (ConfigurationResourceRep
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Controllers/ (ApiControllerBase, Venue, Resources, Bookings),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 http/booking.http              one request per route
+openapi/v1.json                the API contract, generated from the controllers; a test fails if it drifts
 ```
 
 Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → Core; Core → nothing.
@@ -48,6 +49,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 - **Never use minimal APIs for application endpoints.** Every application route is an action on an `[ApiController]` controller that derives from `ApiControllerBase`, mapped with `MapControllers()`. Only operational routes (`/health`, the `/` info route) stay in `Program.cs`.
 - Actions return `ActionResult<T>` (or `Task<ActionResult<T>>`), use attribute routes (`[Route]`, `[HttpGet]`, …), and put rate limits on writes with `[EnableRateLimiting]`.
+- Every action has `[EndpointName]`, an XML `<summary>`, and `[ProducesResponseType]` for its success (`Json`) and each error (`ProblemJson`, with the codes in `Description`).
 - New use cases go in a service in Core; new storage goes behind a repository interface in Core with its implementation in `Infrastructure/Repositories/`. Name them `XxxService`, `IXxxRepository`, `XxxRepository`.
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.
 - Every async path takes a `CancellationToken`. Log with `[LoggerMessage]`.
@@ -58,6 +60,6 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 ## Commands (run from `backend/`)
 
 - `dotnet build`
-- `dotnet test` (from task 1)
+- `dotnet test` (from task 1). After an intended API contract change: `UPDATE_OPENAPI=1 dotnet test`, then commit `openapi/v1.json`.
 - `dotnet format --verify-no-changes`
-- `dotnet run --project src/BookingApp.Api`: http://localhost:5080. In Development it seeds demo bookings for tomorrow.
+- `dotnet run --project src/BookingApp.Api`: http://localhost:5080. In Development it seeds demo bookings for tomorrow, and serves the API reference at http://localhost:5080/scalar and the document at `/openapi/v1.json`.

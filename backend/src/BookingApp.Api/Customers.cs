@@ -10,7 +10,7 @@ namespace BookingApp.Api;
 /// none. Controller actions take it as a parameter and <see cref="CurrentCustomerBinder"/> fills it in.
 /// TASKS.md replaces this with real accounts (and keeps anonymous bookings on sign-in).
 /// </summary>
-[ModelBinder(BinderType = typeof(CurrentCustomerBinder))]
+[CurrentCustomerBinder.FromCookie]
 public sealed record CurrentCustomer(CustomerId Id)
 {
     public const string CookieName = "bk-customer";
@@ -33,12 +33,26 @@ public sealed record CurrentCustomer(CustomerId Id)
 }
 
 /// <summary>Binds a <see cref="CurrentCustomer"/> action parameter from the request cookie.</summary>
-internal sealed class CurrentCustomerBinder : IModelBinder
+public sealed class CurrentCustomerBinder : IModelBinder
 {
     public Task BindModelAsync(ModelBindingContext bindingContext)
     {
         bindingContext.Result = ModelBindingResult.Success(CurrentCustomer.FromRequest(bindingContext.HttpContext));
         bindingContext.ValidationState[bindingContext.Result.Model!] = new ValidationStateEntry { SuppressValidation = true };
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Marks the parameter as bound by this binder from a non-request source, so it is not taken from the body and
+    /// does not appear as a parameter in the OpenAPI document.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Parameter)]
+    public sealed class FromCookieAttribute : ModelBinderAttribute
+    {
+        public FromCookieAttribute()
+        {
+            BinderType = typeof(CurrentCustomerBinder);
+            BindingSource = BindingSource.Special;
+        }
     }
 }
