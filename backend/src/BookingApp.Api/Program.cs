@@ -17,15 +17,23 @@ builder.Services.AddScoped<VenueService>();
 // ---- HTTP concerns ----
 builder.Services.AddControllers(o =>
     {
-        // Business rules (such as a blank name) are checked in Core and answered with 422 and a code,
-        // so a missing string must reach the service rather than fail model validation with a 400.
+        // Request shapes are checked with explicit attributes on the request records (Contracts.cs), not implied by
+        // nullability; business rules are checked in Core and answered with 422 and a code.
         o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
     })
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)))
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        // Numbers are numbers: "slots": "2" is a 400, and the contract types them as integers only.
+        o.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    })
     .ConfigureApiBehaviorOptions(o => o.InvalidModelStateResponseFactory = BadRequestHandler.InvalidModelState);
 // Problem details written outside MVC (status code pages, the exception handler) use the same JSON settings.
 builder.Services.ConfigureHttpJsonOptions(o =>
-    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)));
+{
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    o.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddBookingOpenApi();
 builder.Services.AddExceptionHandler<BadRequestHandler>();

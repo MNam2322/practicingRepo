@@ -19,7 +19,7 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     [EndpointName("CreateBooking")]
     [Consumes(Json)]
     [ProducesResponseType<BookingResponse>(StatusCodes.Status201Created, Json)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "The request body could not be read.")]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "validation_failed: the body could not be read or a field is invalid (see errors)")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "resource_not_found")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "slot_taken")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity, ProblemJson,
@@ -27,7 +27,8 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BookingResponse>> Create(CreateBookingRequest request, CurrentCustomer customer, CancellationToken ct)
     {
-        var result = await bookings.BookAsync(customer.Id, request.Name ?? "", request.ResourceId ?? "", request.Start, request.Slots ?? 1, ct);
+        // [ApiController] has already answered 400 if the shape was wrong, so the required fields are present here.
+        var result = await bookings.BookAsync(customer.Id, request.Name!, request.ResourceId!, request.Start!.Value, request.Slots ?? 1, ct);
         if (!result.IsSuccess) return Failure(result.Error!);
         var body = ToResponse(result.Value!);
         return Created($"/api/bookings/{body.Id}", body);

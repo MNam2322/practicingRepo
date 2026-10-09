@@ -20,7 +20,7 @@ public sealed class ResourcesController(VenueService venue, BookingService booki
     [HttpGet("{id}/availability")]
     [EndpointName("GetAvailability")]
     [ProducesResponseType<AvailabilityResponse>(StatusCodes.Status200OK, Json)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "The date could not be read.")]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "validation_failed: the date could not be read")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "resource_not_found")]
     public async Task<ActionResult<AvailabilityResponse>> Availability(string id, DateOnly? date, CancellationToken ct)
     {

@@ -41,7 +41,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
    - 409 conflict, such as `slot_taken`
    - 422 rule broken, such as `too_late_to_cancel`
    - 403 not yours
-   - 400 unreadable input
+   - 400 unreadable or invalid input: code `validation_failed`, with an `errors` map keyed by JSON field name
 
    The frontend switches on `code`. Controllers return `Failure(error)` from `ApiControllerBase` for a domain `Error`.
 
@@ -49,6 +49,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 - **Never use minimal APIs for application endpoints.** Every application route is an action on an `[ApiController]` controller that derives from `ApiControllerBase`, mapped with `MapControllers()`. Only operational routes (`/health`, the `/` info route) stay in `Program.cs`.
 - Actions return `ActionResult<T>` (or `Task<ActionResult<T>>`), use attribute routes (`[Route]`, `[HttpGet]`, …), and put rate limits on writes with `[EnableRateLimiting]`.
+- Request bodies are records with init properties and DataAnnotations (`[Required]`, `[StringLength]`, `[Range]`) for shape only; `[ApiController]` answers 400 before the action runs. Business rules stay in Core (409/422 with a code). Library: 8.5.
 - Every action has `[EndpointName]`, an XML `<summary>`, and `[ProducesResponseType]` for its success (`Json`) and each error (`ProblemJson`, with the codes in `Description`).
 - New use cases go in a service in Core; new storage goes behind a repository interface in Core with its implementation in `Infrastructure/Repositories/`. Name them `XxxService`, `IXxxRepository`, `XxxRepository`.
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.

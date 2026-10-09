@@ -102,19 +102,6 @@ public sealed class BookingEndpointTests : ApiTest
     }
 
     [Fact]
-    public async Task Zero_slots_is_422_not_whole_slots()
-    {
-        await AssertProblem(await Book(10, slots: 0), 422, "not_whole_slots");
-    }
-
-    [Fact]
-    public async Task A_blank_name_is_422_name_required()
-    {
-        var response = await Client.PostAsJsonAsync("/api/bookings", BookingBody(10, name: " "), Ct);
-        await AssertProblem(response, 422, "name_required");
-    }
-
-    [Fact]
     public async Task Booking_an_unknown_resource_is_404_resource_not_found()
     {
         await AssertProblem(await Book(10, resourceId: "nope"), 404, "resource_not_found");

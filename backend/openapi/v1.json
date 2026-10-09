@@ -41,11 +41,11 @@
             }
           },
           "400": {
-            "description": "The request body could not be read.",
+            "description": "validation_failed: the body could not be read or a field is invalid (see errors)",
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -326,11 +326,11 @@
             }
           },
           "400": {
-            "description": "The date could not be read.",
+            "description": "validation_failed: the date could not be read",
             "content": {
               "application/problem+json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
                 }
               }
             }
@@ -475,34 +475,48 @@
         "required": [
           "resourceId",
           "start",
-          "slots",
           "name"
         ],
         "type": "object",
         "properties": {
           "resourceId": {
-            "type": "string"
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The resource to book, such as court-1."
           },
           "start": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "The UTC start of the first slot, exactly as returned by the availability endpoint.",
             "format": "date-time"
           },
           "slots": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "maximum": 24,
+            "minimum": 1,
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
-            "description": "How many consecutive slots, default 1.",
+            "description": "How many consecutive slots. Leave it out for one.",
             "format": "int32"
           },
           "name": {
-            "type": "string",
+            "maxLength": 80,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "The name the booking is under."
           }
-        }
+        },
+        "description": "A booking request. The attributes check its shape at the boundary (400 with field errors); whether the booking is\nallowed is a business rule checked in Core (409/422 with a code). Library: 8.5 \"Three layers of validation\"."
       },
       "DayOfWeek": {
         "enum": [
@@ -544,35 +558,19 @@
         "type": "object",
         "properties": {
           "maxDaysAhead": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "minLeadMinutes": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "cancellationCutoffHours": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
+            "type": "number",
             "format": "double"
           },
           "maxActiveBookingsPerCustomer": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         }
@@ -593,11 +591,9 @@
             ]
           },
           "status": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -649,27 +645,15 @@
             "$ref": "#/components/schemas/ResourceKind"
           },
           "capacity": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "slotMinutes": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "maxSlotsPerBooking": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "hours": {
@@ -715,6 +699,55 @@
           "booked",
           "past"
         ]
+      },
+      "ValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable error code such as slot_taken or too_late_to_cancel. Clients switch on this, not on title."
+          }
+        }
       },
       "VenueResponse": {
         "required": [

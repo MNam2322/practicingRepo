@@ -77,7 +77,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 - **Check:** with the API running, open http://localhost:5080/scalar. Every endpoint is listed with its errors. Try `GET /api/resources` from that page.
 
 ### Step 3: Backend 3, validation
-- [ ] **Prompt:** "Do backend task 3 (validation)."
+- [x] **Prompt:** "Do backend task 3 (validation)."
 - **Check:** in `backend/http/booking.http`, send a booking with an empty name. It should come back 400 with a field error for `name`. A booking too far ahead should still be 422 `too_far_ahead`.
 
 ### Step 4: Frontend 1, UI foundation

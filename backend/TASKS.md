@@ -47,8 +47,8 @@ Read first: 8.2 API design.
 
 ### 3. Validation
 Read first: 8.5 "Validation in ASP.NET Core".
-- [ ] Validate request shapes at the boundary: name length, slots range, a missing resource id. Use DataAnnotations on the request records (checked automatically by `[ApiController]`) or FluentValidation. (`AddValidation()` is for minimal APIs, which this project does not use.)
-- [ ] Return 400 with field errors. Business rules stay in Core and keep returning 422 with codes.
+- [x] Validate request shapes at the boundary: name length, slots range, a missing resource id. Use DataAnnotations on the request records (checked automatically by `[ApiController]`) or FluentValidation. (`AddValidation()` is for minimal APIs, which this project does not use.)
+- [x] Return 400 with field errors. Business rules stay in Core and keep returning 422 with codes.
 
 ## Phase 2: A real database
 
@@ -179,3 +179,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Switched the API from minimal APIs to `[ApiController]` controllers (controller → service → repository): `IBookingStore` → `IBookingRepository`, `IResourceCatalog` → `IResourceRepository`, new `VenueService`; same routes, codes and rate limits.
 - Task 1: xUnit tests — Core (TimeRange, policy rules, availability incl. Europe/London DST days, cancel rules, BookingService with FakeTimeProvider) and API (every route, every error code, cookie, 50 parallel bookings → one 201).
 - Task 2: OpenAPI (`/openapi/v1.json`) and Scalar (`/scalar`) in Development; every action named, summarised, with its error codes; `ProblemDetails.code` in the schema; contract committed as `backend/openapi/v1.json` with a drift test.
+- Task 3: request validation with DataAnnotations on `CreateBookingRequest` (resourceId, start, slots 1–24, name ≤ 80); 400 `validation_failed` with camelCase field errors; business rules still 422; strict JSON numbers.

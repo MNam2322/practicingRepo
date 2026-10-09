@@ -28,7 +28,7 @@ internal static class OpenApiSetup
             o.AddSchemaTransformer((schema, context, _) =>
             {
                 // Every problem response from this API carries a stable machine-readable code (Controllers/ApiControllerBase.cs).
-                if (context.JsonTypeInfo.Type == typeof(ProblemDetails))
+                if (context.JsonTypeInfo.Type.IsAssignableTo(typeof(ProblemDetails)) || context.JsonTypeInfo.Type.IsAssignableTo(typeof(HttpValidationProblemDetails)))
                 {
                     schema.Properties ??= new Dictionary<string, IOpenApiSchema>();
                     schema.Properties["code"] = new OpenApiSchema

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
 
@@ -30,10 +31,34 @@ public sealed record SlotResponse(DateTimeOffset Start, DateTimeOffset End, stri
 
 public sealed record AvailabilityResponse(string ResourceId, DateOnly Date, string TimeZone, IReadOnlyList<SlotResponse> Slots);
 
-/// <param name="Start">The UTC start of the first slot, exactly as returned by the availability endpoint.</param>
-/// <param name="Slots">How many consecutive slots, default 1.</param>
-/// <param name="Name">The name the booking is under.</param>
-public sealed record CreateBookingRequest(string ResourceId, DateTimeOffset Start, int? Slots, string Name);
+/// <summary>
+/// A booking request. The attributes check its shape at the boundary (400 with field errors); whether the booking is
+/// allowed is a business rule checked in Core (409/422 with a code). Library: 8.5 "Three layers of validation".
+/// </summary>
+public sealed record CreateBookingRequest
+{
+    public const int MaxResourceIdLength = 64;
+    public const int MaxSlots = 24;
+    public const int MaxNameLength = 80;
+
+    /// <summary>The resource to book, such as court-1.</summary>
+    [Required(ErrorMessage = "Choose what to book.")]
+    [StringLength(MaxResourceIdLength, ErrorMessage = "That resource id is too long.")]
+    public string? ResourceId { get; init; }
+
+    /// <summary>The UTC start of the first slot, exactly as returned by the availability endpoint.</summary>
+    [Required(ErrorMessage = "Choose a start time.")]
+    public DateTimeOffset? Start { get; init; }
+
+    /// <summary>How many consecutive slots. Leave it out for one.</summary>
+    [Range(1, MaxSlots, ErrorMessage = "Book between 1 and 24 slots.")]
+    public int? Slots { get; init; }
+
+    /// <summary>The name the booking is under.</summary>
+    [Required(ErrorMessage = "Enter the name for the booking.")]
+    [StringLength(MaxNameLength, ErrorMessage = "Keep the name to 80 characters or fewer.")]
+    public string? Name { get; init; }
+}
 
 public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
