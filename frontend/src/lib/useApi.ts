@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ApiError } from './api';
 
-export type Loadable<T> = { status: 'loading' } | { status: 'error'; error: string } | { status: 'ready'; data: T };
+export type Loadable<T> = { status: 'loading' } | { status: 'error'; error: string; traceId: string | null } | { status: 'ready'; data: T };
 
 export interface RefreshOptions {
   /** Load again in the background this often while the tab is visible. */
@@ -25,8 +26,9 @@ export function useApi<T>(key: string, load: () => Promise<T>, options: RefreshO
       .catch((e: unknown) => {
         if (!live) return;
         const error = e instanceof Error ? e.message : String(e);
+        const traceId = e instanceof ApiError ? e.traceId : null;
         // Keep the data we already have for this key; only show the error when there is nothing to show.
-        setState((prev) => prev?.key === key && prev.value.status === 'ready' ? prev : { key, n, value: { status: 'error', error } });
+        setState((prev) => prev?.key === key && prev.value.status === 'ready' ? prev : { key, n, value: { status: 'error', error, traceId } });
       });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` and `n` identify the request

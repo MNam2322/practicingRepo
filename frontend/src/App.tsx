@@ -5,6 +5,7 @@ import { api } from './lib/api';
 import { useRoute } from './lib/router';
 import { useApi } from './lib/useApi';
 import { Home } from './pages/Home';
+import { BookingPage } from './pages/BookingPage';
 import { MyBookings } from './pages/MyBookings';
 import { ResourcePage } from './pages/ResourcePage';
 
@@ -19,12 +20,13 @@ export default function App() {
   else if (basics.status === 'error') page = (
     <>
       <h1>Can't reach the booking service</h1>
-      <ErrorNotice message={basics.error} retry={reload} />
+      <ErrorNotice message={basics.error} traceId={basics.traceId} retry={reload} />
       <p className="muted">Start the backend first: <code>dotnet run --project backend/src/BookingApp.Api</code></p>
     </>
   );
   else if (route.name === 'home') page = <Home venue={venue!} resources={resources} />;
   else if (route.name === 'mine') page = <MyBookings />;
+  else if (route.name === 'booking') page = <BookingPage key={route.id} id={route.id} venue={venue!} />;
   else if (route.name === 'resource') {
     const resource = resources.find((r) => r.id === route.id);
     page = resource ? <ResourcePage key={`${resource.id}:${route.date ?? 'today'}:${route.view}:${route.at ?? ''}`} venue={venue!} resource={resource} date={route.date} view={route.view} at={route.at} />

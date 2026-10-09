@@ -19,7 +19,7 @@ export function WeekView({ resource, start, lastDay }: { resource: Resource; sta
       {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="line wide" />)}
     </div>
   );
-  if (week.status === 'error') return <ErrorNotice message={week.error} retry={reload} />;
+  if (week.status === 'error') return <ErrorNotice message={week.error} traceId={week.traceId} retry={reload} />;
 
   // Rows are every start time that occurs on any of the days (opening hours differ by weekday).
   const byDay = new Map<string, Map<string, Slot>>(week.data.map((a: Availability) => [a.date, new Map(a.slots.map((s) => [s.localStart, s]))]));

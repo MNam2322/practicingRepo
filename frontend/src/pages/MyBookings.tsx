@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api, formatDay, type Booking } from '../lib/api';
 import { useApi } from '../lib/useApi';
-import { useToast } from '../lib/toast';
-import { Button } from '../components/Button';
+import { CancelBooking } from '../components/CancelBooking';
 import { ErrorNotice } from '../components/Notice';
 import { BookingsSkeleton } from '../components/Skeleton';
 
@@ -11,45 +10,20 @@ function when(b: Booking) {
 }
 
 function Row({ b, onCancelled }: { b: Booking; onCancelled: () => void }) {
-  const toast = useToast();
-  const [confirming, setConfirming] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function cancel() {
-    setBusy(true); setError(null);
-    try {
-      await api.cancel(b.id);
-      toast({ text: `Cancelled ${b.resourceName}, ${when(b)}.` });
-      onCancelled();
-    }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(false); setConfirming(false); }
-  }
-
   return (
     <li className={`booking ${b.status}`}>
       <div>
-        <strong>{b.resourceName}</strong>
+        <a className="booking-link" href={`#/b/${b.id}`}><strong>{b.resourceName}</strong></a>
         <span className="muted"> · {when(b)}</span>
         <div className="small muted">Under {b.customerName} · <span className={`status ${b.status}`}>{b.status}</span></div>
-        {error && <div className="small error-text" role="alert">{error}</div>}
       </div>
-      {b.canCancel && (confirming ? (
-        <span className="actions">
-          <Button variant="danger" disabled={busy} onClick={() => void cancel()}>{busy ? 'Cancelling…' : 'Yes, cancel'}</Button>
-          <Button variant="ghost" onClick={() => setConfirming(false)}>Keep</Button>
-        </span>
-      ) : (
-        <Button variant="ghost" onClick={() => setConfirming(true)}>Cancel</Button>
-      ))}
+      <CancelBooking booking={b} label={when(b)} onCancelled={onCancelled} />
     </li>
   );
 }
 
 export function MyBookings() {
   const [mine, reload] = useApi('mine', api.mine);
-  useEffect(() => { document.title = 'My bookings'; }, []);
   const [now] = useState(() => Date.now());
   const list = mine.status === 'ready' ? mine.data : [];
   const upcoming = list.filter((b) => b.status === 'confirmed' && Date.parse(b.end) > now);
@@ -57,9 +31,10 @@ export function MyBookings() {
 
   return (
     <>
+      <title>My bookings</title>
       <h1>My bookings</h1>
       {mine.status === 'loading' && <><h2 className="section-title">Upcoming</h2><BookingsSkeleton /></>}
-      {mine.status === 'error' && <ErrorNotice message={mine.error} retry={reload} />}
+      {mine.status === 'error' && <ErrorNotice message={mine.error} traceId={mine.traceId} retry={reload} />}
       {mine.status === 'ready' && (
         <>
           <h2 className="section-title">Upcoming</h2>

@@ -91,7 +91,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
   - open the same court in two tabs, book a slot in one, then switch to the other: the slot shows as booked within a minute
 
 ### Step 6: Frontend 3, booking details
-- [ ] **Prompt:** "Do frontend task 3 (booking details page)."
+- [x] **Prompt:** "Do frontend task 3 (booking details page)."
 - **Check:** after booking, the link opens `#/b/<id>`. "Add to calendar" downloads an `.ics` file that opens in your calendar app at the right local time.
 
 ## Phase 2: A real database

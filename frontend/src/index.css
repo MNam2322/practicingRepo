@@ -100,6 +100,19 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .status.confirmed { color: var(--ok); }
 .status.cancelled { color: var(--danger); }
 
+/* booking details */
+.details { padding: 1.1rem 1.2rem; max-width: 36rem; margin: 1rem 0; }
+.details dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.45rem 1.25rem; margin: 0 0 1rem; }
+.details dt { color: var(--muted); }
+.details dd { margin: 0; }
+.details .actions { flex-wrap: wrap; align-items: flex-start; }
+.booking-link { color: var(--ink); }
+.booking-link:hover { color: var(--brand); }
+.cancel-booking { display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start; }
+.status.completed { color: var(--muted); }
+.status.noShow { color: var(--danger); }
+.trace code { font-size: 0.8em; word-break: break-all; }
+
 /* view bar: day/week toggle and legend */
 .view-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.75rem 0 0.25rem; }
 .toggle { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }

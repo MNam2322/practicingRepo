@@ -5,6 +5,7 @@
 //   #/r/court-1/2026-10-20?at=<start>    ...with a slot already chosen (start is the slot's UTC start)
 //   #/r/court-1/2026-10-20/week          the week starting on that day
 //   #/mine                               my bookings
+//   #/b/<id>                             one booking
 // View and selection live in the URL, so a link reproduces what the user sees (library 9.4 "Kinds of state").
 import { useEffect, useState } from 'react';
 
@@ -14,6 +15,7 @@ export type Route =
   | { name: 'home' }
   | { name: 'resource'; id: string; date?: string; view: ResourceView; at?: string }
   | { name: 'mine' }
+  | { name: 'booking'; id: string }
   | { name: 'notfound' };
 
 export function parseHash(hash: string): Route {
@@ -21,6 +23,8 @@ export function parseHash(hash: string): Route {
   const path = decodeURIComponent(rawPath) || '/';
   if (path === '/') return { name: 'home' };
   if (path === '/mine') return { name: 'mine' };
+  const b = path.match(/^\/b\/([0-9a-f-]{36})$/i);
+  if (b) return { name: 'booking', id: b[1] };
   const m = path.match(/^\/r\/([\w-]+)(?:\/(\d{4}-\d{2}-\d{2}))?(\/week)?$/);
   if (m) {
     const at = new URLSearchParams(rawQuery).get('at') ?? undefined;

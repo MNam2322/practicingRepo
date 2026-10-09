@@ -2,6 +2,8 @@
 // (vite.config.ts), so the browser sees one origin and the customer cookie works without CORS.
 // These types mirror backend/src/BookingApp.Api/Contracts.cs. Change both together (TASKS.md: generate from OpenAPI).
 
+import { messageFor } from './errors';
+
 export type SlotState = 'free' | 'booked' | 'past';
 export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'noShow';
 export type ResourceKind = 'court' | 'room' | 'table' | 'other';
@@ -19,27 +21,40 @@ export interface Booking {
   status: BookingStatus; customerName: string; createdAt: string; cancelledAt: string | null; canCancel: boolean;
 }
 
-/** An RFC 9457 problem response. `code` is stable (e.g. "slot_taken"); `message` is for people. */
+/**
+ * An RFC 9457 problem response. `code` is stable (e.g. "slot_taken") and is what the UI switches on; `message` is
+ * the friendly text from lib/errors.ts; `traceId` lets support find the request in the server logs;
+ * `fieldErrors` holds a 400's per-field messages, keyed by the JSON field name.
+ */
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string | null;
-  constructor(status: number, message: string, code: string | null) {
+  readonly traceId: string | null;
+  readonly fieldErrors: Record<string, string[]>;
+  constructor(status: number, message: string, code: string | null, traceId: string | null = null, fieldErrors: Record<string, string[]> = {}) {
     super(message);
     this.status = status;
     this.code = code;
+    this.traceId = traceId;
+    this.fieldErrors = fieldErrors;
   }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
-    credentials: 'include',
-    ...init,
-    headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      credentials: 'include',
+      ...init,
+      headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
+    });
+  } catch {
+    throw new ApiError(0, messageFor('network', 'Network error'), 'network');
+  }
   if (!res.ok) {
-    const p = await res.json().catch(() => null) as { title?: string; detail?: string; code?: string } | null;
-    const message = res.status === 429 ? 'Too many requests. Wait a minute and try again.' : p?.title ?? `${res.status} ${res.statusText}`;
-    throw new ApiError(res.status, message, p?.code ?? null);
+    const p = await res.json().catch(() => null) as { title?: string; code?: string; traceId?: string; errors?: Record<string, string[]> } | null;
+    const code = res.status === 429 ? 'rate_limited' : p?.code ?? null;
+    throw new ApiError(res.status, messageFor(code, p?.title ?? `${res.status} ${res.statusText}`), code, p?.traceId ?? null, p?.errors ?? {});
   }
   return res.json() as Promise<T>;
 }
@@ -52,6 +67,7 @@ export const api = {
   book: (resourceId: string, start: string, slots: number, name: string) =>
     request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ resourceId, start, slots, name }) }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
+  booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 };
 

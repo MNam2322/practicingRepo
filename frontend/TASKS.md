@@ -27,8 +27,8 @@ Read first: 9.4 Components and state, 9.5 React today.
 - [x] If the chosen slot becomes taken, unselect it and say so.
 
 ### 3. Booking details page
-- [ ] Add a page at `#/b/:id` with the details, status, cancel button and "add to calendar" (an `.ics` download). Link to it from the success notice and from My bookings.
-- [ ] Add one friendly message per error code, kept in a single map.
+- [x] Add a page at `#/b/:id` with the details, status, cancel button and "add to calendar" (an `.ics` download). Link to it from the success notice and from My bookings.
+- [x] Add one friendly message per error code, kept in a single map.
 
 ### 4. Data fetching with TanStack Query
 Read first: 9.7 Talking to the backend, 8.6 Caching.
@@ -81,3 +81,4 @@ Needs backend 20.
 - Starter: resources, availability, booking, my bookings with cancel, themes, mobile layout.
 - Task 1: Button, Card, Field, Notice and Skeleton components; skeletons for resources, slots and bookings; toasts after booking and cancelling (polite live region, reduced-motion aware).
 - Task 2: slot legend; Day/Week toggle with a 7-day × times week view (URL state, free cells open the day with the slot chosen); availability refreshes every 60 s and on focus; a chosen slot taken meanwhile is unselected with a notice.
+- Task 3: booking details page `#/b/:id` (status, cancel, Add to calendar `.ics` in UTC); linked from the success notice, the toast and My bookings; one friendly message per error code in `lib/errors.ts`, with the trace id shown as a reference.

@@ -22,7 +22,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
   const [length, setLength] = useState(1);
   const [name, setName] = useState(readName);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking } | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking; traceId?: string | null } | null>(null);
 
   const slots = availability.status === 'ready' ? availability.data.slots : [];
   const found = slots.findIndex((s) => s.start === selected);
@@ -49,11 +49,11 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
       setSelected(null);
       toast({
         text: `Booked ${booking.resourceName}, ${booking.localStart.slice(11)}–${booking.localEnd.slice(11)}.`,
-        link: { href: '#/mine', label: 'My bookings' },
+        link: { href: `#/b/${booking.id}`, label: 'Details' },
       });
     } catch (e) {
       const text = e instanceof Error ? e.message : String(e);
-      setMessage({ kind: 'error', text });
+      setMessage({ kind: 'error', text, traceId: e instanceof ApiError ? e.traceId : null });
       if (e instanceof ApiError && e.code === 'slot_taken') setSelected(null);
     } finally {
       setBusy(false);
@@ -66,7 +66,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
       <section aria-label={`Times on ${formatDay(day, 'long')}`}>
         <h2 className="section-title">{formatDay(day, 'long')}</h2>
         {availability.status === 'loading' && <SlotsSkeleton />}
-        {availability.status === 'error' && <ErrorNotice message={availability.error} retry={reload} />}
+        {availability.status === 'error' && <ErrorNotice message={availability.error} traceId={availability.traceId} retry={reload} />}
         {availability.status === 'ready' && slots.length === 0 && <p className="muted">Closed on this day.</p>}
         {availability.status === 'ready' && slots.length > 0 && (
           <div className="slots">
@@ -91,10 +91,10 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
           <Notice kind="ok">
             <p><strong>Booked.</strong> {message.booking.resourceName}, {formatDay(message.booking.localStart.slice(0, 10), 'long')},{' '}
               {message.booking.localStart.slice(11)}–{message.booking.localEnd.slice(11)}.</p>
-            <a href="#/mine">See my bookings</a>
+            <p><a href={`#/b/${message.booking.id}`}>Booking details and calendar</a> · <a href="#/mine">My bookings</a></p>
           </Notice>
         )}
-        {message?.kind === 'error' && <ErrorNotice message={message.text} />}
+        {message?.kind === 'error' && <ErrorNotice message={message.text} traceId={message.traceId} />}
         {taken && (
           <Notice kind="info">
             <p><strong>{slots[found].localStart} has just been taken.</strong> Someone else booked it. Pick another time.</p>
