@@ -1,0 +1,29 @@
+# One request per endpoint. VS Code: install the "REST Client" extension, then click "Send Request".
+@base = http://localhost:5080
+
+### Health
+GET {{base}}/health
+
+### Venue and booking rules
+GET {{base}}/api/venue
+
+### Resources (courts, rooms) with opening hours
+GET {{base}}/api/resources
+
+### Slots for one venue-local day (yyyy-MM-dd). Leave out date for today.
+GET {{base}}/api/resources/court-1/availability?date=2026-10-20
+
+### Book: "start" is a slot's "start" from availability (UTC). A bk-customer cookie is issued on first call.
+POST {{base}}/api/bookings
+Content-Type: application/json
+
+{ "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "slots": 1, "name": "Nam" }
+
+### My bookings
+GET {{base}}/api/bookings/mine
+
+### One booking (paste an id)
+GET {{base}}/api/bookings/00000000-0000-0000-0000-000000000000
+
+### Cancel (paste an id)
+POST {{base}}/api/bookings/00000000-0000-0000-0000-000000000000/cancel

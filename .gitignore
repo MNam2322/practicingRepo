@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# Node
+node_modules/
+dist/
+
+# Local data
+.data/
+*.db
+*.db-shm
+*.db-wal
+emails/
+
+# Editors and OS
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.local
+appsettings.*.local.json

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet format:*)",
+      "Bash(dotnet restore)",
+      "Bash(dotnet run --project src/BookingApp.Api)",
+      "Bash(node ../library/find.mjs:*)",
+      "Bash(node ../library/show.mjs:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)"
+    ]
+  }
+}

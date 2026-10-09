@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain and use cases. Base class library only: no ASP.NET Core, no EF Core, no I/O. -->
+  <PropertyGroup>
+    <RootNamespace>BookingApp.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BookingApp.Core.Tests" />
+  </ItemGroup>
+</Project>

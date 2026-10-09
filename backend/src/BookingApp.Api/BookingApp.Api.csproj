@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- The HTTP host. Thin: bind, validate, call BookingApp.Core, map results to HTTP. -->
+  <PropertyGroup>
+    <RootNamespace>BookingApp.Api</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BookingApp.Core\BookingApp.Core.csproj" />
+    <ProjectReference Include="..\BookingApp.Infrastructure\BookingApp.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BookingApp.Api.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1311 @@
+{
+ "title": "The Programming Library",
+ "format": "Chapter files are in library/chapters. See library/README.md.",
+ "parts": [
+  {
+   "n": 0,
+   "title": "Start here",
+   "blurb": "How to read and run the code examples used throughout the guide.",
+   "chapters": [
+    {
+     "id": "0-1",
+     "number": "0.1",
+     "title": "Reading the code in this guide",
+     "part": 0,
+     "words": 4653,
+     "minutes": 20,
+     "file": "chapters/00-01-reading-the-code-in-this-guide.md",
+     "bytes": 28721,
+     "summary": "A phrasebook for the modern C# syntax used in every example, so the symbols never hide the idea."
+    },
+    {
+     "id": "0-2",
+     "number": "0.2",
+     "title": "Backend development in one sitting",
+     "part": 0,
+     "words": 16590,
+     "minutes": 72,
+     "file": "chapters/00-02-backend-development-in-one-sitting.md",
+     "bytes": 117608,
+     "summary": "The whole of backend work in one sitting: a few ideas, ten recurring problems, and the rest is vocabulary."
+    }
+   ]
+  },
+  {
+   "n": 1,
+   "title": "The machine",
+   "blurb": "Bits, numbers, text, the processor, memory, storage and the operating system.",
+   "chapters": [
+    {
+     "id": "1-1",
+     "number": "1.1",
+     "title": "Bits and bytes",
+     "part": 1,
+     "words": 3955,
+     "minutes": 17,
+     "file": "chapters/01-01-bits-and-bytes.md",
+     "bytes": 24595,
+     "summary": "Everything is stored as bits; learn how rows of 1s and 0s become numbers, flags and bytes."
+    },
+    {
+     "id": "1-2",
+     "number": "1.2",
+     "title": "Numbers inside the machine",
+     "part": 1,
+     "words": 10599,
+     "minutes": 46,
+     "file": "chapters/01-02-numbers-inside-the-machine.md",
+     "bytes": 72041,
+     "summary": "How numbers are stored, where each type breaks, and which type to use for money, measurements and time."
+    },
+    {
+     "id": "1-3",
+     "number": "1.3",
+     "title": "Text is numbers too",
+     "part": 1,
+     "words": 10074,
+     "minutes": 44,
+     "file": "chapters/01-03-text-is-numbers-too.md",
+     "bytes": 71292,
+     "summary": "Text is numbers in an agreed table plus an encoding, and most text bugs come from forgetting one of the two."
+    },
+    {
+     "id": "1-4",
+     "number": "1.4",
+     "title": "The processor",
+     "part": 1,
+     "words": 6221,
+     "minutes": 27,
+     "file": "chapters/01-04-the-processor.md",
+     "bytes": 39170,
+     "summary": "What the CPU actually does with your code, and why memory access usually decides speed."
+    },
+    {
+     "id": "1-5",
+     "number": "1.5",
+     "title": "Memory",
+     "part": 1,
+     "words": 11946,
+     "minutes": 52,
+     "file": "chapters/01-05-memory.md",
+     "bytes": 80965,
+     "summary": "How memory is organized into stack and heap, and why layout and access order shape performance."
+    },
+    {
+     "id": "1-6",
+     "number": "1.6",
+     "title": "Storage and files",
+     "part": 1,
+     "words": 7393,
+     "minutes": 32,
+     "file": "chapters/01-06-storage-and-files.md",
+     "bytes": 51712,
+     "summary": "How files and storage really work, and why \"saved\" doesn't always mean safe."
+    },
+    {
+     "id": "1-7",
+     "number": "1.7",
+     "title": "The operating system",
+     "part": 1,
+     "words": 7327,
+     "minutes": 32,
+     "file": "chapters/01-07-the-operating-system.md",
+     "bytes": 48016,
+     "summary": "How the operating system shares the machine, and the everyday behaviour that follows from it."
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "title": "From source code to running program",
+   "blurb": "What languages are, how code gets run, types, values, functions and errors.",
+   "chapters": [
+    {
+     "id": "2-1",
+     "number": "2.1",
+     "title": "What a programming language is",
+     "part": 2,
+     "words": 3778,
+     "minutes": 16,
+     "file": "chapters/02-01-what-a-programming-language-is.md",
+     "bytes": 25003,
+     "summary": "What a programming language is, and how a tool turns text into meaning."
+    },
+    {
+     "id": "2-2",
+     "number": "2.2",
+     "title": "Compilers, interpreters and JIT",
+     "part": 2,
+     "words": 11256,
+     "minutes": 49,
+     "file": "chapters/02-02-compilers-interpreters-and-jit.md",
+     "bytes": 81682,
+     "summary": "How C# becomes machine code: compiled to IL at build time, then JIT-compiled and improved while it runs."
+    },
+    {
+     "id": "2-3",
+     "number": "2.3",
+     "title": "Types",
+     "part": 2,
+     "words": 15113,
+     "minutes": 66,
+     "file": "chapters/02-03-types.md",
+     "bytes": 108702,
+     "summary": "Types tell the program what bits mean and let the compiler catch mistakes before the code runs."
+    },
+    {
+     "id": "2-4",
+     "number": "2.4",
+     "title": "Values, variables and references",
+     "part": 2,
+     "words": 4171,
+     "minutes": 18,
+     "file": "chapters/02-04-values-variables-and-references.md",
+     "bytes": 26249,
+     "summary": "What exactly gets copied or compared when you assign, pass or compare a value."
+    },
+    {
+     "id": "2-5",
+     "number": "2.5",
+     "title": "Control flow and functions",
+     "part": 2,
+     "words": 7125,
+     "minutes": 31,
+     "file": "chapters/02-05-control-flow-and-functions.md",
+     "bytes": 48829,
+     "summary": "Choices, loops and functions in modern C#, and the traps in each."
+    },
+    {
+     "id": "2-6",
+     "number": "2.6",
+     "title": "Scope and lifetime",
+     "part": 2,
+     "words": 4472,
+     "minutes": 19,
+     "file": "chapters/02-06-scope-and-lifetime.md",
+     "bytes": 29758,
+     "summary": "Scope (where a name is visible) versus lifetime (how long things exist), plus resources the GC doesn't manage."
+    },
+    {
+     "id": "2-7",
+     "number": "2.7",
+     "title": "Memory management and garbage collection",
+     "part": 2,
+     "words": 10001,
+     "minutes": 43,
+     "file": "chapters/02-07-memory-management-and-garbage-collection.md",
+     "bytes": 69772,
+     "summary": "How the garbage collector decides what to free, when it pauses you, and how you still leak memory."
+    },
+    {
+     "id": "2-8",
+     "number": "2.8",
+     "title": "Errors and exceptions",
+     "part": 2,
+     "words": 5988,
+     "minutes": 26,
+     "file": "chapters/02-08-errors-and-exceptions.md",
+     "bytes": 41863,
+     "summary": "How to report and handle failure so problems become clear log lines rather than corrupted data."
+    },
+    {
+     "id": "2-9",
+     "number": "2.9",
+     "title": "The .NET platform: versions, legacy and direction",
+     "part": 2,
+     "words": 8368,
+     "minutes": 36,
+     "file": "chapters/02-09-the-net-platform-versions-legacy-and-direction.md",
+     "bytes": 74971,
+     "summary": "Which .NET to target, how legacy .NET Framework differs, and where the platform is heading."
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "title": "Data structures and algorithms",
+   "blurb": "Measuring cost, and the handful of structures almost every program is built from.",
+   "chapters": [
+    {
+     "id": "3-1",
+     "number": "3.1",
+     "title": "Measuring cost with Big-O",
+     "part": 3,
+     "words": 4079,
+     "minutes": 18,
+     "file": "chapters/03-01-measuring-cost-with-big-o.md",
+     "bytes": 24561,
+     "summary": "Big-O describes how cost grows with data size, so you can predict slow code before the data grows."
+    },
+    {
+     "id": "3-2",
+     "number": "3.2",
+     "title": "Arrays and lists",
+     "part": 3,
+     "words": 6587,
+     "minutes": 29,
+     "file": "chapters/03-02-arrays-and-lists.md",
+     "bytes": 45930,
+     "summary": "How arrays and lists sit in memory, and which collection to choose."
+    },
+    {
+     "id": "3-3",
+     "number": "3.3",
+     "title": "Hash tables",
+     "part": 3,
+     "words": 6429,
+     "minutes": 28,
+     "file": "chapters/03-03-hash-tables.md",
+     "bytes": 43122,
+     "summary": "Hash tables find items by computing where they should be, which is why Dictionary and HashSet are so fast."
+    },
+    {
+     "id": "3-4",
+     "number": "3.4",
+     "title": "Trees",
+     "part": 3,
+     "words": 5297,
+     "minutes": 23,
+     "file": "chapters/03-04-trees.md",
+     "bytes": 34354,
+     "summary": "Trees keep data in order, from SortedSet to the B-trees inside every database index."
+    },
+    {
+     "id": "3-5",
+     "number": "3.5",
+     "title": "Heaps and priority queues",
+     "part": 3,
+     "words": 4353,
+     "minutes": 19,
+     "file": "chapters/03-05-heaps-and-priority-queues.md",
+     "bytes": 26612,
+     "summary": "Priority queues hand back the most urgent item next, using a heap stored in a plain array."
+    },
+    {
+     "id": "3-6",
+     "number": "3.6",
+     "title": "Graphs",
+     "part": 3,
+     "words": 4895,
+     "minutes": 21,
+     "file": "chapters/03-06-graphs.md",
+     "bytes": 31374,
+     "summary": "Graphs model connections, and a few classic algorithms answer most questions about them."
+    },
+    {
+     "id": "3-7",
+     "number": "3.7",
+     "title": "Searching and sorting",
+     "part": 3,
+     "words": 5341,
+     "minutes": 23,
+     "file": "chapters/03-07-searching-and-sorting.md",
+     "bytes": 32793,
+     "summary": "Searching and sorting: what .NET does for you and the details that still matter."
+    },
+    {
+     "id": "3-8",
+     "number": "3.8",
+     "title": "Recursion and dynamic programming",
+     "part": 3,
+     "words": 4374,
+     "minutes": 19,
+     "file": "chapters/03-08-recursion-and-dynamic-programming.md",
+     "bytes": 27898,
+     "summary": "Recursion for self-similar problems, and dynamic programming to stop repeating work."
+    },
+    {
+     "id": "3-9",
+     "number": "3.9",
+     "title": "Specialised structures and data that does not fit",
+     "part": 3,
+     "words": 5869,
+     "minutes": 26,
+     "file": "chapters/03-09-specialised-structures-and-data-that-does-not-fit.md",
+     "bytes": 42967,
+     "summary": "Specialised structures, and techniques for data that is bigger than memory or arrives as a stream."
+    },
+    {
+     "id": "3-10",
+     "number": "3.10",
+     "title": "Collections and LINQ in .NET",
+     "part": 3,
+     "words": 6347,
+     "minutes": 28,
+     "file": "chapters/03-10-collections-and-linq-in-net.md",
+     "bytes": 45534,
+     "summary": "How .NET collections and LINQ really behave, and where they cost time or memory."
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "title": "Designing programs",
+   "blurb": "Programming styles, abstraction, composition and testing.",
+   "chapters": [
+    {
+     "id": "4-1",
+     "number": "4.1",
+     "title": "Procedural, object-oriented and functional styles",
+     "part": 4,
+     "words": 4092,
+     "minutes": 18,
+     "file": "chapters/04-01-procedural-object-oriented-and-functional-styles.md",
+     "bytes": 27691,
+     "summary": "Procedural, object-oriented and functional styles, and how good C# mixes them."
+    },
+    {
+     "id": "4-2",
+     "number": "4.2",
+     "title": "Abstraction and interfaces",
+     "part": 4,
+     "words": 3564,
+     "minutes": 15,
+     "file": "chapters/04-02-abstraction-and-interfaces.md",
+     "bytes": 23604,
+     "summary": "Abstraction: hiding detail behind contracts that callers can rely on."
+    },
+    {
+     "id": "4-3",
+     "number": "4.3",
+     "title": "Composition and dependency injection",
+     "part": 4,
+     "words": 11330,
+     "minutes": 49,
+     "file": "chapters/04-03-composition-and-dependency-injection.md",
+     "bytes": 92633,
+     "summary": "Build behaviour by composing objects, and wire them with dependency injection."
+    },
+    {
+     "id": "4-4",
+     "number": "4.4",
+     "title": "Immutability and pure functions",
+     "part": 4,
+     "words": 5407,
+     "minutes": 24,
+     "file": "chapters/04-04-immutability-and-pure-functions.md",
+     "bytes": 38037,
+     "summary": "Keep change under control with pure functions and immutable data."
+    },
+    {
+     "id": "4-5",
+     "number": "4.5",
+     "title": "Design principles that hold up",
+     "part": 4,
+     "words": 7508,
+     "minutes": 33,
+     "file": "chapters/04-05-design-principles-that-hold-up.md",
+     "bytes": 54570,
+     "summary": "Rules of thumb that keep code cheap to change, and the signs it is getting expensive."
+    },
+    {
+     "id": "4-6",
+     "number": "4.6",
+     "title": "Testing",
+     "part": 4,
+     "words": 11338,
+     "minutes": 49,
+     "file": "chapters/04-06-testing.md",
+     "bytes": 84811,
+     "summary": "Tests make change safe; this is what to test, how, and how to keep the suite trustworthy."
+    },
+    {
+     "id": "4-7",
+     "number": "4.7",
+     "title": "Design patterns",
+     "part": 4,
+     "words": 22051,
+     "minutes": 96,
+     "file": "chapters/04-07-design-patterns.md",
+     "bytes": 179360,
+     "summary": "Design patterns as a shared vocabulary of trade-offs, and when not to use them."
+    },
+    {
+     "id": "4-8",
+     "number": "4.8",
+     "title": "Anti-patterns",
+     "part": 4,
+     "words": 6730,
+     "minutes": 29,
+     "file": "chapters/04-08-anti-patterns.md",
+     "bytes": 63060,
+     "summary": "Recurring mistakes, used as a review checklist."
+    },
+    {
+     "id": "4-9",
+     "number": "4.9",
+     "title": "Design patterns casebook",
+     "part": 4,
+     "words": 24903,
+     "minutes": 108,
+     "file": "chapters/04-09-design-patterns-casebook.md",
+     "bytes": 192783,
+     "summary": "Eighteen design patterns applied to real production problems, each with before and after code, what it cost and when not to use it."
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "title": "Concurrency",
+   "blurb": "Doing several things at once without corrupting anything.",
+   "chapters": [
+    {
+     "id": "5-1",
+     "number": "5.1",
+     "title": "Why concurrency is hard",
+     "part": 5,
+     "words": 5406,
+     "minutes": 24,
+     "file": "chapters/05-01-why-concurrency-is-hard.md",
+     "bytes": 34907,
+     "summary": "Why sharing data between threads creates timing bugs that may appear once in a million runs."
+    },
+    {
+     "id": "5-2",
+     "number": "5.2",
+     "title": "Threads and locks",
+     "part": 5,
+     "words": 10124,
+     "minutes": 44,
+     "file": "chapters/05-02-threads-and-locks.md",
+     "bytes": 71082,
+     "summary": "Locks, atomics and thread-safe collections, and how to avoid deadlocks."
+    },
+    {
+     "id": "5-3",
+     "number": "5.3",
+     "title": "Async and await",
+     "part": 5,
+     "words": 18874,
+     "minutes": 82,
+     "file": "chapters/05-03-async-and-await.md",
+     "bytes": 137890,
+     "summary": "How async and await let a few threads keep thousands of operations in progress, and the mistakes that stall servers."
+    },
+    {
+     "id": "5-4",
+     "number": "5.4",
+     "title": "The event loop",
+     "part": 5,
+     "words": 4544,
+     "minutes": 20,
+     "file": "chapters/05-04-the-event-loop.md",
+     "bytes": 28492,
+     "summary": "How a single thread can serve thousands of connections with an event loop, as in Node.js and every UI."
+    },
+    {
+     "id": "5-5",
+     "number": "5.5",
+     "title": "Parallelism",
+     "part": 5,
+     "words": 7496,
+     "minutes": 33,
+     "file": "chapters/05-05-parallelism.md",
+     "bytes": 55578,
+     "summary": "Splitting CPU work across cores, and when that doesn't help."
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "title": "Networks",
+   "blurb": "How bytes travel between machines, up to HTTP.",
+   "chapters": [
+    {
+     "id": "6-1",
+     "number": "6.1",
+     "title": "Layers and packets",
+     "part": 6,
+     "words": 5216,
+     "minutes": 23,
+     "file": "chapters/06-01-layers-and-packets.md",
+     "bytes": 35969,
+     "summary": "How data travels between machines as packets in layers of envelopes."
+    },
+    {
+     "id": "6-2",
+     "number": "6.2",
+     "title": "IP addresses and routing",
+     "part": 6,
+     "words": 6559,
+     "minutes": 29,
+     "file": "chapters/06-02-ip-addresses-and-routing.md",
+     "bytes": 42470,
+     "summary": "IP addresses, subnets and how packets are routed hop by hop."
+    },
+    {
+     "id": "6-3",
+     "number": "6.3",
+     "title": "TCP and UDP",
+     "part": 6,
+     "words": 7253,
+     "minutes": 32,
+     "file": "chapters/06-03-tcp-and-udp.md",
+     "bytes": 49545,
+     "summary": "TCP gives a reliable ordered byte stream; UDP sends fast datagrams with no guarantees."
+    },
+    {
+     "id": "6-4",
+     "number": "6.4",
+     "title": "DNS",
+     "part": 6,
+     "words": 5540,
+     "minutes": 24,
+     "file": "chapters/06-04-dns.md",
+     "bytes": 37175,
+     "summary": "DNS turns names into addresses through a distributed, heavily cached directory."
+    },
+    {
+     "id": "6-5",
+     "number": "6.5",
+     "title": "TLS",
+     "part": 6,
+     "words": 6013,
+     "minutes": 26,
+     "file": "chapters/06-05-tls.md",
+     "bytes": 41851,
+     "summary": "TLS gives connections confidentiality, integrity and proof of the server's identity."
+    },
+    {
+     "id": "6-6",
+     "number": "6.6",
+     "title": "HTTP",
+     "part": 6,
+     "words": 8832,
+     "minutes": 38,
+     "file": "chapters/06-06-http.md",
+     "bytes": 63806,
+     "summary": "HTTP, the request/response protocol behind the web and almost every API."
+    },
+    {
+     "id": "6-7",
+     "number": "6.7",
+     "title": "Servers, proxies, load balancers and diagnosing the network",
+     "part": 6,
+     "words": 9141,
+     "minutes": 40,
+     "file": "chapters/06-07-servers-proxies-load-balancers-and-diagnosing-the-network.md",
+     "bytes": 77940,
+     "summary": "What sits between clients and your code: web servers, reverse proxies, load balancers, and how to debug the network."
+    },
+    {
+     "id": "6-8",
+     "number": "6.8",
+     "title": "Real-time: WebSockets, SSE and SignalR",
+     "part": 6,
+     "words": 2096,
+     "minutes": 9,
+     "file": "chapters/06-08-real-time-websockets-sse-and-signalr.md",
+     "bytes": 17065,
+     "summary": "Pushing data to clients with WebSockets, Server-Sent Events and SignalR."
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "title": "Storing data",
+   "blurb": "Databases, SQL, indexes, transactions and the non-relational options.",
+   "chapters": [
+    {
+     "id": "7-1",
+     "number": "7.1",
+     "title": "Why databases exist",
+     "part": 7,
+     "words": 5277,
+     "minutes": 23,
+     "file": "chapters/07-01-why-databases-exist.md",
+     "bytes": 35800,
+     "summary": "Why databases exist: storing data safely while many users read and change it at once."
+    },
+    {
+     "id": "7-2",
+     "number": "7.2",
+     "title": "The relational model and SQL",
+     "part": 7,
+     "words": 15102,
+     "minutes": 66,
+     "file": "chapters/07-02-the-relational-model-and-sql.md",
+     "bytes": 111332,
+     "summary": "The relational model and the parts of SQL that trip up experienced developers."
+    },
+    {
+     "id": "7-3",
+     "number": "7.3",
+     "title": "Indexes and query plans",
+     "part": 7,
+     "words": 18192,
+     "minutes": 79,
+     "file": "chapters/07-03-indexes-and-query-plans.md",
+     "bytes": 134908,
+     "summary": "Indexes and query plans: the single most effective performance fix in most applications."
+    },
+    {
+     "id": "7-4",
+     "number": "7.4",
+     "title": "Transactions and isolation",
+     "part": 7,
+     "words": 10625,
+     "minutes": 46,
+     "file": "chapters/07-04-transactions-and-isolation.md",
+     "bytes": 76453,
+     "summary": "Transactions make changes all-or-nothing; isolation decides what concurrent work can see."
+    },
+    {
+     "id": "7-5",
+     "number": "7.5",
+     "title": "Schema design and migrations",
+     "part": 7,
+     "words": 16388,
+     "minutes": 71,
+     "file": "chapters/07-05-schema-design-and-migrations.md",
+     "bytes": 123462,
+     "summary": "Designing a schema that stays correct, and changing it while the system keeps running."
+    },
+    {
+     "id": "7-6",
+     "number": "7.6",
+     "title": "Non-relational stores",
+     "part": 7,
+     "words": 16218,
+     "minutes": 71,
+     "file": "chapters/07-06-non-relational-stores.md",
+     "bytes": 120967,
+     "summary": "Non-relational stores: what each kind is good at, and what it gives up."
+    },
+    {
+     "id": "7-7",
+     "number": "7.7",
+     "title": "ORMs and EF Core",
+     "part": 7,
+     "words": 20578,
+     "minutes": 89,
+     "file": "chapters/07-07-orms-and-ef-core.md",
+     "bytes": 152213,
+     "summary": "ORMs and EF Core: huge time savers and the most common source of .NET database slowness."
+    },
+    {
+     "id": "7-8",
+     "number": "7.8",
+     "title": "Running databases: operations, scaling and the modern landscape",
+     "part": 7,
+     "words": 19407,
+     "minutes": 84,
+     "file": "chapters/07-08-running-databases-operations-scaling-and-the-modern-landscap.md",
+     "bytes": 162090,
+     "summary": "Running databases in production: backups, replication, scaling and today's options."
+    },
+    {
+     "id": "7-9",
+     "number": "7.9",
+     "title": "Database optimisation casebook",
+     "part": 7,
+     "words": 24908,
+     "minutes": 108,
+     "file": "chapters/07-09-database-optimisation-casebook.md",
+     "bytes": 164340,
+     "summary": "Eighteen slow or broken database workloads on SQL Server and PostgreSQL: the evidence, the fix, the numbers after, and the cost."
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "title": "Building a backend",
+   "blurb": "APIs, modern .NET and Node, validation, caching and background work.",
+   "chapters": [
+    {
+     "id": "8-1",
+     "number": "8.1",
+     "title": "What a backend does",
+     "part": 8,
+     "words": 5742,
+     "minutes": 25,
+     "file": "chapters/08-01-what-a-backend-does.md",
+     "bytes": 39102,
+     "summary": "What belongs on the server, and how one request travels through a backend."
+    },
+    {
+     "id": "8-2",
+     "number": "8.2",
+     "title": "API design",
+     "part": 8,
+     "words": 16048,
+     "minutes": 70,
+     "file": "chapters/08-02-api-design.md",
+     "bytes": 120240,
+     "summary": "Designing web APIs that are pleasant to use and safe to evolve, because an API is a promise."
+    },
+    {
+     "id": "8-3",
+     "number": "8.3",
+     "title": "A modern .NET backend",
+     "part": 8,
+     "words": 15148,
+     "minutes": 66,
+     "file": "chapters/08-03-a-modern-net-backend.md",
+     "bytes": 124324,
+     "summary": "How a modern ASP.NET Core backend is put together, from host to tests."
+    },
+    {
+     "id": "8-4",
+     "number": "8.4",
+     "title": "A Node and TypeScript backend",
+     "part": 8,
+     "words": 4795,
+     "minutes": 21,
+     "file": "chapters/08-04-a-node-and-typescript-backend.md",
+     "bytes": 31036,
+     "summary": "The same kind of backend built with Node.js, Express and TypeScript, for comparison."
+    },
+    {
+     "id": "8-5",
+     "number": "8.5",
+     "title": "Validation and errors at the boundary",
+     "part": 8,
+     "words": 5594,
+     "minutes": 24,
+     "file": "chapters/08-05-validation-and-errors-at-the-boundary.md",
+     "bytes": 38616,
+     "summary": "Check everything that crosses a trust boundary once, on arrival, and fail with one clear error contract."
+    },
+    {
+     "id": "8-6",
+     "number": "8.6",
+     "title": "Caching",
+     "part": 8,
+     "words": 19936,
+     "minutes": 87,
+     "file": "chapters/08-06-caching.md",
+     "bytes": 141432,
+     "summary": "Caching: reuse recent answers to save work, without serving wrong data."
+    },
+    {
+     "id": "8-7",
+     "number": "8.7",
+     "title": "Background work and queues",
+     "part": 8,
+     "words": 7639,
+     "minutes": 33,
+     "file": "chapters/08-07-background-work-and-queues.md",
+     "bytes": 57972,
+     "summary": "Moving work the user doesn't need to wait for out of the request, without losing it."
+    },
+    {
+     "id": "8-8",
+     "number": "8.8",
+     "title": "Serialization and data formats",
+     "part": 8,
+     "words": 4487,
+     "minutes": 20,
+     "file": "chapters/08-08-serialization-and-data-formats.md",
+     "bytes": 38777,
+     "summary": "Turning objects into bytes and back: JSON, Protocol Buffers, CSV and documents."
+    },
+    {
+     "id": "8-9",
+     "number": "8.9",
+     "title": "Integrations: HTTP clients, resilience, webhooks and files",
+     "part": 8,
+     "words": 6564,
+     "minutes": 29,
+     "file": "chapters/08-09-integrations-http-clients-resilience-webhooks-and-files.md",
+     "bytes": 55245,
+     "summary": "Calling other systems reliably: HTTP clients, resilience, webhooks, uploads and imports."
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "title": "Building a frontend",
+   "blurb": "The browser, modern JavaScript and TypeScript, components, React and Angular.",
+   "chapters": [
+    {
+     "id": "9-1",
+     "number": "9.1",
+     "title": "How a browser shows a page",
+     "part": 9,
+     "words": 3984,
+     "minutes": 17,
+     "file": "chapters/09-01-how-a-browser-shows-a-page.md",
+     "bytes": 24719,
+     "summary": "How a browser turns HTML into pixels, and why pages feel slow or janky."
+    },
+    {
+     "id": "9-2",
+     "number": "9.2",
+     "title": "Modern JavaScript",
+     "part": 9,
+     "words": 4175,
+     "minutes": 18,
+     "file": "chapters/09-02-modern-javascript.md",
+     "bytes": 27276,
+     "summary": "Modern JavaScript for a C# developer, focusing on where it differs and bites."
+    },
+    {
+     "id": "9-3",
+     "number": "9.3",
+     "title": "TypeScript",
+     "part": 9,
+     "words": 4103,
+     "minutes": 18,
+     "file": "chapters/09-03-typescript.md",
+     "bytes": 26609,
+     "summary": "TypeScript adds structural static types to JavaScript, checked at compile time only."
+    },
+    {
+     "id": "9-4",
+     "number": "9.4",
+     "title": "Components and state",
+     "part": 9,
+     "words": 4139,
+     "minutes": 18,
+     "file": "chapters/09-04-components-and-state.md",
+     "bytes": 25980,
+     "summary": "Declarative UI built from components, and where each kind of state should live."
+    },
+    {
+     "id": "9-5",
+     "number": "9.5",
+     "title": "React today",
+     "part": 9,
+     "words": 4190,
+     "minutes": 18,
+     "file": "chapters/09-05-react-today.md",
+     "bytes": 27073,
+     "summary": "React as it is written today: components, hooks and React 19."
+    },
+    {
+     "id": "9-6",
+     "number": "9.6",
+     "title": "Angular today",
+     "part": 9,
+     "words": 3900,
+     "minutes": 17,
+     "file": "chapters/09-06-angular-today.md",
+     "bytes": 26462,
+     "summary": "Modern Angular: Google's complete TypeScript framework."
+    },
+    {
+     "id": "9-7",
+     "number": "9.7",
+     "title": "Talking to the backend",
+     "part": 9,
+     "words": 5030,
+     "minutes": 22,
+     "file": "chapters/09-07-talking-to-the-backend.md",
+     "bytes": 32433,
+     "summary": "The frontend's side of the conversation with a slow, unreliable backend."
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "title": "Security",
+   "blurb": "Authentication, authorization, common attacks and handling secrets.",
+   "chapters": [
+    {
+     "id": "10-1",
+     "number": "10.1",
+     "title": "Thinking like an attacker",
+     "part": 10,
+     "words": 5078,
+     "minutes": 22,
+     "file": "chapters/10-01-thinking-like-an-attacker.md",
+     "bytes": 34961,
+     "summary": "Security as a way of thinking: how could someone misuse this?"
+    },
+    {
+     "id": "10-2",
+     "number": "10.2",
+     "title": "Authentication and authorization",
+     "part": 10,
+     "words": 8241,
+     "minutes": 36,
+     "file": "chapters/10-02-authentication-and-authorization.md",
+     "bytes": 61238,
+     "summary": "Authentication proves who a caller is; authorization decides what they may do, on every request."
+    },
+    {
+     "id": "10-3",
+     "number": "10.3",
+     "title": "OAuth 2 and OpenID Connect",
+     "part": 10,
+     "words": 5847,
+     "minutes": 25,
+     "file": "chapters/10-03-oauth-2-and-openid-connect.md",
+     "bytes": 39705,
+     "summary": "Delegate sign-in to an identity provider with OAuth 2.0 and OpenID Connect."
+    },
+    {
+     "id": "10-4",
+     "number": "10.4",
+     "title": "Common web vulnerabilities",
+     "part": 10,
+     "words": 6965,
+     "minutes": 30,
+     "file": "chapters/10-04-common-web-vulnerabilities.md",
+     "bytes": 48585,
+     "summary": "The small number of ways web apps are attacked, and the standard defence for each."
+    },
+    {
+     "id": "10-5",
+     "number": "10.5",
+     "title": "Secrets and cryptography basics",
+     "part": 10,
+     "words": 7904,
+     "minutes": 34,
+     "file": "chapters/10-05-secrets-and-cryptography-basics.md",
+     "bytes": 55987,
+     "summary": "The few cryptographic building blocks you need, and the rules that come with each."
+    },
+    {
+     "id": "10-6",
+     "number": "10.6",
+     "title": "Privacy, compliance and the supply chain",
+     "part": 10,
+     "words": 5583,
+     "minutes": 24,
+     "file": "chapters/10-06-privacy-compliance-and-the-supply-chain.md",
+     "bytes": 45020,
+     "summary": "Personal data, compliance and the software supply chain."
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "title": "Shipping software",
+   "blurb": "Git, builds, containers, pipelines, cloud and observability.",
+   "chapters": [
+    {
+     "id": "11-1",
+     "number": "11.1",
+     "title": "Version control with Git",
+     "part": 11,
+     "words": 4427,
+     "minutes": 19,
+     "file": "chapters/11-01-version-control-with-git.md",
+     "bytes": 26549,
+     "summary": "Git's small underlying model, and the everyday commands that follow from it."
+    },
+    {
+     "id": "11-2",
+     "number": "11.2",
+     "title": "Builds and dependencies",
+     "part": 11,
+     "words": 5386,
+     "minutes": 23,
+     "file": "chapters/11-02-builds-and-dependencies.md",
+     "bytes": 38938,
+     "summary": "How .NET builds work and how to keep dependencies under control."
+    },
+    {
+     "id": "11-3",
+     "number": "11.3",
+     "title": "Containers and Docker",
+     "part": 11,
+     "words": 7211,
+     "minutes": 31,
+     "file": "chapters/11-03-containers-and-docker.md",
+     "bytes": 50730,
+     "summary": "Packaging a program with everything it needs into a container image."
+    },
+    {
+     "id": "11-4",
+     "number": "11.4",
+     "title": "CI/CD pipelines",
+     "part": 11,
+     "words": 10837,
+     "minutes": 47,
+     "file": "chapters/11-04-ci-cd-pipelines.md",
+     "bytes": 81586,
+     "summary": "Pipelines that build, test and release every small change the same way."
+    },
+    {
+     "id": "11-5",
+     "number": "11.5",
+     "title": "Cloud basics",
+     "part": 11,
+     "words": 12791,
+     "minutes": 56,
+     "file": "chapters/11-05-cloud-basics.md",
+     "bytes": 100472,
+     "summary": "Renting computing on demand: services, regions, identity, infrastructure as code and cost."
+    },
+    {
+     "id": "11-6",
+     "number": "11.6",
+     "title": "Observability",
+     "part": 11,
+     "words": 12722,
+     "minutes": 55,
+     "file": "chapters/11-06-observability.md",
+     "bytes": 97279,
+     "summary": "Explaining production behaviour from what the system recorded: logs, metrics and traces."
+    },
+    {
+     "id": "11-7",
+     "number": "11.7",
+     "title": "Kubernetes and orchestration",
+     "part": 11,
+     "words": 6451,
+     "minutes": 28,
+     "file": "chapters/11-07-kubernetes-and-orchestration.md",
+     "bytes": 56185,
+     "summary": "Kubernetes: the objects you actually use, and whether you need it at all."
+    },
+    {
+     "id": "11-8",
+     "number": "11.8",
+     "title": "Linux for backend developers",
+     "part": 11,
+     "words": 10078,
+     "minutes": 44,
+     "file": "chapters/11-08-linux-for-backend-developers.md",
+     "bytes": 74413,
+     "summary": "Enough Linux to run, debug and operate backend services."
+    },
+    {
+     "id": "11-9",
+     "number": "11.9",
+     "title": "Windows Server and IIS",
+     "part": 11,
+     "words": 2115,
+     "minutes": 9,
+     "file": "chapters/11-09-windows-server-and-iis.md",
+     "bytes": 18683,
+     "summary": "Running .NET on IIS and Windows Server, and modernizing it."
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "title": "Systems and architecture",
+   "blurb": "Structuring larger systems and keeping them running.",
+   "chapters": [
+    {
+     "id": "12-1",
+     "number": "12.1",
+     "title": "Monoliths, modules and services",
+     "part": 12,
+     "words": 17478,
+     "minutes": 76,
+     "file": "chapters/12-01-monoliths-modules-and-services.md",
+     "bytes": 134800,
+     "summary": "The real architectural decision is where boundaries go and how firmly they're kept, not how many services you run."
+    },
+    {
+     "id": "12-2",
+     "number": "12.2",
+     "title": "Distributed systems basics",
+     "part": 12,
+     "words": 7898,
+     "minutes": 34,
+     "file": "chapters/12-02-distributed-systems-basics.md",
+     "bytes": 56332,
+     "summary": "What changes when parts fail independently, messages get lost and clocks disagree."
+    },
+    {
+     "id": "12-3",
+     "number": "12.3",
+     "title": "Messaging and events",
+     "part": 12,
+     "words": 14058,
+     "minutes": 61,
+     "file": "chapters/12-03-messaging-and-events.md",
+     "bytes": 111330,
+     "summary": "Messaging and events: decoupling services in time, failure and knowledge."
+    },
+    {
+     "id": "12-4",
+     "number": "12.4",
+     "title": "Scaling and performance",
+     "part": 12,
+     "words": 10476,
+     "minutes": 46,
+     "file": "chapters/12-04-scaling-and-performance.md",
+     "bytes": 72459,
+     "summary": "Performance and scalability: knowing where the time goes, and why latency suddenly explodes."
+    },
+    {
+     "id": "12-5",
+     "number": "12.5",
+     "title": "Reliability",
+     "part": 12,
+     "words": 12310,
+     "minutes": 54,
+     "file": "chapters/12-05-reliability.md",
+     "bytes": 88146,
+     "summary": "Reliability: serving users well while parts fail, and recovering fast when you can't."
+    },
+    {
+     "id": "12-6",
+     "number": "12.6",
+     "title": "Domain modeling and application architecture",
+     "part": 12,
+     "words": 11914,
+     "minutes": 52,
+     "file": "chapters/12-06-domain-modeling-and-application-architecture.md",
+     "bytes": 96881,
+     "summary": "Modeling the business in code: aggregates, value objects, domain events, CQRS and multi-tenancy."
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "title": "Working with AI tools",
+   "blurb": "How coding assistants work and how to use them without losing skill.",
+   "chapters": [
+    {
+     "id": "13-1",
+     "number": "13.1",
+     "title": "How coding assistants work",
+     "part": 13,
+     "words": 5572,
+     "minutes": 24,
+     "file": "chapters/13-01-how-coding-assistants-work.md",
+     "bytes": 37236,
+     "summary": "What is inside an AI coding assistant, and why it fails the way it does."
+    },
+    {
+     "id": "13-2",
+     "number": "13.2",
+     "title": "Using them without losing skill",
+     "part": 13,
+     "words": 3905,
+     "minutes": 17,
+     "file": "chapters/13-02-using-them-without-losing-skill.md",
+     "bytes": 24444,
+     "summary": "Using assistants heavily while keeping your own skills."
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "title": "Practice: recipes, worked builds and real cases",
+   "blurb": "Applied material: code you will actually write, features built end to end, and production incidents worked through.",
+   "chapters": [
+    {
+     "id": "14-1",
+     "number": "14.1",
+     "title": "Recipes: code you will actually write",
+     "part": 14,
+     "words": 1607,
+     "minutes": 7,
+     "file": "chapters/14-01-recipes-code-you-will-actually-write.md",
+     "bytes": 12459,
+     "summary": "Ready-to-use recipes for the code you write most often."
+    },
+    {
+     "id": "14-2",
+     "number": "14.2",
+     "title": "Worked builds",
+     "part": 14,
+     "words": 6770,
+     "minutes": 29,
+     "file": "chapters/14-02-worked-builds.md",
+     "bytes": 60502,
+     "summary": "Complete features built end to end, from requirement to tests."
+    },
+    {
+     "id": "14-3",
+     "number": "14.3",
+     "title": "Worked cases from production",
+     "part": 14,
+     "words": 11333,
+     "minutes": 49,
+     "file": "chapters/14-03-worked-cases-from-production.md",
+     "bytes": 81285,
+     "summary": "Real production incidents worked through: symptom, diagnosis, fix and lesson."
+    },
+    {
+     "id": "14-4",
+     "number": "14.4",
+     "title": "Production diagnostics playbook",
+     "part": 14,
+     "words": 2560,
+     "minutes": 11,
+     "file": "chapters/14-04-production-diagnostics-playbook.md",
+     "bytes": 20602,
+     "summary": "A diagnostics playbook for common production symptoms."
+    },
+    {
+     "id": "14-5",
+     "number": "14.5",
+     "title": "What actually goes wrong: field guide and checklists",
+     "part": 14,
+     "words": 12127,
+     "minutes": 53,
+     "file": "chapters/14-05-what-actually-goes-wrong-field-guide-and-checklists.md",
+     "bytes": 94928,
+     "summary": "What actually goes wrong in production, ranked, plus review checklists."
+    },
+    {
+     "id": "14-6",
+     "number": "14.6",
+     "title": "Career, team practice and interviews",
+     "part": 14,
+     "words": 3405,
+     "minutes": 15,
+     "file": "chapters/14-06-career-team-practice-and-interviews.md",
+     "bytes": 22834,
+     "summary": "Study priorities, team practices and interview preparation."
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "title": "Reference",
+   "blurb": "Compressed summaries, numbers worth knowing, terminology tables and the A–Z glossary.",
+   "chapters": [
+    {
+     "id": "15-1",
+     "number": "15.1",
+     "title": "Cheat sheets and compressed summaries",
+     "part": 15,
+     "words": 1673,
+     "minutes": 7,
+     "file": "chapters/15-01-cheat-sheets-and-compressed-summaries.md",
+     "bytes": 11856,
+     "summary": "Compressed summaries and the numbers worth memorizing."
+    },
+    {
+     "id": "15-2",
+     "number": "15.2",
+     "title": "Terminology by domain",
+     "part": 15,
+     "words": 8685,
+     "minutes": 38,
+     "file": "chapters/15-02-terminology-by-domain.md",
+     "bytes": 99865,
+     "summary": "Terminology tables grouped by domain, so related terms sit side by side."
+    },
+    {
+     "id": "15-3",
+     "number": "15.3",
+     "title": "Glossary A–Z",
+     "part": 15,
+     "words": 27829,
+     "minutes": 121,
+     "file": "chapters/15-03-glossary-a-z.md",
+     "bytes": 173912,
+     "summary": "Glossaries from all the guides."
+    },
+    {
+     "id": "15-4",
+     "number": "15.4",
+     "title": "Practice questions",
+     "part": 15,
+     "words": 19830,
+     "minutes": 86,
+     "file": "chapters/15-04-practice-questions.md",
+     "bytes": 124938,
+     "summary": "307 practice questions with hidden answers, for self-testing."
+    }
+   ]
+  }
+ ],
+ "totals": {
+  "parts": 16,
+  "chapters": 108,
+  "words": 949853
+ }
+}

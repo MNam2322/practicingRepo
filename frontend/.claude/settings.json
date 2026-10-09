@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
+      "Bash(node ../library/find.mjs:*)",
+      "Bash(node ../library/show.mjs:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)"
+    ]
+  }
+}

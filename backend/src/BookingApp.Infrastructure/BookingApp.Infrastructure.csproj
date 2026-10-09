@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Adapters for the ports in BookingApp.Core: storage, the resource catalogue, seeding. -->
+  <PropertyGroup>
+    <RootNamespace>BookingApp.Infrastructure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BookingApp.Core\BookingApp.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BookingApp.Infrastructure.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Central package management: every NuGet version lives here, projects reference packages without versions.
+    The starter uses only the .NET 10 shared framework, so there is nothing here yet. TASKS.md adds packages.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+  </ItemGroup>
+</Project>

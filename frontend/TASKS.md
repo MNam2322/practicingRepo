@@ -1,0 +1,81 @@
+# Frontend tasks
+
+Do these one at a time, in the order `../PLAYBOOK.md` gives. Before you plan, look up the topics in the library with `node ../library/find.mjs` and `node ../library/show.mjs`.
+
+- **Needs backend N:** wait until that backend task is ticked.
+- **Done when:** `npm run build` and `npm run lint` pass, and the change works in the browser against the running backend.
+
+## Done (the starter)
+
+- [x] Resources page, a day picker in venue time, a slot grid (free, booked, past), booking with a length choice, and a remembered name.
+- [x] My bookings: upcoming, past and cancelled, with cancel and a confirm step.
+- [x] Light and dark themes, a mobile layout, a typed API client and clear error states.
+
+## Next
+
+### 1. UI foundation
+Read first: 9.4 Components and state, 9.5 React today.
+- [ ] Pull the repeated pieces into small components in `src/components/`: Button, Card, Field, Notice, Skeleton.
+- [ ] Add loading skeletons for slots and bookings.
+- [ ] Show a toast after booking and after cancelling.
+
+**Done when:** the pages look the same or better, and no page has copy-pasted markup for these pieces.
+
+### 2. Better availability
+- [ ] Add a legend, plus a week view toggle (7 days × times, for one resource).
+- [ ] Refresh slots when the tab regains focus and every 60 seconds.
+- [ ] If the chosen slot becomes taken, unselect it and say so.
+
+### 3. Booking details page
+- [ ] Add a page at `#/b/:id` with the details, status, cancel button and "add to calendar" (an `.ics` download). Link to it from the success notice and from My bookings.
+- [ ] Add one friendly message per error code, kept in a single map.
+
+### 4. Data fetching with TanStack Query
+Read first: 9.7 Talking to the backend, 8.6 Caching.
+- [ ] Replace `useApi` with TanStack Query.
+  - Availability: `staleTime` of 30 s.
+  - Book and cancel: mutations that invalidate availability for that resource and day, and My bookings.
+  - Cancel: an optimistic update.
+
+### 5. Generated API types
+Needs backend 2.
+- [ ] Generate `src/lib/api.generated.ts` from `http://localhost:5080/openapi/v1.json` with `openapi-typescript`, through `npm run gen:api`. Make `api.ts` use the generated types and delete the hand-written ones.
+
+### 6. Sign in
+Needs backend 7.
+- [ ] Add sign up, sign in and sign out, and show an account menu in the top bar.
+- [ ] After signing in, show "your bookings were moved to your account".
+- [ ] Handle a 401 by sending the user to sign in and then back.
+
+### 7. Staff schedule
+Needs backend 8.
+- [ ] For staff only: a day schedule grid with resources as columns and times as rows.
+- [ ] Clicking a booking shows details, with mark completed, mark no-show, and cancel with a reason.
+- [ ] Add a "block time" action.
+
+### 8. Admin pages
+Needs backend 9.
+- [ ] Manage resources, opening hours, closures and booking rules, with forms validated by the API's field errors.
+
+### 9. Holds and payment step
+Needs backend 11 and 12.
+- [ ] Choosing a slot creates a hold. Show a 10-minute countdown and a fake payment step, then confirmation. When the hold expires, explain what happened clearly.
+
+### 10. Recurring bookings and waitlist
+Needs backend 14 and 15.
+- [ ] Add a "Repeat weekly" option with a result summary listing the dates that failed.
+- [ ] Add a "Join waitlist" button on booked slots.
+
+### 11. Tests and accessibility
+Read first: 4.6 Testing.
+- [ ] Vitest with Testing Library, and MSW for the API: slot selection, booking, the `slot_taken` handling, and cancel confirm.
+- [ ] Playwright end-to-end tests against the running backend: book, then see it in My bookings, then cancel.
+- [ ] An accessibility pass: keyboard-only booking works, contrast is at least 4.5:1 in both themes, and form errors are announced.
+
+### 12. Production build
+Needs backend 20.
+- [ ] The backend image serves the built frontend. Document how in the README.
+
+## Changelog
+
+- Starter: resources, availability, booking, my bookings with cancel, themes, mobile layout.
