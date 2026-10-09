@@ -13,7 +13,8 @@ GET {{base}}/api/venue
 ### Resources (courts, rooms) with opening hours
 GET {{base}}/api/resources
 
-### Slots for one venue-local day (yyyy-MM-dd). Leave out date for today.
+### Slots for one venue-local day (yyyy-MM-dd). Leave out date for today. Slots are free, booked, past or closed;
+### "closures" lists closures (holidays, maintenance) touching the day. Booking into one is 422 resource_closed.
 GET {{base}}/api/resources/court-1/availability?date=2026-10-20
 
 ### Book: "start" is a slot's "start" from availability (UTC). A bk-customer cookie is issued on first call.

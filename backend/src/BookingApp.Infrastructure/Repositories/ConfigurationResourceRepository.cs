@@ -25,22 +25,37 @@ public sealed class VenueOptions
     }
 }
 
-/// <summary>Builds the venue and resources from configuration once, at startup, and validates them.</summary>
+/// <summary>
+/// The venue and resources from configuration, built once at startup and validated; closures are kept in memory.
+/// Used by the InMemory storage provider, and as the source the database is seeded from on first run.
+/// </summary>
 internal sealed class ConfigurationResourceRepository : IResourceRepository
 {
-    private readonly Dictionary<string, Resource> _byId;
+    private readonly Lock _gate = new();
+    private readonly List<Closure> _closures = [];
 
-    public ConfigurationResourceRepository(IOptions<VenueOptions> options)
+    public ConfigurationResourceRepository(IOptions<VenueOptions> options) => Catalog = BuildCatalog(options.Value);
+
+    public ResourceCatalog Catalog { get; }
+
+    public Task<ResourceCatalog> GetCatalogAsync(CancellationToken cancellationToken) => Task.FromResult(Catalog);
+
+    public Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken)
     {
-        var o = options.Value;
-        Venue = new Venue(o.Name, o.TimeZoneId);
-        Resources = [.. o.Resources.Select(ToResource)];
-        _byId = Resources.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
+        lock (_gate)
+        {
+            IReadOnlyList<Closure> found = [.. _closures.Where(c => c.AppliesTo(resourceId) && c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)];
+            return Task.FromResult(found);
+        }
     }
 
-    public Venue Venue { get; }
-    public IReadOnlyList<Resource> Resources { get; }
-    public Resource? Find(string id) => _byId.GetValueOrDefault(id);
+    public Task AddClosureAsync(Closure closure, CancellationToken cancellationToken)
+    {
+        lock (_gate) _closures.Add(closure);
+        return Task.CompletedTask;
+    }
+
+    public static ResourceCatalog BuildCatalog(VenueOptions o) => new(new Venue(o.Name, o.TimeZoneId), [.. o.Resources.Select(ToResource)]);
 
     private static Resource ToResource(VenueOptions.ResourceOptions r)
     {

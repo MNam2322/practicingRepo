@@ -9,6 +9,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   not_whole_slots: 'Bookings last a whole number of slots.',
   too_long: 'That booking is longer than this court or room allows. Choose a shorter length.',
   outside_opening_hours: 'It is closed at that time. Pick a time inside opening hours.',
+  resource_closed: 'It is closed at that time (holiday or maintenance). Pick another time or day.',
   not_on_slot_grid: 'Bookings start on the slot times shown. Pick one of them.',
   name_required: 'Enter the name for the booking.',
   too_many_bookings: 'You already have the most upcoming bookings allowed. Cancel one or wait until one has passed.',

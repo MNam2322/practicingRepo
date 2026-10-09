@@ -23,14 +23,14 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "resource_not_found")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "slot_taken")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity, ProblemJson,
-        Description = "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, name_required, too_many_bookings")]
+        Description = "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings")]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<ActionResult<BookingResponse>> Create(CreateBookingRequest request, CurrentCustomer customer, CancellationToken ct)
     {
         // [ApiController] has already answered 400 if the shape was wrong, so the required fields are present here.
         var result = await bookings.BookAsync(customer.Id, request.Name!, request.ResourceId!, request.Start!.Value, request.Slots ?? 1, ct);
         if (!result.IsSuccess) return Failure(result.Error!);
-        var body = ToResponse(result.Value!);
+        var body = await ToResponseAsync(result.Value!, ct);
         return Created($"/api/bookings/{body.Id}", body);
     }
 
@@ -42,7 +42,8 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     {
         var now = time.GetUtcNow();
         var list = await bookings.MineAsync(customer.Id, ct);
-        return list.Select(b => BookingResponse.From(b, venue, now)).ToList();
+        var catalog = await venue.CatalogAsync(ct);
+        return list.Select(b => BookingResponse.From(b, catalog, venue.Policy, now)).ToList();
     }
 
     /// <summary>One of the current customer's bookings.</summary>
@@ -54,7 +55,7 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     public async Task<ActionResult<BookingResponse>> Get(Guid id, CurrentCustomer customer, CancellationToken ct)
     {
         var result = await bookings.GetAsync(customer.Id, id, ct);
-        return result.IsSuccess ? ToResponse(result.Value!) : Failure(result.Error!);
+        return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
     }
 
     /// <summary>Cancels a booking while the cancellation rules allow it.</summary>
@@ -71,8 +72,9 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     public async Task<ActionResult<BookingResponse>> Cancel(Guid id, CurrentCustomer customer, CancellationToken ct)
     {
         var result = await bookings.CancelAsync(customer.Id, id, ct);
-        return result.IsSuccess ? ToResponse(result.Value!) : Failure(result.Error!);
+        return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
     }
 
-    private BookingResponse ToResponse(Booking booking) => BookingResponse.From(booking, venue, time.GetUtcNow());
+    private async Task<BookingResponse> ToResponseAsync(Booking booking, CancellationToken ct) =>
+        BookingResponse.From(booking, await venue.CatalogAsync(ct), venue.Policy, time.GetUtcNow());
 }

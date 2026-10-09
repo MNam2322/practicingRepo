@@ -18,6 +18,7 @@ src/pages/ResourcePage.tsx  header, Day/Week toggle, legend; resource/DayView.ts
 src/pages/MyBookings.tsx    upcoming and past, cancel with confirm, rows link to the details page
 src/pages/BookingPage.tsx   #/b/:id details, status, cancel, Add to calendar (src/lib/calendar.ts builds the .ics from UTC instants)
 src/lib/errors.ts       ERROR_MESSAGES: one friendly message per API error code
+src/pages/resource/slots.ts  SLOT_LABEL (free, booked, past, closed) and closure time formatting
 src/index.css           all styles; colour tokens on :root, dark mode below
 ```
 

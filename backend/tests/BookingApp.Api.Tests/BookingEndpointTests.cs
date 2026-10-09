@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace BookingApp.Api.Tests;
 
@@ -122,6 +123,45 @@ public abstract class BookingEndpointTests(StorageProvider provider) : ApiTest(p
         using var content = new StringContent("{ not json", System.Text.Encoding.UTF8, "application/json");
         var response = await Client.PostAsync("/api/bookings", content, Ct);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private async Task AddClosure(string? resourceId, DateTimeOffset start, TimeSpan length, string reason)
+    {
+        using var scope = Factory.Services.CreateScope();
+        var resources = scope.ServiceProvider.GetRequiredService<IResourceRepository>();
+        await resources.AddClosureAsync(new Closure(Guid.NewGuid(), resourceId, TimeRange.FromStart(start, length), reason), Ct);
+    }
+
+    [Fact]
+    public async Task A_closed_day_shows_no_free_slots_and_lists_the_closure()
+    {
+        await AddClosure("court-1", ApiFactory.At(ApiFactory.Tomorrow, 0), TimeSpan.FromDays(1), "Court resurfacing");
+
+        var availability = await Client.GetFromJsonAsync<AvailabilityResponse>($"/api/resources/court-1/availability?date={ApiFactory.Tomorrow:yyyy-MM-dd}", Json, Ct);
+        Assert.All(availability!.Slots, slot => Assert.Equal(SlotState.Closed, slot.State));
+        var closure = Assert.Single(availability.Closures);
+        Assert.Equal("Court resurfacing", closure.Reason);
+        Assert.Equal("2026-06-02T00:00", closure.LocalStart);
+
+        var other = await Client.GetFromJsonAsync<AvailabilityResponse>($"/api/resources/court-2/availability?date={ApiFactory.Tomorrow:yyyy-MM-dd}", Json, Ct);
+        Assert.DoesNotContain(other!.Slots, slot => slot.State == SlotState.Closed);
+    }
+
+    [Fact]
+    public async Task Booking_into_a_closure_is_422_resource_closed()
+    {
+        await AddClosure("court-1", ApiFactory.At(ApiFactory.Tomorrow, 9), TimeSpan.FromHours(3), "Coaching");
+        await AssertProblem(await Book(10), 422, "resource_closed");
+        await AssertProblem(await Book(8, slots: 2), 422, "resource_closed");
+        await BookOk(12);
+    }
+
+    [Fact]
+    public async Task A_venue_wide_closure_closes_every_resource()
+    {
+        await AddClosure(null, ApiFactory.At(ApiFactory.Tomorrow, 0), TimeSpan.FromDays(1), "Public holiday");
+        await AssertProblem(await Book(10, resourceId: "court-2"), 422, "resource_closed");
+        await AssertProblem(await Book(10, resourceId: "room-a"), 422, "resource_closed");
     }
 
     [Fact]

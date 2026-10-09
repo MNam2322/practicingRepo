@@ -79,6 +79,181 @@ namespace BookingApp.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_bookings_end_after_start", "end_utc > start_utc");
                         });
                 });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ClosureRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("EndUtc")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("end_utc");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("reason");
+
+                    b.Property<string>("ResourceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("resource_id");
+
+                    b.Property<long>("StartUtc")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("start_utc");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceId", "StartUtc")
+                        .HasDatabaseName("ix_closures_resource_start");
+
+                    b.ToTable("closures", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_closures_end_after_start", "end_utc > start_utc");
+                        });
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.OpeningHoursRow", b =>
+                {
+                    b.Property<string>("ResourceId")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("resource_id");
+
+                    b.Property<int>("Day")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("day_of_week");
+
+                    b.Property<TimeOnly>("Close")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("close_time");
+
+                    b.Property<TimeOnly>("Open")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("open_time");
+
+                    b.HasKey("ResourceId", "Day");
+
+                    b.ToTable("opening_hours", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_opening_hours_close_after_open", "close_time > open_time");
+
+                            t.HasCheckConstraint("ck_opening_hours_day", "day_of_week BETWEEN 0 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ResourceRow", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("capacity");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("MaxSlotsPerBooking")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("max_slots_per_booking");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name");
+
+                    b.Property<int>("SlotMinutes")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("slot_minutes");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("resources", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_resources_capacity", "capacity > 0");
+
+                            t.HasCheckConstraint("ck_resources_kind", "kind IN ('Court', 'Room', 'Table', 'Other')");
+
+                            t.HasCheckConstraint("ck_resources_max_slots", "max_slots_per_booking >= 1");
+
+                            t.HasCheckConstraint("ck_resources_slot_minutes", "slot_minutes > 0 AND slot_minutes <= 1440");
+                        });
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.VenueRow", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name");
+
+                    b.Property<string>("TimeZoneId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("time_zone_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("venue", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_venue_single_row", "id = 1");
+                        });
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.BookingRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.ResourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ClosureRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.ResourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.OpeningHoursRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.ResourceRow", null)
+                        .WithMany("Hours")
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ResourceRow", b =>
+                {
+                    b.Navigation("Hours");
+                });
 #pragma warning restore 612, 618
         }
     }

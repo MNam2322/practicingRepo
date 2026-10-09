@@ -30,10 +30,33 @@ public sealed record Resource(
     public OpeningHours? HoursOn(DayOfWeek day) => Hours.FirstOrDefault(h => h.Day == day);
 }
 
-/// <summary>Reads the venue and its resources. The starter keeps them in configuration; TASKS.md moves them to the database.</summary>
+/// <summary>
+/// A time when a resource cannot be booked: a holiday, maintenance, an event. The range is UTC, like bookings.
+/// </summary>
+/// <param name="ResourceId">The closed resource, or null when the whole venue is closed.</param>
+/// <param name="Reason">Shown to customers, such as "Court resurfacing".</param>
+public sealed record Closure(Guid Id, string? ResourceId, TimeRange Time, string Reason)
+{
+    public bool AppliesTo(string resourceId) => ResourceId is null || string.Equals(ResourceId, resourceId, StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>The venue and its resources as read at one moment: one load per request, then plain lookups.</summary>
+public sealed class ResourceCatalog(Venue venue, IReadOnlyList<Resource> resources)
+{
+    private readonly Dictionary<string, Resource> _byId = resources.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
+
+    public Venue Venue { get; } = venue;
+    public IReadOnlyList<Resource> Resources { get; } = resources;
+    public Resource? Find(string id) => _byId.GetValueOrDefault(id);
+}
+
+/// <summary>Reads the venue, its resources and their closures. Stored in the database (EfResourceRepository) or in configuration (tests, InMemory).</summary>
 public interface IResourceRepository
 {
-    Venue Venue { get; }
-    IReadOnlyList<Resource> Resources { get; }
-    Resource? Find(string id);
+    Task<ResourceCatalog> GetCatalogAsync(CancellationToken cancellationToken);
+
+    /// <summary>Closures for this resource, or for the whole venue, that overlap the window, ordered by start.</summary>
+    Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken);
+
+    Task AddClosureAsync(Closure closure, CancellationToken cancellationToken);
 }

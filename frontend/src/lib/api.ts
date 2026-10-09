@@ -4,7 +4,7 @@
 
 import { messageFor } from './errors';
 
-export type SlotState = 'free' | 'booked' | 'past';
+export type SlotState = 'free' | 'booked' | 'past' | 'closed';
 export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'noShow';
 export type ResourceKind = 'court' | 'room' | 'table' | 'other';
 
@@ -14,7 +14,9 @@ export interface OpeningHours { day: string; open: string; close: string }
 export interface Resource { id: string; name: string; kind: ResourceKind; capacity: number; slotMinutes: number; maxSlotsPerBooking: number; hours: OpeningHours[] }
 /** start/end are UTC instants; localStart/localEnd are venue wall-clock "HH:mm", for display. */
 export interface Slot { start: string; end: string; localStart: string; localEnd: string; state: SlotState }
-export interface Availability { resourceId: string; date: string; timeZone: string; slots: Slot[] }
+/** A time the resource (or, with resourceId null, the whole venue) is closed. local* are venue wall-clock "yyyy-MM-ddTHH:mm". */
+export interface Closure { id: string; resourceId: string | null; start: string; end: string; localStart: string; localEnd: string; reason: string }
+export interface Availability { resourceId: string; date: string; timeZone: string; slots: Slot[]; closures: Closure[] }
 export interface Booking {
   id: string; resourceId: string; resourceName: string; start: string; end: string;
   /** venue wall-clock "yyyy-MM-ddTHH:mm" */ localStart: string; localEnd: string;

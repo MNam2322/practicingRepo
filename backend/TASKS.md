@@ -65,8 +65,8 @@ Read first: 7.7 ORMs and EF Core, 7.5 Schema design and migrations, 7.4 "Optimis
 
 ### 5. Resources and opening hours in the database
 Read first: 7.2 The relational model and SQL, 7.2 "Constraints: the integrity the application cannot enforce".
-- [ ] Move venue, resources and opening hours from `appsettings.json` into tables behind `IResourceRepository` (an `EfResourceRepository`), seeded from the current settings on first run.
-- [ ] Add **closures**: dates or ranges when a resource is closed, such as holidays or maintenance. Availability and booking respect them.
+- [x] Move venue, resources and opening hours from `appsettings.json` into tables behind `IResourceRepository` (an `EfResourceRepository`), seeded from the current settings on first run.
+- [x] Add **closures**: dates or ranges when a resource is closed, such as holidays or maintenance. Availability and booking respect them.
 
 ### 6. PostgreSQL with an exclusion constraint
 Read first: 7.3 "Specialised index types", 7.9 "Atomic conditional update", 7.8 Running databases.
@@ -181,3 +181,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 2: OpenAPI (`/openapi/v1.json`) and Scalar (`/scalar`) in Development; every action named, summarised, with its error codes; `ProblemDetails.code` in the schema; contract committed as `backend/openapi/v1.json` with a drift test.
 - Task 3: request validation with DataAnnotations on `CreateBookingRequest` (resourceId, start, slots 1–24, name ≤ 80); 400 `validation_failed` with camelCase field errors; business rules still 422; strict JSON numbers.
 - Task 4: EF Core with SQLite: `BookingDbContext` (bookings table, (resource, start) and customer indexes, `version` concurrency token, UTC ticks on SQLite), migrations applied at start-up, `EfBookingRepository` with `BEGIN IMMEDIATE` for the atomic insert; `Storage:Provider` InMemory | Sqlite; API booking/concurrency tests run on both.
+- Task 5: venue, resources, opening hours and closures in the database (FKs, CHECKs), seeded from the Venue settings on first run; closures (per resource or venue-wide) make slots `closed` and bookings 422 `resource_closed`; the migration upgrades databases that already hold bookings.

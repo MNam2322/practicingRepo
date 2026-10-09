@@ -135,6 +135,7 @@ public sealed class SqliteBookingRepositoryTests : BookingRepositoryContract
         await using var db = new BookingDbContext(new DbContextOptionsBuilder<BookingDbContext>().UseSqlite($"Data Source={_file}").Options);
         await db.Database.MigrateAsync(Ct);
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", Ct);
+        await TestDatabase.SeedAsync(db);
     }
 
     [Fact]

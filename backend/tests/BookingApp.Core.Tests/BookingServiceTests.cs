@@ -15,10 +15,11 @@ public sealed class BookingServiceTests
 
     private readonly FakeTimeProvider _time = new(Now);
     private readonly BookingPolicy _policy = new() { MaxDaysAhead = 30, MinLeadMinutes = 15, CancellationCutoffHours = 2, MaxActiveBookingsPerCustomer = 3 };
+    private readonly TestResources _resources = new(Court("court-1"), Court("court-2"));
     private readonly BookingService _service;
 
     public BookingServiceTests() =>
-        _service = new BookingService(new TestResources(Court("court-1"), Court("court-2")), new InMemoryBookingRepository(), _policy, _time);
+        _service = new BookingService(_resources, new InMemoryBookingRepository(), _policy, _time);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -32,7 +33,7 @@ public sealed class BookingServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal(TimeSpan.FromHours(2), result.Value!.Time.Duration);
-        var slots = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!;
+        var slots = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!.Slots;
         Assert.Equal(SlotState.Booked, slots.Single(s => s.LocalStart.Hour == 10).State);
         Assert.Equal(SlotState.Booked, slots.Single(s => s.LocalStart.Hour == 11).State);
         Assert.Equal(SlotState.Free, slots.Single(s => s.LocalStart.Hour == 12).State);
@@ -155,8 +156,47 @@ public sealed class BookingServiceTests
     public async Task Slots_inside_the_lead_time_show_as_past()
     {
         _time.SetUtcNow(At(Tomorrow, 9, 50));
-        var slots = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!;
+        var slots = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!.Slots;
         Assert.Equal(SlotState.Past, slots.Single(s => s.LocalStart.Hour == 10).State);
         Assert.Equal(SlotState.Free, slots.Single(s => s.LocalStart.Hour == 11).State);
+    }
+
+    [Fact]
+    public async Task Booking_into_a_resource_closure_is_resource_closed()
+    {
+        await _resources.AddClosureAsync(new Closure(Guid.NewGuid(), "court-1", TimeRange.FromStart(At(Tomorrow, 9), TimeSpan.FromHours(3)), "Resurfacing"), Ct);
+
+        var result = await Book(Alice, 11);
+        Assert.Equal("resource_closed", result.Error?.Code);
+        Assert.Contains("Resurfacing", result.Error!.Message);
+        Assert.True((await Book(Alice, 12)).IsSuccess);
+        Assert.True((await Book(Bob, 11, resource: "court-2")).IsSuccess);
+    }
+
+    [Fact]
+    public async Task A_venue_wide_closure_closes_every_resource()
+    {
+        await _resources.AddClosureAsync(new Closure(Guid.NewGuid(), null, TimeRange.Create(At(Tomorrow, 0), At(Tomorrow.AddDays(1), 0)), "Public holiday"), Ct);
+
+        Assert.Equal("resource_closed", (await Book(Alice, 10)).Error?.Code);
+        Assert.Equal("resource_closed", (await Book(Alice, 10, resource: "court-2")).Error?.Code);
+        var day = (await _service.AvailabilityAsync("court-2", Tomorrow, Ct)).Value!;
+        Assert.All(day.Slots, s => Assert.Equal(SlotState.Closed, s.State));
+        Assert.Equal("Public holiday", Assert.Single(day.Closures).Reason);
+    }
+
+    [Fact]
+    public async Task Availability_marks_closed_slots_and_lists_the_closure()
+    {
+        await _resources.AddClosureAsync(new Closure(Guid.NewGuid(), "court-1", TimeRange.FromStart(At(Tomorrow, 9), TimeSpan.FromHours(2)), "Coaching"), Ct);
+        await Book(Bob, 12);
+
+        var day = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!;
+        Assert.Equal(SlotState.Free, day.Slots.Single(s => s.LocalStart.Hour == 8).State);
+        Assert.Equal(SlotState.Closed, day.Slots.Single(s => s.LocalStart.Hour == 9).State);
+        Assert.Equal(SlotState.Closed, day.Slots.Single(s => s.LocalStart.Hour == 10).State);
+        Assert.Equal(SlotState.Free, day.Slots.Single(s => s.LocalStart.Hour == 11).State);
+        Assert.Equal(SlotState.Booked, day.Slots.Single(s => s.LocalStart.Hour == 12).State);
+        Assert.Equal("Coaching", Assert.Single(day.Closures).Reason);
     }
 }

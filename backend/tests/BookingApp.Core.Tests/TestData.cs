@@ -28,7 +28,16 @@ internal static class TestData
 
 internal sealed class TestResources(params Resource[] resources) : IResourceRepository
 {
-    public Venue Venue { get; } = TestData.Club;
-    public IReadOnlyList<Resource> Resources { get; } = resources;
-    public Resource? Find(string id) => Resources.FirstOrDefault(r => string.Equals(r.Id, id, StringComparison.OrdinalIgnoreCase));
+    private readonly List<Closure> _closures = [];
+
+    public Task<ResourceCatalog> GetCatalogAsync(CancellationToken cancellationToken) => Task.FromResult(new ResourceCatalog(TestData.Club, resources));
+
+    public Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Closure>>([.. _closures.Where(c => c.AppliesTo(resourceId) && c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)]);
+
+    public Task AddClosureAsync(Closure closure, CancellationToken cancellationToken)
+    {
+        _closures.Add(closure);
+        return Task.CompletedTask;
+    }
 }

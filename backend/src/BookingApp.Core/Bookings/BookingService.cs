@@ -3,35 +3,40 @@ using BookingApp.Core.Scheduling;
 
 namespace BookingApp.Core.Bookings;
 
+/// <summary>One resource-day of availability: its slots, the closures that touch it, and the venue it is in.</summary>
+public sealed record DayAvailability(Venue Venue, IReadOnlyList<Slot> Slots, IReadOnlyList<Closure> Closures);
+
 /// <summary>The booking use cases. Controllers call these; they never touch a repository directly.</summary>
 public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, BookingPolicy policy, TimeProvider time)
 {
-    public Result<IReadOnlyList<Slot>> Availability(string resourceId, DateOnly localDay, IReadOnlyList<Booking> blocking)
+    public async Task<Result<DayAvailability>> AvailabilityAsync(string resourceId, DateOnly localDay, CancellationToken cancellationToken)
     {
-        var resource = resources.Find(resourceId);
+        var catalog = await resources.GetCatalogAsync(cancellationToken);
+        var resource = catalog.Find(resourceId);
         if (resource is null) return NotFound(resourceId);
+        var window = AvailabilityCalculator.DayWindow(catalog.Venue, localDay);
+        var blocking = await bookings.BlockingAsync(resource.Id, window, cancellationToken);
+        var closures = await resources.ClosuresAsync(resource.Id, window, cancellationToken);
         var notBefore = time.GetUtcNow().AddMinutes(policy.MinLeadMinutes);
-        return Result<IReadOnlyList<Slot>>.Ok(AvailabilityCalculator.ForDay(resource, resources.Venue, localDay, blocking.Select(b => b.Time), notBefore));
-    }
-
-    public async Task<Result<IReadOnlyList<Slot>>> AvailabilityAsync(string resourceId, DateOnly localDay, CancellationToken cancellationToken)
-    {
-        if (resources.Find(resourceId) is null) return NotFound(resourceId);
-        var window = AvailabilityCalculator.DayWindow(resources.Venue, localDay);
-        var blocking = await bookings.BlockingAsync(resourceId, window, cancellationToken);
-        return Availability(resourceId, localDay, blocking);
+        var slots = AvailabilityCalculator.ForDay(resource, catalog.Venue, localDay, blocking.Select(b => b.Time), notBefore, closures.Select(c => c.Time));
+        return Result<DayAvailability>.Ok(new DayAvailability(catalog.Venue, slots, closures));
     }
 
     public async Task<Result<Booking>> BookAsync(CustomerId customer, string customerName, string resourceId, DateTimeOffset start, int slots, CancellationToken cancellationToken)
     {
-        var resource = resources.Find(resourceId);
+        var catalog = await resources.GetCatalogAsync(cancellationToken);
+        var resource = catalog.Find(resourceId);
         if (resource is null) return NotFound(resourceId);
         if (slots < 1) return new Error(ErrorKind.RuleViolation, "not_whole_slots", "Book at least one slot.");
         if (string.IsNullOrWhiteSpace(customerName)) return new Error(ErrorKind.RuleViolation, "name_required", "Enter the name for the booking.");
 
         var now = time.GetUtcNow();
         var range = TimeRange.FromStart(start, resource.SlotLength * slots);
-        if (policy.Check(resource, resources.Venue, range, now) is { } broken) return broken;
+        if (policy.Check(resource, catalog.Venue, range, now) is { } broken) return broken;
+
+        var closures = await resources.ClosuresAsync(resource.Id, range, cancellationToken);
+        if (closures.Count > 0)
+            return new Error(ErrorKind.RuleViolation, "resource_closed", $"{resource.Name} is closed at that time: {closures[0].Reason}.");
 
         var active = (await bookings.ForCustomerAsync(customer, cancellationToken)).Count(b => b.BlocksSlot && b.Time.End > now);
         if (active >= policy.MaxActiveBookingsPerCustomer)

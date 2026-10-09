@@ -10,6 +10,9 @@ public sealed class VenueController(VenueService venue) : ApiControllerBase
     [HttpGet]
     [EndpointName("GetVenue")]
     [ProducesResponseType<VenueResponse>(StatusCodes.Status200OK, Json)]
-    public ActionResult<VenueResponse> Get() =>
-        new VenueResponse(venue.Venue.Name, venue.Venue.TimeZoneId, PolicyResponse.From(venue.Policy));
+    public async Task<ActionResult<VenueResponse>> Get(CancellationToken ct)
+    {
+        var catalog = await venue.CatalogAsync(ct);
+        return new VenueResponse(catalog.Venue.Name, catalog.Venue.TimeZoneId, PolicyResponse.From(venue.Policy));
+    }
 }

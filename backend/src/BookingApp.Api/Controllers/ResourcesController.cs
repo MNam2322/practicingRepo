@@ -11,7 +11,8 @@ public sealed class ResourcesController(VenueService venue, BookingService booki
     [HttpGet]
     [EndpointName("GetResources")]
     [ProducesResponseType<List<ResourceResponse>>(StatusCodes.Status200OK, Json)]
-    public ActionResult<List<ResourceResponse>> List() => venue.Resources.Select(ResourceResponse.From).ToList();
+    public async Task<ActionResult<List<ResourceResponse>>> List(CancellationToken ct) =>
+        (await venue.CatalogAsync(ct)).Resources.Select(ResourceResponse.From).ToList();
 
     /// <summary>A resource's slots for one venue-local day.</summary>
     /// <param name="id">The resource id, such as court-1.</param>
@@ -24,10 +25,10 @@ public sealed class ResourcesController(VenueService venue, BookingService booki
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "resource_not_found")]
     public async Task<ActionResult<AvailabilityResponse>> Availability(string id, DateOnly? date, CancellationToken ct)
     {
-        var day = date ?? venue.Today();
+        var day = date ?? venue.Today((await venue.CatalogAsync(ct)).Venue);
         var result = await bookings.AvailabilityAsync(id, day, ct);
-        return result.IsSuccess
-            ? new AvailabilityResponse(id, day, venue.Venue.TimeZoneId, [.. result.Value!.Select(SlotResponse.From)])
-            : Failure(result.Error!);
+        if (!result.IsSuccess) return Failure(result.Error!);
+        var (place, slots, closures) = result.Value!;
+        return new AvailabilityResponse(id, day, place.TimeZoneId, [.. slots.Select(SlotResponse.From)], [.. closures.Select(c => ClosureResponse.From(c, place))]);
     }
 }

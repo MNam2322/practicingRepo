@@ -51,6 +51,19 @@ public sealed class AvailabilityCalculatorTests
     }
 
     [Fact]
+    public void Closed_beats_booked_and_past_beats_closed()
+    {
+        var closed = TimeRange.FromStart(At(Tomorrow, 9), TimeSpan.FromHours(3));
+        var busy = Hour(Tomorrow, 10);
+        var slots = AvailabilityCalculator.ForDay(Court, Club, Tomorrow, [busy], At(Tomorrow, 10), [closed]);
+
+        Assert.Equal(SlotState.Past, StateAt(slots, 9));
+        Assert.Equal(SlotState.Closed, StateAt(slots, 10));
+        Assert.Equal(SlotState.Closed, StateAt(slots, 11));
+        Assert.Equal(SlotState.Free, StateAt(slots, 12));
+    }
+
+    [Fact]
     public void Half_hour_slots_follow_the_resource_grid()
     {
         var room = TestData.Court("room-a", slotMinutes: 30, maxSlots: 6);

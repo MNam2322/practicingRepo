@@ -4,6 +4,7 @@ import { useApi } from '../../lib/useApi';
 import { ErrorNotice } from '../../components/Notice';
 import { Skeleton } from '../../components/Skeleton';
 import { AVAILABILITY_REFRESH } from './refresh';
+import { SLOT_LABEL } from './slots';
 
 /**
  * Seven days side by side for one resource: days as columns, times as rows. A free cell links to that day with
@@ -52,5 +53,5 @@ function Cell({ resourceId, day, slot }: { resourceId: string; day: string; slot
   if (!slot) return <span className="cell closed" aria-label="Closed">–</span>;
   const label = `${formatDay(day, 'long')} ${slot.localStart}`;
   if (slot.state === 'free') return <a className="cell slot free" href={resourceHref(resourceId, day, 'day', slot.start)} aria-label={`${label}, free: choose`}>Free</a>;
-  return <span className={`cell slot ${slot.state}`} aria-label={`${label}, ${slot.state}`}>{slot.state === 'booked' ? 'Booked' : 'Past'}</span>;
+  return <span className={`cell slot ${slot.state}`} aria-label={`${label}, ${SLOT_LABEL[slot.state].toLowerCase()}`}>{SLOT_LABEL[slot.state]}</span>;
 }

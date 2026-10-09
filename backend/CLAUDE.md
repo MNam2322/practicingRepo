@@ -11,16 +11,17 @@ BookingApp.slnx
 src/BookingApp.Core            domain, services and repository ports. Base class library only: no ASP.NET Core, no EF Core, no I/O.
   Common/Result.cs             Result<T> and Error(kind, code, message): expected failures are results, not exceptions
   Scheduling/TimeRange.cs      half-open UTC range [Start, End); Overlaps
-  Scheduling/Resource.cs       Venue (IANA time zone), Resource, OpeningHours, IResourceRepository port
-  Scheduling/Availability.cs   AvailabilityCalculator: pure, DST-safe slots for a local day
+  Scheduling/Resource.cs       Venue (IANA time zone), Resource, OpeningHours, Closure, ResourceCatalog, IResourceRepository port
+  Scheduling/Availability.cs   AvailabilityCalculator: pure, DST-safe slots for a local day (free, booked, past, closed)
   Scheduling/VenueService.cs   service: venue, resources, policy, the venue's today
   Bookings/Booking.cs          Booking aggregate + BookingStatus + CustomerId
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
 src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite)
-  Repositories/                ConfigurationResourceRepository, InMemoryBookingRepository, EfBookingRepository
-  Persistence/                 BookingDbContext, BookingRow (the stored shape), StorageOptions, DatabaseInitializer (migrate + WAL),
+  Repositories/                EfBookingRepository, EfResourceRepository (Sqlite); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
+  Persistence/                 BookingDbContext (tables, keys, FKs, CHECKs), BookingRow/ResourceRows (stored shapes), StorageOptions,
+                               DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
                                Migrations/ (generated; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Controllers/ (ApiControllerBase, Venue, Resources, Bookings),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
@@ -59,7 +60,8 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - New use cases go in a service in Core; new storage goes behind a repository interface in Core with its implementation in `Infrastructure/Repositories/`. Name them `XxxService`, `IXxxRepository`, `XxxRepository`.
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.
 - Every async path takes a `CancellationToken`. Log with `[LoggerMessage]`.
-- Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`.
+- Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`. The `Venue` section only seeds the database on first run; after that the venue, resources, opening hours and closures live in the database.
+- Rules any writer must obey are database constraints (keys, foreign keys, CHECKs, NOT NULL) as well as code. Migrations must upgrade a database that already has data: test the upgrade path, not just an empty database.
 - NuGet versions go in `Directory.Packages.props` (central package management), never in a `.csproj`.
 - Warnings are errors. Keep `dotnet format --verify-no-changes` clean.
 

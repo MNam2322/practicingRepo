@@ -29,7 +29,17 @@ public sealed record SlotResponse(DateTimeOffset Start, DateTimeOffset End, stri
     public static SlotResponse From(Slot s) => new(s.Time.Start, s.Time.End, s.LocalStart.ToString("HH:mm"), s.LocalEnd.ToString("HH:mm"), s.State);
 }
 
-public sealed record AvailabilityResponse(string ResourceId, DateOnly Date, string TimeZone, IReadOnlyList<SlotResponse> Slots);
+/// <param name="Closures">Closures touching this day, so the UI can say why slots are closed.</param>
+public sealed record AvailabilityResponse(string ResourceId, DateOnly Date, string TimeZone, IReadOnlyList<SlotResponse> Slots, IReadOnlyList<ClosureResponse> Closures);
+
+/// <summary>A time a resource (or the whole venue) is closed. localStart/localEnd are venue wall-clock "yyyy-MM-ddTHH:mm".</summary>
+public sealed record ClosureResponse(Guid Id, string? ResourceId, DateTimeOffset Start, DateTimeOffset End, string LocalStart, string LocalEnd, string Reason)
+{
+    public static ClosureResponse From(Closure c, Venue venue) => new(c.Id, c.ResourceId, c.Time.Start, c.Time.End,
+        Local(c.Time.Start, venue), Local(c.Time.End, venue), c.Reason);
+
+    internal static string Local(DateTimeOffset instant, Venue venue) => TimeZoneInfo.ConvertTime(instant, venue.TimeZone).ToString("yyyy-MM-ddTHH:mm");
+}
 
 /// <summary>
 /// A booking request. The attributes check its shape at the boundary (400 with field errors); whether the booking is
@@ -65,14 +75,9 @@ public sealed record BookingResponse(
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
     DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel)
 {
-    public static BookingResponse From(Booking b, VenueService venue, DateTimeOffset now)
-    {
-        var tz = venue.Venue.TimeZone;
-        return new BookingResponse(
-            b.Id, b.ResourceId, venue.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
-            TimeZoneInfo.ConvertTime(b.Time.Start, tz).ToString("yyyy-MM-ddTHH:mm"),
-            TimeZoneInfo.ConvertTime(b.Time.End, tz).ToString("yyyy-MM-ddTHH:mm"),
-            b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
-            b.Status == BookingStatus.Confirmed && b.Time.Start - now >= venue.Policy.CancellationCutoff);
-    }
+    public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now) => new(
+        b.Id, b.ResourceId, catalog.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
+        ClosureResponse.Local(b.Time.Start, catalog.Venue), ClosureResponse.Local(b.Time.End, catalog.Venue),
+        b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
+        b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff);
 }

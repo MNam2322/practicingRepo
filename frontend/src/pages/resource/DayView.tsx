@@ -8,6 +8,7 @@ import { Field } from '../../components/Field';
 import { ErrorNotice, Notice } from '../../components/Notice';
 import { SlotsSkeleton } from '../../components/Skeleton';
 import { AVAILABILITY_REFRESH } from './refresh';
+import { SLOT_LABEL, closureTimes } from './slots';
 
 const NAME_KEY = 'bk-name';
 const readName = () => { try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; } };
@@ -67,6 +68,11 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
         <h2 className="section-title">{formatDay(day, 'long')}</h2>
         {availability.status === 'loading' && <SlotsSkeleton />}
         {availability.status === 'error' && <ErrorNotice message={availability.error} traceId={availability.traceId} retry={reload} />}
+        {availability.status === 'ready' && availability.data.closures.map((c) => (
+          <Notice key={c.id} kind="info">
+            <p><strong>Closed {closureTimes(c, day)}</strong>: {c.reason}</p>
+          </Notice>
+        ))}
         {availability.status === 'ready' && slots.length === 0 && <p className="muted">Closed on this day.</p>}
         {availability.status === 'ready' && slots.length > 0 && (
           <div className="slots">
@@ -78,7 +84,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
                   aria-pressed={index >= 0 && s.start === selected}
                   onClick={() => choose(s.start)}>
                   <span>{s.localStart}</span>
-                  <small>{s.state === 'free' ? 'Free' : s.state === 'booked' ? 'Booked' : 'Past'}</small>
+                  <small>{SLOT_LABEL[s.state]}</small>
                 </button>
               );
             })}

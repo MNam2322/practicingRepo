@@ -25,7 +25,6 @@ public static class DependencyInjection
             .Validate(o => o.Resources.Count > 0, "Venue:Resources needs at least one resource.")
             .Validate(o => o.Resources.Select(r => r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() == o.Resources.Count, "Resource ids must be unique.")
             .ValidateOnStart();
-        services.AddSingleton<IResourceRepository, ConfigurationResourceRepository>();
 
         services.AddSingleton(configuration.GetSection("Booking").Get<BookingPolicy>() ?? new BookingPolicy());
 
@@ -34,12 +33,14 @@ public static class DependencyInjection
         switch (storage.Provider)
         {
             case StorageProvider.InMemory:
+                services.AddSingleton<IResourceRepository, ConfigurationResourceRepository>();
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
                 break;
             case StorageProvider.Sqlite:
                 var connectionString = SqliteConnectionString(configuration.GetConnectionString(ConnectionStrings.Bookings), contentRoot);
                 services.AddDbContext<BookingDbContext>(o => o.UseSqlite(connectionString));
                 services.AddScoped<IBookingRepository, EfBookingRepository>();
+                services.AddScoped<IResourceRepository, EfResourceRepository>();
                 // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
                 services.AddHostedService<DatabaseInitializer>();
                 break;
@@ -66,7 +67,7 @@ public static class DependencyInjection
 /// Adds a few bookings tomorrow so the availability grid is not empty on first run. Development only.
 /// Repositories may be scoped (EF Core), so it works inside its own scope.
 /// </summary>
-internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, IResourceRepository resources, TimeProvider time, ILogger<DemoSeeder> logger) : IHostedService
+internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, TimeProvider time, ILogger<DemoSeeder> logger) : IHostedService
 {
     private static readonly CustomerId DemoCustomer = new(Guid.Parse("00000000-0000-7000-8000-000000000001"));
 
@@ -74,9 +75,10 @@ internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, IResourceR
     {
         await using var scope = scopes.CreateAsyncScope();
         var bookings = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
-        var tomorrow = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), resources.Venue.TimeZone).DateTime).AddDays(1);
+        var catalog = await scope.ServiceProvider.GetRequiredService<IResourceRepository>().GetCatalogAsync(cancellationToken);
+        var tomorrow = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), catalog.Venue.TimeZone).DateTime).AddDays(1);
         var count = 0;
-        foreach (var resource in resources.Resources)
+        foreach (var resource in catalog.Resources)
         {
             var hours = resource.HoursOn(tomorrow.DayOfWeek);
             if (hours is null) continue;
@@ -84,7 +86,7 @@ internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, IResourceR
             {
                 var localStart = tomorrow.ToDateTime(hours.Open).AddMinutes(resource.SlotMinutes * offset);
                 if (TimeOnly.FromDateTime(localStart.AddMinutes(resource.SlotMinutes)) > hours.Close) continue;
-                var start = AvailabilityCalculator.ToUtc(localStart, resources.Venue);
+                var start = AvailabilityCalculator.ToUtc(localStart, catalog.Venue);
                 var booking = Booking.Create(resource.Id, TimeRange.FromStart(start, resource.SlotLength), DemoCustomer, "Demo customer", time.GetUtcNow());
                 if (await bookings.TryAddAsync(booking, cancellationToken)) count++;
             }

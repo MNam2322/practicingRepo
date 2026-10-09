@@ -66,6 +66,7 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .slot.booked, .slot.past { background: var(--booked); color: var(--muted); cursor: not-allowed; }
 .slot.past { opacity: 0.55; }
 .slot.booked span { text-decoration: line-through; }
+.slot.closed { background: repeating-linear-gradient(135deg, var(--booked) 0 6px, var(--line) 6px 9px); color: var(--muted); cursor: not-allowed; }
 .slot.chosen { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .slot.chosen small { color: var(--brand-ink); }
 .panel { position: sticky; top: 4.5rem; padding: 1.1rem 1.2rem; }
@@ -139,6 +140,7 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .cell.slot.free:hover { border-color: var(--brand); }
 .cell.slot.booked, .cell.slot.past { color: var(--muted); background: var(--booked); font-weight: 500; }
 .cell.slot.past { opacity: 0.55; }
+.cell.slot.closed { font-weight: 500; }
 .cell.closed { border-color: transparent; color: var(--muted); }
 .week-skeleton { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

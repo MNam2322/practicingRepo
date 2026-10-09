@@ -1,6 +1,7 @@
 namespace BookingApp.Core.Scheduling;
 
-public enum SlotState { Free, Booked, Past }
+/// <summary>Past wins over Closed, Closed over Booked: a slot is shown with the most decisive reason it cannot be booked.</summary>
+public enum SlotState { Free, Booked, Past, Closed }
 
 /// <param name="Time">The slot in UTC; send <c>Time.Start</c> back to book it.</param>
 /// <param name="LocalStart">The same start in venue local time, for display.</param>
@@ -14,12 +15,15 @@ public static class AvailabilityCalculator
 {
     /// <param name="busy">Ranges already taken on that day (confirmed bookings).</param>
     /// <param name="notBefore">Slots starting before this instant are reported as Past.</param>
-    public static IReadOnlyList<Slot> ForDay(Resource resource, Venue venue, DateOnly localDay, IEnumerable<TimeRange> busy, DateTimeOffset notBefore)
+    /// <param name="closed">Ranges when the resource is closed (closures); overlapping slots are Closed.</param>
+    public static IReadOnlyList<Slot> ForDay(Resource resource, Venue venue, DateOnly localDay, IEnumerable<TimeRange> busy, DateTimeOffset notBefore,
+        IEnumerable<TimeRange>? closed = null)
     {
         var hours = resource.HoursOn(localDay.DayOfWeek);
         if (hours is null) return [];
 
         var taken = busy.ToList();
+        var closures = closed?.ToList() ?? [];
         var slots = new List<Slot>();
         for (var local = localDay.ToDateTime(hours.Open); local.AddMinutes(resource.SlotMinutes) <= localDay.ToDateTime(hours.Close); local = local.AddMinutes(resource.SlotMinutes))
         {
@@ -28,6 +32,7 @@ public static class AvailabilityCalculator
             if (venue.TimeZone.IsInvalidTime(local) || venue.TimeZone.IsInvalidTime(localEnd)) continue;
             var range = TimeRange.Create(ToUtc(local, venue), ToUtc(localEnd, venue));
             var state = range.Start < notBefore ? SlotState.Past
+                : closures.Any(c => c.Overlaps(range)) ? SlotState.Closed
                 : taken.Any(t => t.Overlaps(range)) ? SlotState.Booked
                 : SlotState.Free;
             slots.Add(new Slot(range, local, localEnd, state));

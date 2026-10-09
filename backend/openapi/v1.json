@@ -71,7 +71,7 @@
             }
           },
           "422": {
-            "description": "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, name_required, too_many_bookings",
+            "description": "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -377,7 +377,8 @@
           "resourceId",
           "date",
           "timeZone",
-          "slots"
+          "slots",
+          "closures"
         ],
         "type": "object",
         "properties": {
@@ -396,6 +397,13 @@
             "items": {
               "$ref": "#/components/schemas/SlotResponse"
             }
+          },
+          "closures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureResponse"
+            },
+            "description": "Closures touching this day, so the UI can say why slots are closed."
           }
         }
       },
@@ -470,6 +478,48 @@
           "noShow"
         ],
         "description": "Confirmed → Cancelled, or Confirmed → Completed / NoShow after it ends (staff actions, TASKS.md).\nLibrary: 4.7 \"Example 2: A booking lifecycle as a state machine\", 12.6 \"State machines for aggregate lifecycles\"."
+      },
+      "ClosureResponse": {
+        "required": [
+          "id",
+          "resourceId",
+          "start",
+          "end",
+          "localStart",
+          "localEnd",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "localStart": {
+            "type": "string"
+          },
+          "localEnd": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "description": "A time a resource (or the whole venue) is closed. localStart/localEnd are venue wall-clock \"yyyy-MM-ddTHH:mm\"."
       },
       "CreateBookingRequest": {
         "required": [
@@ -697,8 +747,10 @@
         "enum": [
           "free",
           "booked",
-          "past"
-        ]
+          "past",
+          "closed"
+        ],
+        "description": "Past wins over Closed, Closed over Booked: a slot is shown with the most decisive reason it cannot be booked."
       },
       "ValidationProblemDetails": {
         "type": "object",

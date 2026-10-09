@@ -101,7 +101,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 - **Check:** book a slot, stop the API (Ctrl+C), and start it again: the booking is still there. `dotnet test` runs the parallel test on SQLite too.
 
 ### Step 8: Backend 5, resources and closures in the database
-- [ ] **Prompt:** "Do backend task 5 (resources and opening hours in the database, with closures)."
+- [x] **Prompt:** "Do backend task 5 (resources and opening hours in the database, with closures)."
 - **Check:** ask Claude Code to add a closure for one court tomorrow. That day shows no free slots for that court in the UI, and booking it through `booking.http` is refused with a clear code.
 
 ### Step 9: Frontend 4, TanStack Query
