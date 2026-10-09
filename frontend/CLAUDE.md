@@ -8,13 +8,13 @@ The goal is a **clean, fast, usable UI**, not a showpiece. The backend does the 
 
 ```
 src/lib/api.ts          the only place that calls fetch; types mirror backend Contracts.cs; ApiError has status + code
-src/lib/useApi.ts       tiny load/reload hook (replaced by TanStack Query in task 4)
-src/lib/router.ts       hash routes: #/  #/r/:id[/:date]  #/mine   (add routes here)
+src/lib/useApi.ts       tiny load/reload hook with refresh-every and refresh-on-focus (replaced by TanStack Query in task 4)
+src/lib/router.ts       hash routes: #/  #/r/:id[/:date][/week][?at=start]  #/mine   (add routes here; view and selection live in the URL)
 src/components/Layout.tsx  top bar and page frame
 src/components/Button.tsx, Card.tsx, Field.tsx, Notice.tsx (Notice, ErrorNotice), Skeleton.tsx (Slots/Bookings/Cards skeletons)
 src/components/Toaster.tsx + src/lib/toast.ts   toasts: <Toaster> in main.tsx, useToast() anywhere
 src/pages/Home.tsx      resources
-src/pages/ResourcePage.tsx  day picker, slot grid, booking panel
+src/pages/ResourcePage.tsx  header, Day/Week toggle, legend; resource/DayView.tsx (slot grid, booking panel), resource/WeekView.tsx (7 days × times)
 src/pages/MyBookings.tsx    upcoming and past, cancel with confirm
 src/index.css           all styles; colour tokens on :root, dark mode below
 ```

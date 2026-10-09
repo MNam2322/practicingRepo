@@ -100,6 +100,36 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .status.confirmed { color: var(--ok); }
 .status.cancelled { color: var(--danger); }
 
+/* view bar: day/week toggle and legend */
+.view-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0.75rem 0 0.25rem; }
+.toggle { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); }
+.toggle a { padding: 0.35rem 0.9rem; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+.toggle a[aria-current="page"] { background: var(--brand); color: var(--brand-ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; list-style: none; margin: 0; padding: 0; font-size: 0.85rem; color: var(--muted); }
+.legend li { display: inline-flex; align-items: center; gap: 0.4rem; }
+.swatch { display: inline-block; width: 1rem; height: 1rem; padding: 0; border-radius: 4px; cursor: default; }
+.swatch.slot.booked { background: var(--booked); }
+
+/* week view */
+.week-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 0 1rem; font-size: 0.95rem; }
+.week-nav a { white-space: nowrap; }
+.week-nav strong { text-align: center; }
+.week-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.week { border-collapse: collapse; width: 100%; min-width: 36rem; font-size: 0.85rem; }
+.week th, .week td { padding: 0.25rem; text-align: center; }
+.week thead th { position: sticky; top: 0; background: var(--surface); padding: 0.6rem 0.25rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.week thead a { color: var(--ink); text-decoration: none; }
+.week thead a:hover { text-decoration: underline; }
+.week tbody th { color: var(--muted); font-weight: 600; width: 3.5rem; }
+.cell { display: block; padding: 0.35rem 0.2rem; border-radius: 6px; border: 1px solid var(--line); font-weight: 600; text-decoration: none; }
+.cell.slot.free { color: var(--brand); background: var(--free); }
+.cell.slot.free:hover { border-color: var(--brand); }
+.cell.slot.booked, .cell.slot.past { color: var(--muted); background: var(--booked); font-weight: 500; }
+.cell.slot.past { opacity: 0.55; }
+.cell.closed { border-color: transparent; color: var(--muted); }
+.week-skeleton { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
 /* skeletons: placeholders at the size of the real content */
 .skeleton { display: block; border-radius: 8px; background: linear-gradient(90deg, var(--skeleton) 25%, var(--skeleton-shine) 50%, var(--skeleton) 75%);
   background-size: 200% 100%; animation: shimmer 1.4s ease-in-out infinite; }

@@ -27,7 +27,7 @@ export default function App() {
   else if (route.name === 'mine') page = <MyBookings />;
   else if (route.name === 'resource') {
     const resource = resources.find((r) => r.id === route.id);
-    page = resource ? <ResourcePage key={`${resource.id}:${route.date ?? 'today'}`} venue={venue!} resource={resource} date={route.date} />
+    page = resource ? <ResourcePage key={`${resource.id}:${route.date ?? 'today'}:${route.view}:${route.at ?? ''}`} venue={venue!} resource={resource} date={route.date} view={route.view} at={route.at} />
       : <><h1>Not found</h1><p><a href="#/">See all resources</a></p></>;
   } else page = <><h1>Page not found</h1><p><a href="#/">Back to booking</a></p></>;
 

@@ -85,7 +85,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 - **Check:** the pages look the same or better. You see grey skeletons while slots load (throttle the network in browser dev tools to see them). A toast appears after booking and after cancelling.
 
 ### Step 5: Frontend 2, better availability
-- [ ] **Prompt:** "Do frontend task 2 (better availability)."
+- [x] **Prompt:** "Do frontend task 2 (better availability)."
 - **Check:**
   - the legend and the week view are there
   - open the same court in two tabs, book a slot in one, then switch to the other: the slot shows as booked within a minute

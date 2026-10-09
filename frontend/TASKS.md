@@ -22,9 +22,9 @@ Read first: 9.4 Components and state, 9.5 React today.
 **Done when:** the pages look the same or better, and no page has copy-pasted markup for these pieces.
 
 ### 2. Better availability
-- [ ] Add a legend, plus a week view toggle (7 days × times, for one resource).
-- [ ] Refresh slots when the tab regains focus and every 60 seconds.
-- [ ] If the chosen slot becomes taken, unselect it and say so.
+- [x] Add a legend, plus a week view toggle (7 days × times, for one resource).
+- [x] Refresh slots when the tab regains focus and every 60 seconds.
+- [x] If the chosen slot becomes taken, unselect it and say so.
 
 ### 3. Booking details page
 - [ ] Add a page at `#/b/:id` with the details, status, cancel button and "add to calendar" (an `.ics` download). Link to it from the success notice and from My bookings.
@@ -80,3 +80,4 @@ Needs backend 20.
 
 - Starter: resources, availability, booking, my bookings with cancel, themes, mobile layout.
 - Task 1: Button, Card, Field, Notice and Skeleton components; skeletons for resources, slots and bookings; toasts after booking and cancelling (polite live region, reduced-motion aware).
+- Task 2: slot legend; Day/Week toggle with a 7-day × times week view (URL state, free cells open the day with the slot chosen); availability refreshes every 60 s and on focus; a chosen slot taken meanwhile is unselected with a notice.
