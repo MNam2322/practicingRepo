@@ -141,7 +141,7 @@ Read first: 12.3 "Outbox + inbox patterns", 8.7 "Example 1: Confirmation emails 
 
 ### 16. Caching availability
 Read first: 8.6 Caching, 8.6 "Invalidation".
-- [ ] Cache availability per resource-day with `HybridCache`. Invalidate it on every booking change for that resource and day. Prove with a test that it is never stale after a booking.
+- [x] Cache availability per resource-day with `HybridCache`. Invalidate it on every booking change for that resource and day. Prove with a test that it is never stale after a booking.
 
 ### 17. Observability
 Read first: 11.6 Observability.
@@ -192,3 +192,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 13: notifications through an outbox: the booking aggregate records Confirmed/Cancelled events and the repositories write `notification_outbox` rows (confirmation, reminder 24 h before, cancellation with the staff reason) in the same save; `NotificationRelay` sends due rows through `IEmailSender` with backoff and dead-lettering, skips reminders for bookings no longer confirmed; `FileEmailSender` writes `.eml` files named by message id (a repeat after a crash is dropped); bookings take an optional `email` (signed-in customers default to their account address).
 - Task 14: weekly series (`/api/series`, 2–12 weeks, idempotent): each date is booked on its own at the same venue-local time (DST-safe expansion) and reported as held or failed with its code; `bookings.series_id`; confirm (pay each date) and cancel (refund each date the rules allow) report per date; one date can still be cancelled alone; a series counts once toward the upcoming-bookings limit.
 - Task 15: waitlist (`/api/waitlist`: join a taken time, mine with places in line, leave): `waitlist` table with one waiting entry per customer and time; `WaitlistSweep` tells the first in line when the time is free again (any cause), marking the entry and writing its email to the outbox in one transaction; the next in line is told after 30 minutes if it is still free; outbox messages can carry pre-rendered text and no booking.
+- Task 16: availability's occupancy read is cached per resource-day in HybridCache (`IOccupancyReader` / `CachedOccupancyReader`); the booking repositories bump per resource-day versions after every committed write and the versions are in the cache key, so a read after a booking change is never stale (tests on every provider, plus the slow-reader race); holds carry their expiry; exact checks bypass the cache.

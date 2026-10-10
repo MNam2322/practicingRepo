@@ -197,7 +197,7 @@ Needs backend 14 and 15.
 ## Phase 5: Quality
 
 ### Step 26: Backend 16, caching
-- [ ] **Prompt:** "Do backend task 16 (caching availability)."
+- [x] **Prompt:** "Do backend task 16 (caching availability)."
 - **Check:** `dotnet test` includes a test showing availability is never stale after booking or cancelling.
 
 ### Step 27: Backend 17, observability

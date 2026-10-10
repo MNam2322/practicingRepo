@@ -21,7 +21,8 @@ public sealed class BookingServiceTests
     public BookingServiceTests()
     {
         _resources.Policy = _policy;
-        _service = new BookingService(_resources, new InMemoryBookingRepository(), new HoldOptions { Minutes = 10 }, _time);
+        var bookings = new InMemoryBookingRepository();
+        _service = new BookingService(_resources, bookings, new DirectOccupancyReader(bookings), new HoldOptions { Minutes = 10 }, _time);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

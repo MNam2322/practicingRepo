@@ -3,6 +3,7 @@ using System.Data.Common;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Caching;
 using BookingApp.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +15,8 @@ namespace BookingApp.Infrastructure.Repositories;
 /// Bookings in a relational database through EF Core: named query methods on one focused class, no generic repository
 /// (library 7.7 "Where data access code belongs"). Reads are no-tracking; writes are guarded as described on each method.
 /// </summary>
-internal sealed class EfBookingRepository(BookingDbContext db) : IBookingRepository
+/// <param name="occupancy">Told about every committed change, so cached availability is never stale (null in tests that do not cache).</param>
+internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions? occupancy = null) : IBookingRepository
 {
     /// <summary>
     /// The overlap check and the insert must be one atomic step; a read-then-insert would let two requests both see
@@ -65,7 +67,11 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
                 db.ChangeTracker.Clear();
             }
         }, cancellationToken);
-        if (saved) booking.MarkSaved();
+        if (saved)
+        {
+            booking.MarkSaved();
+            occupancy?.Changed(booking.ResourceId, booking.Time);
+        }
         return saved;
     }
 
@@ -91,6 +97,7 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             booking.MarkSaved();
+            occupancy?.Changed(booking.ResourceId, booking.Time);
             return true;
         }
         finally
@@ -123,6 +130,7 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         {
             await db.SaveChangesAsync(cancellationToken);
             booking.MarkSaved();
+            occupancy?.Changed(booking.ResourceId, booking.Time);
             return true;
         }
         catch (DbUpdateConcurrencyException)

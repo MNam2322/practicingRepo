@@ -1,6 +1,7 @@
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Caching;
 
 namespace BookingApp.Infrastructure.Repositories;
 
@@ -11,7 +12,8 @@ namespace BookingApp.Infrastructure.Repositories;
 /// not with a check-then-insert in application code (TASKS.md, task 4).
 /// </summary>
 /// <param name="outbox">Where notifications go, in the same step as the change; null drops them (tests that do not care).</param>
-internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null) : IBookingRepository
+/// <param name="occupancy">Told about every change, so cached availability is never stale.</param>
+internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null, OccupancyVersions? occupancy = null) : IBookingRepository
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, Booking> _bookings = [];
@@ -25,6 +27,7 @@ internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null) :
             if (clash) return Task.FromResult(false);
             booking.MarkSaved();
             _bookings[booking.Id] = booking;
+            occupancy?.Changed(booking.ResourceId, booking.Time);
             return Task.FromResult(true);
         }
     }
@@ -38,6 +41,7 @@ internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null) :
             if (!_bookings.ContainsKey(booking.Id)) return Task.FromResult(false);
             outbox?.Add(NotificationPlan.For(booking));
             booking.MarkSaved();
+            occupancy?.Changed(booking.ResourceId, booking.Time);
             return Task.FromResult(true);
         }
     }

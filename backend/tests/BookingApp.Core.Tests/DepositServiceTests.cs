@@ -20,7 +20,7 @@ public sealed class DepositServiceTests
     public DepositServiceTests()
     {
         var resources = new TestResources(Court("court-1")) { Policy = new BookingPolicy { MaxDaysAhead = 30, MinLeadMinutes = 15, CancellationCutoffHours = 2 } };
-        _bookingService = new BookingService(resources, _bookings, new HoldOptions { Minutes = 10 }, _time);
+        _bookingService = new BookingService(resources, _bookings, new DirectOccupancyReader(_bookings), new HoldOptions { Minutes = 10 }, _time);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

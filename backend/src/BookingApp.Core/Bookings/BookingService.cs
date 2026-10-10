@@ -7,7 +7,8 @@ namespace BookingApp.Core.Bookings;
 public sealed record DayAvailability(Venue Venue, IReadOnlyList<Slot> Slots, IReadOnlyList<Closure> Closures);
 
 /// <summary>The booking use cases. Controllers call these; they never touch a repository directly.</summary>
-public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, HoldOptions holds, TimeProvider time)
+public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, IOccupancyReader occupancy, HoldOptions holds,
+    TimeProvider time)
 {
     public async Task<Result<DayAvailability>> AvailabilityAsync(string resourceId, DateOnly localDay, CancellationToken cancellationToken)
     {
@@ -16,8 +17,9 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         if (resource is null) return NotFound(resourceId);
         var window = AvailabilityCalculator.DayWindow(catalog.Venue, localDay);
         var now = time.GetUtcNow();
-        // Holds past their time no longer count, even before the expiry job has marked them.
-        var blocking = (await bookings.BlockingAsync(resource.Id, window, cancellationToken)).Where(b => b.BlocksAt(now));
+        // Holds past their time no longer count, even before the expiry job has marked them. (A cached read: the
+        // booking repositories invalidate it on every change.)
+        var blocking = (await occupancy.OccupiedAsync(resource.Id, window, cancellationToken)).Where(o => o.At(now));
         var closures = await resources.ClosuresAsync(resource.Id, window, cancellationToken);
         var notBefore = now.AddMinutes(catalog.Policy.MinLeadMinutes);
         var slots = AvailabilityCalculator.ForDay(resource, catalog.Venue, localDay, blocking.Select(b => b.Time), notBefore, closures.Select(c => c.Time));
