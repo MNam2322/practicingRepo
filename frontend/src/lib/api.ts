@@ -22,6 +22,10 @@ export type Closure = Schemas['ClosureResponse'];
 export type Availability = Schemas['AvailabilityResponse'];
 /** localStart/localEnd are venue wall-clock "yyyy-MM-ddTHH:mm". */
 export type Booking = Schemas['BookingResponse'];
+/** A booking's deposit: due on a hold, then pending, paid, failed or refunded. amount is in major units of currency. */
+export type Deposit = Schemas['DepositResponse'];
+export type Money = Schemas['MoneyResponse'];
+type ConfirmBookingRequest = Schemas['ConfirmBookingRequest'];
 /** The signed-in account. roles: Customer, and Staff or Admin where granted. */
 export type Account = Schemas['AccountResponse'];
 /** movedBookings: anonymous bookings from this browser that now belong to the account. */
@@ -97,8 +101,15 @@ export const api = {
       body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest),
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     }),
-  /** Confirms a hold before it expires. Confirming an already confirmed booking is harmless. */
-  confirm: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}/confirm`, { method: 'POST' }),
+  /**
+   * Pays the deposit with a payment token from the provider's card form and confirms the hold before it expires.
+   * Safe to retry (a 503 payment_unavailable especially): it reuses the same payment, so it cannot charge twice.
+   */
+  confirm: (id: string, paymentToken: string) =>
+    request<Booking>(`/api/bookings/${encodeURIComponent(id)}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify({ paymentToken } satisfies ConfirmBookingRequest),
+    }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   /** The signed-in account, or null when nobody is signed in (the API answers 401). */

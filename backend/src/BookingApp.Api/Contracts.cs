@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
 
 namespace BookingApp.Api;
@@ -9,7 +10,62 @@ namespace BookingApp.Api;
 // Times: "start"/"end" are UTC instants (ISO 8601 with Z); "localStart"/"localEnd" are venue wall-clock
 // times without an offset, for display only.
 
-public sealed record VenueResponse(string Name, string TimeZone, PolicyResponse Policy);
+/// <param name="Deposit">What confirming a booking costs now, or null when deposits are off.</param>
+public sealed record VenueResponse(string Name, string TimeZone, PolicyResponse Policy, MoneyResponse? Deposit);
+
+/// <summary>An amount in major units (100000 VND, 12.50 USD). Format it for display with the currency.</summary>
+public sealed record MoneyResponse(decimal Amount, string Currency)
+{
+    public static MoneyResponse From(Money m) => new(m.Major, m.Currency);
+}
+
+/// <summary>Where a booking's deposit is.</summary>
+public enum DepositStatus
+{
+    /// <summary>A hold that needs the deposit to be confirmed (after a declined card too: see failureCode).</summary>
+    Due,
+    /// <summary>Sent to the provider, outcome not known yet. Confirming again is safe and cannot charge twice.</summary>
+    Pending,
+    Paid,
+    /// <summary>The hold ended without the deposit being paid.</summary>
+    Failed,
+    Refunded,
+}
+
+/// <param name="PaymentId">The payment, if one was started.</param>
+/// <param name="FailureCode">Why the last attempt failed, such as insufficient_funds.</param>
+public sealed record DepositResponse(Guid? PaymentId, decimal Amount, string Currency, DepositStatus Status, string? FailureCode)
+{
+    /// <summary>The deposit as the customer should see it, or null when the booking has none.</summary>
+    public static DepositResponse? For(Booking b, Payment? payment, Money deposit, DateTimeOffset now)
+    {
+        var liveHold = b.StatusAt(now) == BookingStatus.Pending;
+        if (payment is null)
+            return liveHold && !deposit.IsZero ? new DepositResponse(null, deposit.Major, deposit.Currency, DepositStatus.Due, null) : null;
+        var status = payment.Status switch
+        {
+            PaymentStatus.Pending => DepositStatus.Pending,
+            PaymentStatus.Paid => DepositStatus.Paid,
+            PaymentStatus.Refunded => DepositStatus.Refunded,
+            _ => liveHold ? DepositStatus.Due : DepositStatus.Failed,
+        };
+        return new DepositResponse(payment.Id, payment.Amount.Major, payment.Amount.Currency, status, payment.FailureCode);
+    }
+}
+
+/// <summary>Confirms a hold. The deposit is paid with a token from the payment provider's card form.</summary>
+public sealed record ConfirmBookingRequest
+{
+    /// <summary>
+    /// The provider's payment token. Required when the venue takes a deposit. With the fake provider: tok_visa (approved),
+    /// tok_declined, tok_insufficient_funds, tok_expired_card, tok_unavailable, tok_timeout.
+    /// </summary>
+    [StringLength(200, ErrorMessage = "That payment token is too long.")]
+    public string? PaymentToken { get; init; }
+}
+
+/// <summary>What the webhook endpoint answers: the event id, and whether it changed anything.</summary>
+public sealed record WebhookAck(string EventId, WebhookOutcome Outcome);
 
 public sealed record PolicyResponse(int MaxDaysAhead, int MinLeadMinutes, double CancellationCutoffHours, int MaxActiveBookingsPerCustomer)
 {
@@ -74,10 +130,12 @@ public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
     DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason,
-    DateTimeOffset? HoldExpiresAt, bool CanConfirm)
+    DateTimeOffset? HoldExpiresAt, bool CanConfirm, DepositResponse? Deposit)
 {
     /// <param name="now">The moment the answers (canCancel, canConfirm) are worked out for.</param>
-    public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now)
+    /// <param name="payment">The booking's current payment (DepositService.Current), if any.</param>
+    /// <param name="deposit">The deposit confirming takes now.</param>
+    public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now, Payment? payment, Money deposit)
     {
         var liveHold = b.Status == BookingStatus.Pending && now < b.HoldExpiresAt;
         return new(
@@ -87,7 +145,7 @@ public sealed record BookingResponse(
             b.CustomerName, b.CreatedAt, b.CancelledAt,
             // A live hold can always be released; a confirmed booking until the cut-off.
             liveHold || (b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff),
-            b.CancellationReason, b.HoldExpiresAt, liveHold);
+            b.CancellationReason, b.HoldExpiresAt, liveHold, DepositResponse.For(b, payment, deposit, now));
     }
 }
 

@@ -1,8 +1,6 @@
 using BookingApp.Core.Common;
 using BookingApp.Infrastructure.Persistence;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace BookingApp.Infrastructure.Repositories;
 
@@ -21,7 +19,7 @@ internal sealed class EfIdempotencyStore(BookingDbContext db) : IIdempotencyStor
             await db.SaveChangesAsync(cancellationToken);
             return new Claim(ClaimOutcome.Claimed);
         }
-        catch (DbUpdateException e) when (IsDuplicateKey(e))
+        catch (DbUpdateException e) when (DbErrors.IsUniqueViolation(e))
         {
             // Someone used this key before: decide from what they left.
         }
@@ -63,11 +61,4 @@ internal sealed class EfIdempotencyStore(BookingDbContext db) : IIdempotencyStor
 
     public Task ReleaseAsync(string scope, string key, CancellationToken cancellationToken) =>
         db.IdempotencyKeys.Where(r => r.Scope == scope && r.Key == key).ExecuteDeleteAsync(cancellationToken);
-
-    private static bool IsDuplicateKey(DbUpdateException e) => e.InnerException switch
-    {
-        SqliteException sqlite => sqlite.SqliteErrorCode == 19,           // SQLITE_CONSTRAINT (primary key)
-        PostgresException postgres => postgres.SqlState == PostgresErrorCodes.UniqueViolation,
-        _ => false,
-    };
 }

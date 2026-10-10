@@ -1041,7 +1041,8 @@
         "tags": [
           "Bookings"
         ],
-        "summary": "Confirms the current customer's hold, before it expires. Confirming twice is harmless.",
+        "summary": "Pays the deposit and confirms the current customer's hold, before it expires.",
+        "description": "The deposit (see the venue's \"deposit\") is charged with the payment token. A declined card is 402 and the hold\nstays, so another card can be tried. 503 payment_unavailable means the provider did not answer: send the same\nrequest again; it reuses the same payment, so it cannot charge twice. Confirming a confirmed booking is harmless.\nIf the hold expires while the card is being charged, the deposit is refunded and the answer is 409 hold_expired.",
         "operationId": "ConfirmBooking",
         "parameters": [
           {
@@ -1055,6 +1056,47 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "The payment token. The body may be left out when the venue takes no deposit.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK",
@@ -1062,6 +1104,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "payment_declined (the hold stays; try another card)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -1087,7 +1149,17 @@
             }
           },
           "409": {
-            "description": "hold_expired, invalid_transition, changed_meanwhile",
+            "description": "hold_expired, invalid_transition, changed_meanwhile, payment_in_progress",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "payment_required",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1110,6 +1182,16 @@
                 }
               },
               "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "payment_unavailable (retry: it cannot charge twice)",
+            "content": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1192,6 +1274,7 @@
           "Bookings"
         ],
         "summary": "Cancels a booking while the cancellation rules allow it, or releases a hold at any time.",
+        "description": "A paid deposit is refunded (see deposit.status); if the provider is down, the refund follows shortly.",
         "operationId": "CancelBooking",
         "parameters": [
           {
@@ -1270,6 +1353,58 @@
                 }
               },
               "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payments/webhook": {
+      "post": {
+        "tags": [
+          "PaymentWebhook"
+        ],
+        "summary": "Receives a signed event from the payment provider (payment.succeeded, payment.failed, refund.succeeded).",
+        "description": "The Payment-Signature header is \"t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of t + \".\" + raw body&gt;\" with the\nshared secret (Payments:Fake:WebhookSecret); deliveries older than 5 minutes are refused. The same event delivered\nagain is answered 200 with outcome \"duplicate\" and changes nothing. backend/tools/payment-webhook.mjs sends one.",
+        "operationId": "ReceivePaymentWebhook",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid_signature",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_event",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "try_again (deliver it again)",
+            "content": {
+              "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
                 }
@@ -1597,7 +1732,7 @@
         "tags": [
           "Staff"
         ],
-        "summary": "Cancels any booking that has not ended, with a reason the customer sees. Frees the slot.",
+        "summary": "Cancels any booking that has not ended, with a reason the customer sees. Frees the slot and refunds the deposit.",
         "operationId": "StaffCancelBooking",
         "parameters": [
           {
@@ -1801,7 +1936,7 @@
         "tags": [
           "Venue"
         ],
-        "summary": "The venue, its time zone and the booking rules.",
+        "summary": "The venue, its time zone, the booking rules and the deposit confirming a booking takes.",
         "operationId": "GetVenue",
         "responses": {
           "200": {
@@ -2046,7 +2181,8 @@
           "canCancel",
           "cancellationReason",
           "holdExpiresAt",
-          "canConfirm"
+          "canConfirm",
+          "deposit"
         ],
         "type": "object",
         "properties": {
@@ -2109,6 +2245,16 @@
           },
           "canConfirm": {
             "type": "boolean"
+          },
+          "deposit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DepositResponse"
+              }
+            ]
           }
         }
       },
@@ -2164,6 +2310,21 @@
           }
         },
         "description": "A time a resource (or the whole venue) is closed. localStart/localEnd are venue wall-clock \"yyyy-MM-ddTHH:mm\"."
+      },
+      "ConfirmBookingRequest": {
+        "type": "object",
+        "properties": {
+          "paymentToken": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The provider's payment token. Required when the venue takes a deposit. With the fake provider: tok_visa (approved),\ntok_declined, tok_insufficient_funds, tok_expired_card, tok_unavailable, tok_timeout."
+          }
+        },
+        "description": "Confirms a hold. The deposit is paid with a token from the payment provider's card form."
       },
       "CreateBookingRequest": {
         "required": [
@@ -2289,6 +2450,70 @@
           "friday",
           "saturday"
         ]
+      },
+      "DepositResponse": {
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "status",
+          "failureCode"
+        ],
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The payment, if one was started.",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DepositStatus"
+          },
+          "failureCode": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why the last attempt failed, such as insufficient_funds."
+          }
+        }
+      },
+      "DepositStatus": {
+        "enum": [
+          "due",
+          "pending",
+          "paid",
+          "failed",
+          "refunded"
+        ],
+        "description": "Where a booking's deposit is."
+      },
+      "MoneyResponse": {
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          }
+        },
+        "description": "An amount in major units (100000 VND, 12.50 USD). Format it for display with the currency."
       },
       "OpeningHoursRequest": {
         "required": [
@@ -2922,7 +3147,8 @@
         "required": [
           "name",
           "timeZone",
-          "policy"
+          "policy",
+          "deposit"
         ],
         "type": "object",
         "properties": {
@@ -2934,8 +3160,44 @@
           },
           "policy": {
             "$ref": "#/components/schemas/PolicyResponse"
+          },
+          "deposit": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What confirming a booking costs now, or null when deposits are off.",
+                "$ref": "#/components/schemas/MoneyResponse"
+              }
+            ]
           }
         }
+      },
+      "WebhookAck": {
+        "required": [
+          "eventId",
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/WebhookOutcome"
+          }
+        },
+        "description": "What the webhook endpoint answers: the event id, and whether it changed anything."
+      },
+      "WebhookOutcome": {
+        "enum": [
+          "applied",
+          "ignored",
+          "duplicate",
+          "retry"
+        ],
+        "description": "What a webhook delivery came to."
       }
     }
   },
@@ -2948,6 +3210,9 @@
     },
     {
       "name": "Bookings"
+    },
+    {
+      "name": "PaymentWebhook"
     },
     {
       "name": "Resources"

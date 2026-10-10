@@ -1,4 +1,5 @@
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace BookingApp.Api.Controllers;
 /// <summary>The current customer's bookings. The customer is identified by the bk-customer cookie, issued on first call.</summary>
 [AllowAnonymous]
 [Route("api/bookings")]
-public sealed class BookingsController(BookingService bookings, VenueService venue, TimeProvider time) : ApiControllerBase
+public sealed class BookingsController(BookingService bookings, DepositService deposits, VenueService venue, TimeProvider time) : ApiControllerBase
 {
     /// <summary>Rate limit for writes, per customer cookie (Program.cs).</summary>
     public const string WritesPolicy = "booking-writes";
@@ -48,19 +49,31 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         return Created($"/api/bookings/{body.Id}", body);
     }
 
-    /// <summary>Confirms the current customer's hold, before it expires. Confirming twice is harmless.</summary>
+    /// <summary>Pays the deposit and confirms the current customer's hold, before it expires.</summary>
+    /// <remarks>
+    /// The deposit (see the venue's "deposit") is charged with the payment token. A declined card is 402 and the hold
+    /// stays, so another card can be tried. 503 payment_unavailable means the provider did not answer: send the same
+    /// request again; it reuses the same payment, so it cannot charge twice. Confirming a confirmed booking is harmless.
+    /// If the hold expires while the card is being charged, the deposit is refunded and the answer is 409 hold_expired.
+    /// </remarks>
     /// <param name="id">The booking (hold) id.</param>
+    /// <param name="request">The payment token. The body may be left out when the venue takes no deposit.</param>
     [HttpPost("{id:guid}/confirm")]
     [EnableRateLimiting(WritesPolicy)]
     [EndpointName("ConfirmBooking")]
     [ProducesResponseType<BookingResponse>(StatusCodes.Status200OK, Json)]
+    [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest, ProblemJson, Description = "validation_failed")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status402PaymentRequired, ProblemJson, Description = "payment_declined (the hold stays; try another card)")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson, Description = "not_your_booking")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "booking_not_found")]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "hold_expired, invalid_transition, changed_meanwhile")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "hold_expired, invalid_transition, changed_meanwhile, payment_in_progress")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity, ProblemJson, Description = "payment_required")]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<ActionResult<BookingResponse>> Confirm(Guid id, CurrentCustomer customer, CancellationToken ct)
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable, ProblemJson, Description = "payment_unavailable (retry: it cannot charge twice)")]
+    public async Task<ActionResult<BookingResponse>> Confirm(Guid id, CurrentCustomer customer,
+        [FromBody(EmptyBodyBehavior = Microsoft.AspNetCore.Mvc.ModelBinding.EmptyBodyBehavior.Allow)] ConfirmBookingRequest? request, CancellationToken ct)
     {
-        var result = await bookings.ConfirmAsync(customer.Id, id, ct);
+        var result = await deposits.ConfirmAsync(customer.Id, id, request?.PaymentToken, ct);
         return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
     }
 
@@ -73,7 +86,8 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         var now = time.GetUtcNow();
         var list = await bookings.MineAsync(customer.Id, ct);
         var catalog = await venue.CatalogAsync(ct);
-        return list.Select(b => BookingResponse.From(b, catalog, catalog.Policy, now)).ToList();
+        var payments = await deposits.CurrentForAsync([.. list.Select(b => b.Id)], ct);
+        return list.Select(b => BookingResponse.From(b, catalog, catalog.Policy, now, payments.GetValueOrDefault(b.Id), deposits.Deposit)).ToList();
     }
 
     /// <summary>One of the current customer's bookings.</summary>
@@ -89,6 +103,7 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     }
 
     /// <summary>Cancels a booking while the cancellation rules allow it, or releases a hold at any time.</summary>
+    /// <remarks>A paid deposit is refunded (see deposit.status); if the provider is down, the refund follows shortly.</remarks>
     /// <param name="id">The booking id.</param>
     [HttpPost("{id:guid}/cancel")]
     [EnableRateLimiting(WritesPolicy)]
@@ -102,12 +117,15 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     public async Task<ActionResult<BookingResponse>> Cancel(Guid id, CurrentCustomer customer, CancellationToken ct)
     {
         var result = await bookings.CancelAsync(customer.Id, id, ct);
-        return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
+        if (!result.IsSuccess) return Failure(result.Error!);
+        await deposits.SettleAsync(id, ct);
+        return await ToResponseAsync(result.Value!, ct);
     }
 
     private async Task<BookingResponse> ToResponseAsync(Booking booking, CancellationToken ct)
     {
         var catalog = await venue.CatalogAsync(ct);
-        return BookingResponse.From(booking, catalog, catalog.Policy, time.GetUtcNow());
+        var payment = (await deposits.CurrentForAsync([booking.Id], ct)).GetValueOrDefault(booking.Id);
+        return BookingResponse.From(booking, catalog, catalog.Policy, time.GetUtcNow(), payment, deposits.Deposit);
     }
 }

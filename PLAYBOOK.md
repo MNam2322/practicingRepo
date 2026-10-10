@@ -165,7 +165,7 @@ Needs backend 9.
   - wait: the slot frees up by itself
 
 ### Step 20: Backend 12, payments
-- [ ] **Prompt:** "Do backend task 12 (payments with a fake provider)."
+- [x] **Prompt:** "Do backend task 12 (payments with a fake provider)."
 - **Check:**
   - confirming a hold takes a deposit
   - sending the same webhook twice changes nothing the second time

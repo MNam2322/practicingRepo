@@ -341,6 +341,109 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         });
                 });
 
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.PaymentEventRow", b =>
+                {
+                    b.Property<string>("EventId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("payload");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("payment_id");
+
+                    b.Property<long>("ReceivedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("received_at");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("type");
+
+                    b.HasKey("EventId");
+
+                    b.ToTable("payment_events", (string)null);
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.PaymentRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<long>("AmountMinor")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("amount_minor");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("booking_id");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("failure_code");
+
+                    b.Property<long?>("PaidAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("provider_reference");
+
+                    b.Property<long?>("RefundedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("refunded_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_payments_status");
+
+                    b.HasIndex(new[] { "BookingId" }, "ix_payments_booking");
+
+                    b.HasIndex(new[] { "BookingId" }, "ux_payments_one_live")
+                        .IsUnique()
+                        .HasFilter("status IN ('Pending', 'Paid')");
+
+                    b.ToTable("payments", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_payments_amount", "amount_minor > 0");
+
+                            t.HasCheckConstraint("ck_payments_status", "status IN ('Pending', 'Paid', 'Failed', 'Refunded')");
+                        });
+                });
+
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ResourceRow", b =>
                 {
                     b.Property<string>("Id")
@@ -589,6 +692,15 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany("Hours")
                         .HasForeignKey("ResourceId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.PaymentRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.BookingRow", null)
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

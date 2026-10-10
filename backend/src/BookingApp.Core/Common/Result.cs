@@ -13,6 +13,10 @@ public enum ErrorKind
     Forbidden,
     /// <summary>The caller is not signed in, or their credentials are wrong (401).</summary>
     Unauthenticated,
+    /// <summary>The payment was refused, such as a declined card (402).</summary>
+    PaymentDeclined,
+    /// <summary>Something the request depends on did not answer, such as the payment provider; try again (503).</summary>
+    Unavailable,
 }
 
 /// <param name="Code">Stable, machine-readable code such as "slot_taken". Clients switch on this.</param>

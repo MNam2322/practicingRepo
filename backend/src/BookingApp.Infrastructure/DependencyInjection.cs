@@ -1,8 +1,10 @@
 using BookingApp.Core.Admin;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Common;
+using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Identity;
+using BookingApp.Infrastructure.Payments;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Identity;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace BookingApp.Infrastructure;
 
@@ -43,6 +46,7 @@ public static class DependencyInjection
                 services.AddSingleton<IVenueAdminRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
                 services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
+                services.AddSingleton<IPaymentRepository, InMemoryPaymentRepository>();
                 // Accounts only; one in-memory database per app instance.
                 var name = $"accounts-{Guid.NewGuid():N}";
                 services.AddDbContext<InMemoryBookingDbContext>(o => o.UseInMemoryDatabase(name));
@@ -70,8 +74,9 @@ public static class DependencyInjection
         AddAccounts(services);
         services.AddOptions<HoldOptions>().Bind(configuration.GetSection(HoldOptions.Section))
             .Validate(o => o.Minutes > 0 && o.SweepSeconds > 0, "Holds:Minutes and Holds:SweepSeconds must be positive.").ValidateOnStart();
-        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<HoldOptions>>().Value);
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<HoldOptions>>().Value);
         services.AddHostedService<HoldExpiryService>();
+        AddPayments(services, configuration);
         services.AddOptions<AccountBootstrapOptions>().Bind(configuration.GetSection(AccountBootstrapOptions.Section));
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;
@@ -103,6 +108,29 @@ public static class DependencyInjection
         services.AddScoped<AccountService>();
     }
 
+    /// <summary>
+    /// Deposits through the fake payment provider (the only one so far; a real one is another adapter behind the same
+    /// ports). The webhook secret is required: without it no webhook could be verified, so the app refuses to start.
+    /// </summary>
+    private static void AddPayments(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<PaymentOptions>().Bind(configuration.GetSection(PaymentOptions.Section))
+            .Validate(o => Money.IsSupported(o.Currency), "Payments:Currency must be a supported ISO 4217 code (such as VND or USD).")
+            .Validate(o => o.Deposit >= 0 && (!Money.IsSupported(o.Currency) || o.Deposit == decimal.Round(o.Deposit, Money.ExponentOf(o.Currency))),
+                "Payments:Deposit must be zero or more, with no more decimals than the currency has.")
+            .Validate(o => o.SweepSeconds > 0, "Payments:SweepSeconds must be positive.")
+            .ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<PaymentOptions>>().Value);
+        services.AddOptions<FakePaymentOptions>().Bind(configuration.GetSection(FakePaymentOptions.Section))
+            .Validate(o => o.WebhookSecret.Length >= 16, "Payments:Fake:WebhookSecret must be set (16+ characters), for example with the environment variable Payments__Fake__WebhookSecret.")
+            .Validate(o => o.WebhookToleranceSeconds > 0, "Payments:Fake:WebhookToleranceSeconds must be positive.")
+            .ValidateOnStart();
+        services.AddSingleton<FakePaymentGateway>();
+        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<FakePaymentGateway>());
+        services.AddSingleton<IPaymentWebhookReader, FakePaymentWebhookReader>();
+        services.AddHostedService<RefundService>();
+    }
+
     /// <summary>The EF Core repositories over whichever database was chosen; they depend only on the shared BookingDbContext.</summary>
     private static void AddEfRepositories<TContext>(IServiceCollection services) where TContext : BookingDbContext
     {
@@ -111,6 +139,7 @@ public static class DependencyInjection
         services.AddScoped<IResourceRepository, EfResourceRepository>();
         services.AddScoped<IVenueAdminRepository, EfVenueAdminRepository>();
         services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
+        services.AddScoped<IPaymentRepository, EfPaymentRepository>();
         // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
         services.AddHostedService<DatabaseInitializer>();
         // After the initializer, so its first run finds the table.

@@ -119,10 +119,10 @@ Read first: 8.7 "Background work inside the process", 7.9 "Atomic conditional up
 
 ### 12. Payments (deposit) with a fake provider
 Read first: 4.9 the Adapter case, 8.9 "Example 2: Receiving a payment webhook safely", 14.2 "Receiving a webhook: verify, store, then work".
-- [ ] Put an `IPaymentGateway` port in front of a fake provider that you can drive from tests.
-- [ ] Confirming a hold takes a deposit.
-- [ ] Add a webhook controller action that verifies the signature and is idempotent.
-- [ ] Refunds follow the cancellation rules.
+- [x] Put an `IPaymentGateway` port in front of a fake provider that you can drive from tests.
+- [x] Confirming a hold takes a deposit.
+- [x] Add a webhook controller action that verifies the signature and is idempotent.
+- [x] Refunds follow the cancellation rules.
 
 ### 13. Notifications with an outbox
 Read first: 12.3 "Outbox + inbox patterns", 8.7 "Example 1: Confirmation emails lost on restart", 4.3 "Example 2: Scoped services inside a background worker".
@@ -188,3 +188,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 9: admin API (ManageVenue policy): resources create/update/delete, weekly hours, whole-day closures incl. venue-wide holidays, booking rules moved into the database; every change saved with an audit entry (actor, request id, before/after) in the same transaction; `audit_log` append-only by database triggers.
 - Task 10: `Idempotency-Key` on `POST /api/bookings`: atomic per-caller claim in `idempotency_keys`, response stored before it is sent and replayed with `Idempotency-Replayed: true`; 422 for a reused key with another body, 409 while in progress; hourly cleanup of keys older than 24 h; the frontend sends one key per booking attempt.
 - Task 11: holds — booking makes a `Pending` hold (Holds:Minutes, default 10) that blocks the slot until `POST /api/bookings/{id}/confirm` (idempotent; 409 `hold_expired`) or release; expired holds stop blocking at once (lazy check on read, conditional UPDATE before each insert) and `HoldExpiryService` sweeps them to `Expired`; the PostgreSQL exclusion constraint now covers `Pending` too; the frontend holds and confirms in one go until frontend task 9.
+- Task 12: deposits through an `IPaymentGateway` port and a fake provider (deterministic test tokens, idempotent per payment id): confirming a hold charges `Payments:Deposit` (402 `payment_declined` keeps the hold, 503 `payment_unavailable` retries the same payment); one live payment per booking (partial unique index); refunds whenever the cancellation rules allow a cancel (customer before the cut-off, staff) or a paid hold lapses, retried by `RefundService`; `POST /api/payments/webhook` verifies an HMAC over the raw body (5-minute window) and records each event id once with its change; `tools/payment-webhook.mjs` sends signed events.

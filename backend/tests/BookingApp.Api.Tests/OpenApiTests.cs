@@ -42,7 +42,7 @@ public sealed class OpenApiTests : ApiTest
         var operations = doc.RootElement.GetProperty("paths").EnumerateObject()
             .SelectMany(p => p.Value.EnumerateObject().Select(o => (Route: $"{o.Name.ToUpperInvariant()} {p.Name}", Op: o.Value)))
             .ToList();
-        Assert.Equal(27, operations.Count);
+        Assert.Equal(28, operations.Count);
         Assert.All(operations, o =>
         {
             Assert.False(string.IsNullOrEmpty(o.Op.GetProperty("operationId").GetString()), $"{o.Route} has no name");

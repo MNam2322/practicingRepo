@@ -226,7 +226,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Confirms the current customer's hold, before it expires. Confirming twice is harmless. */
+        /**
+         * Pays the deposit and confirms the current customer's hold, before it expires.
+         * @description The deposit (see the venue's "deposit") is charged with the payment token. A declined card is 402 and the hold
+         *     stays, so another card can be tried. 503 payment_unavailable means the provider did not answer: send the same
+         *     request again; it reuses the same payment, so it cannot charge twice. Confirming a confirmed booking is harmless.
+         *     If the hold expires while the card is being charged, the deposit is refunded and the answer is 409 hold_expired.
+         */
         post: operations["ConfirmBooking"];
         delete?: never;
         options?: never;
@@ -277,8 +283,33 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancels a booking while the cancellation rules allow it, or releases a hold at any time. */
+        /**
+         * Cancels a booking while the cancellation rules allow it, or releases a hold at any time.
+         * @description A paid deposit is refunded (see deposit.status); if the provider is down, the refund follows shortly.
+         */
         post: operations["CancelBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/payments/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Receives a signed event from the payment provider (payment.succeeded, payment.failed, refund.succeeded).
+         * @description The Payment-Signature header is "t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of t + "." + raw body&gt;" with the
+         *     shared secret (Payments:Fake:WebhookSecret); deliveries older than 5 minutes are refused. The same event delivered
+         *     again is answered 200 with outcome "duplicate" and changes nothing. backend/tools/payment-webhook.mjs sends one.
+         */
+        post: operations["ReceivePaymentWebhook"];
         delete?: never;
         options?: never;
         head?: never;
@@ -379,7 +410,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancels any booking that has not ended, with a reason the customer sees. Frees the slot. */
+        /** Cancels any booking that has not ended, with a reason the customer sees. Frees the slot and refunds the deposit. */
         post: operations["StaffCancelBooking"];
         delete?: never;
         options?: never;
@@ -411,7 +442,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The venue, its time zone and the booking rules. */
+        /** The venue, its time zone, the booking rules and the deposit confirming a booking takes. */
         get: operations["GetVenue"];
         put?: never;
         post?: never;
@@ -506,6 +537,7 @@ export interface components {
             /** Format: date-time */
             holdExpiresAt: null | string;
             canConfirm: boolean;
+            deposit: null | components["schemas"]["DepositResponse"];
         };
         /**
          * @description Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal.
@@ -524,6 +556,14 @@ export interface components {
             localStart: string;
             localEnd: string;
             reason: string;
+        };
+        /** @description Confirms a hold. The deposit is paid with a token from the payment provider's card form. */
+        ConfirmBookingRequest: {
+            /**
+             * @description The provider's payment token. Required when the venue takes a deposit. With the fake provider: tok_visa (approved),
+             *     tok_declined, tok_insufficient_funds, tok_expired_card, tok_unavailable, tok_timeout.
+             */
+            paymentToken?: null | string;
         };
         /**
          * @description A booking request. The attributes check its shape at the boundary (400 with field errors); whether the booking is
@@ -560,6 +600,30 @@ export interface components {
         };
         /** @enum {unknown} */
         DayOfWeek: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
+        DepositResponse: {
+            /**
+             * Format: uuid
+             * @description The payment, if one was started.
+             */
+            paymentId: null | string;
+            /** Format: double */
+            amount: number;
+            currency: string;
+            status: components["schemas"]["DepositStatus"];
+            /** @description Why the last attempt failed, such as insufficient_funds. */
+            failureCode: null | string;
+        };
+        /**
+         * @description Where a booking's deposit is.
+         * @enum {unknown}
+         */
+        DepositStatus: "due" | "pending" | "paid" | "failed" | "refunded";
+        /** @description An amount in major units (100000 VND, 12.50 USD). Format it for display with the currency. */
+        MoneyResponse: {
+            /** Format: double */
+            amount: number;
+            currency: string;
+        };
         /** @description One day's opening hours, in venue-local time. */
         OpeningHoursRequest: {
             day: null | components["schemas"]["DayOfWeek"];
@@ -729,7 +793,18 @@ export interface components {
             name: string;
             timeZone: string;
             policy: components["schemas"]["PolicyResponse"];
+            deposit: null | components["schemas"]["MoneyResponse"];
         };
+        /** @description What the webhook endpoint answers: the event id, and whether it changed anything. */
+        WebhookAck: {
+            eventId: string;
+            outcome: components["schemas"]["WebhookOutcome"];
+        };
+        /**
+         * @description What a webhook delivery came to.
+         * @enum {unknown}
+         */
+        WebhookOutcome: "applied" | "ignored" | "duplicate" | "retry";
     };
     responses: never;
     parameters: never;
@@ -1555,7 +1630,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description The payment token. The body may be left out when the venue takes no deposit. */
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ConfirmBookingRequest"];
+                "text/json": null | components["schemas"]["ConfirmBookingRequest"];
+                "application/*+json": null | components["schemas"]["ConfirmBookingRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -1564,6 +1646,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description payment_declined (the hold stays; try another card) */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description not_your_booking */
@@ -1584,8 +1684,17 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description hold_expired, invalid_transition, changed_meanwhile */
+            /** @description hold_expired, invalid_transition, changed_meanwhile, payment_in_progress */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description payment_required */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1602,6 +1711,15 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                     "application/json": components["schemas"]["ProblemDetails"];
                     "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description payment_unavailable (retry: it cannot charge twice) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };
@@ -1724,6 +1842,53 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                     "application/json": components["schemas"]["ProblemDetails"];
                     "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReceivePaymentWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookAck"];
+                };
+            };
+            /** @description invalid_signature */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description invalid_event */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description try_again (deliver it again) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

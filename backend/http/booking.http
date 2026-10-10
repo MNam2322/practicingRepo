@@ -26,8 +26,17 @@ Content-Type: application/json
 
 { "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "slots": 1, "name": "Nam" }
 
-### Confirm the hold above before it expires (409 hold_expired after). Confirming twice is harmless.
+### Pay the deposit and confirm the hold above before it expires (409 hold_expired after). Confirming twice is harmless.
+### Fake provider tokens: tok_visa (approved), tok_declined / tok_insufficient_funds / tok_expired_card (402, the hold
+### stays), tok_unavailable (503, nothing charged), tok_timeout (503, charged but the answer was lost: send it again,
+### it cannot charge twice). The deposit is in GET /api/venue ("deposit") and on each booking ("deposit").
 POST {{base}}/api/bookings/{{hold.response.body.id}}/confirm
+Content-Type: application/json
+
+{ "paymentToken": "tok_visa" }
+
+### Payment webhooks are signed by the provider, so send them with: node tools/payment-webhook.mjs <type> <paymentId>
+### (payment.succeeded, payment.failed, refund.succeeded; --event evt_1 twice to see "duplicate"; --bad-signature for 401)
 
 ### My bookings
 GET {{base}}/api/bookings/mine

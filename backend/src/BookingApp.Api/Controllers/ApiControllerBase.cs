@@ -25,6 +25,8 @@ public abstract class ApiControllerBase : ControllerBase
             ErrorKind.Conflict => StatusCodes.Status409Conflict,
             ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
             ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
+            ErrorKind.PaymentDeclined => StatusCodes.Status402PaymentRequired,
+            ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
         var problem = ProblemDetailsFactory.CreateProblemDetails(HttpContext, statusCode: status, title: error.Message);

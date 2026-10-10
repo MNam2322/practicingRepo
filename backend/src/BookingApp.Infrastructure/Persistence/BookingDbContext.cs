@@ -1,4 +1,5 @@
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -22,6 +23,8 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
     public DbSet<ClosureRow> Closures => Set<ClosureRow>();
     public DbSet<AuditRow> AuditLog => Set<AuditRow>();
     public DbSet<IdempotencyRow> IdempotencyKeys => Set<IdempotencyRow>();
+    public DbSet<PaymentRow> Payments => Set<PaymentRow>();
+    public DbSet<PaymentEventRow> PaymentEvents => Set<PaymentEventRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -147,6 +150,42 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         // My bookings.
         booking.HasIndex(b => b.CustomerId).HasDatabaseName("ix_bookings_customer");
 
+        // Deposits. At most one live payment (pending or paid) per booking: two confirms racing cannot both charge, even
+        // when one has finished paying before the other inserts (a partial unique index, library 7.2). A booking with a
+        // deposit cannot be deleted (RESTRICT).
+        var payment = model.Entity<PaymentRow>();
+        payment.ToTable("payments", t =>
+        {
+            t.HasCheckConstraint("ck_payments_amount", "amount_minor > 0");
+            t.HasCheckConstraint("ck_payments_status", "status IN ('Pending', 'Paid', 'Failed', 'Refunded')");
+        });
+        payment.HasKey(p => p.Id);
+        payment.Property(p => p.Id).HasColumnName("id").ValueGeneratedNever();
+        payment.Property(p => p.BookingId).HasColumnName("booking_id");
+        payment.Property(p => p.AmountMinor).HasColumnName("amount_minor");
+        payment.Property(p => p.Currency).HasColumnName("currency").HasMaxLength(3).IsRequired();
+        payment.Property(p => p.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16);
+        payment.Property(p => p.ProviderReference).HasColumnName("provider_reference").HasMaxLength(Payment.MaxReferenceLength);
+        payment.Property(p => p.FailureCode).HasColumnName("failure_code").HasMaxLength(Payment.MaxCodeLength);
+        payment.Property(p => p.CreatedAt).HasColumnName("created_at");
+        payment.Property(p => p.PaidAt).HasColumnName("paid_at");
+        payment.Property(p => p.RefundedAt).HasColumnName("refunded_at");
+        payment.Property(p => p.Version).HasColumnName("version").IsConcurrencyToken();
+        payment.HasOne<BookingRow>().WithMany().HasForeignKey(p => p.BookingId).OnDelete(DeleteBehavior.Restrict);
+        payment.HasIndex(p => p.BookingId, "ix_payments_booking");
+        payment.HasIndex(p => p.BookingId, "ux_payments_one_live").IsUnique().HasFilter("status IN ('Pending', 'Paid')");
+        // The refund job: paid deposits.
+        payment.HasIndex(p => p.Status).HasDatabaseName("ix_payments_status");
+
+        var paymentEvent = model.Entity<PaymentEventRow>();
+        paymentEvent.ToTable("payment_events");
+        paymentEvent.HasKey(e => e.EventId);
+        paymentEvent.Property(e => e.EventId).HasColumnName("event_id").HasMaxLength(100);
+        paymentEvent.Property(e => e.Type).HasColumnName("type").HasConversion<string>().HasMaxLength(32);
+        paymentEvent.Property(e => e.PaymentId).HasColumnName("payment_id");
+        paymentEvent.Property(e => e.ReceivedAt).HasColumnName("received_at");
+        paymentEvent.Property(e => e.Payload).HasColumnName("payload").IsRequired();
+
         ConfigureProvider(model);
     }
 
@@ -177,11 +216,14 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         var closure = model.Entity<ClosureRow>();
         UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
             closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
-            model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt));
+            model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt),
+            model.Entity<PaymentRow>().Property(p => p.CreatedAt), model.Entity<PaymentEventRow>().Property(e => e.ReceivedAt));
         var nullableTicks = new ValueConverter<DateTimeOffset?, long?>(
             v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null);
         booking.Property(b => b.CancelledAt).HasConversion(nullableTicks);
         booking.Property(b => b.HoldExpiresAt).HasConversion(nullableTicks);
+        model.Entity<PaymentRow>().Property(p => p.PaidAt).HasConversion(nullableTicks);
+        model.Entity<PaymentRow>().Property(p => p.RefundedAt).HasConversion(nullableTicks);
     }
 
     private static void UtcTicks(params PropertyBuilder<DateTimeOffset>[] properties)

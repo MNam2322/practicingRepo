@@ -10,7 +10,7 @@ namespace BookingApp.Api.Controllers;
 [Authorize(Policy = Policies.ViewSchedule)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized, ProblemJson, Description = "unauthenticated")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson, Description = "forbidden")]
-public sealed class StaffController(StaffService staff, Core.Scheduling.VenueService venue) : ApiControllerBase
+public sealed class StaffController(StaffService staff, Core.Payments.DepositService deposits, Core.Scheduling.VenueService venue) : ApiControllerBase
 {
     /// <summary>Every resource's bookings (any status) and closures for one venue-local day, with the actions allowed on each booking.</summary>
     /// <param name="date">A venue-local day (yyyy-MM-dd). Leave it out for today at the venue.</param>
@@ -47,7 +47,7 @@ public sealed class StaffController(StaffService staff, Core.Scheduling.VenueSer
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity, ProblemJson, Description = "not_started")]
     public Task<ActionResult<StaffBookingResponse>> NoShow(Guid id, CancellationToken ct) => Respond(staff.MarkNoShowAsync(id, ct), ct);
 
-    /// <summary>Cancels any booking that has not ended, with a reason the customer sees. Frees the slot.</summary>
+    /// <summary>Cancels any booking that has not ended, with a reason the customer sees. Frees the slot and refunds the deposit.</summary>
     /// <param name="id">The booking id.</param>
     [HttpPost("bookings/{id:guid}/cancel")]
     [EnableRateLimiting(BookingsController.WritesPolicy)]
@@ -58,8 +58,13 @@ public sealed class StaffController(StaffService staff, Core.Scheduling.VenueSer
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "booking_not_found")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "invalid_transition, changed_meanwhile")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status422UnprocessableEntity, ProblemJson, Description = "already_ended, reason_required")]
-    public Task<ActionResult<StaffBookingResponse>> Cancel(Guid id, StaffCancelRequest request, CancellationToken ct) =>
-        Respond(staff.CancelAsync(id, request.Reason!, ct), ct);
+    public async Task<ActionResult<StaffBookingResponse>> Cancel(Guid id, StaffCancelRequest request, CancellationToken ct)
+    {
+        var response = await Respond(staff.CancelAsync(id, request.Reason!, ct), ct);
+        // The club cancelled: the customer's deposit goes back (the refund job retries if the provider is down).
+        if (response.Value is not null) await deposits.SettleAsync(id, ct);
+        return response;
+    }
 
     /// <summary>Blocks time on a resource (maintenance, an event) so customers cannot book it.</summary>
     [HttpPost("closures")]

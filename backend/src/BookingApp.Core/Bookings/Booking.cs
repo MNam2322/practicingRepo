@@ -131,11 +131,23 @@ public sealed class Booking
     /// </summary>
     public Result<Booking> Confirm(CustomerId by, DateTimeOffset now)
     {
-        if (by != Customer) return new Error(ErrorKind.Forbidden, "not_your_booking", "You can only confirm your own bookings.");
+        if (CheckConfirm(by, now) is { } refused) return refused;
         if (Status == BookingStatus.Confirmed) return Result<Booking>.Ok(this);
-        if (Status == BookingStatus.Expired || (Status == BookingStatus.Pending && now >= HoldExpiresAt))
-            return HoldExpired;
         return Fire(BookingTrigger.Confirm, now);
+    }
+
+    /// <summary>
+    /// Why <see cref="Confirm"/> would be refused now, or null if it would succeed (including "already confirmed").
+    /// Lets a caller check before doing something it cannot undo cheaply, such as taking a deposit.
+    /// </summary>
+    public Error? CheckConfirm(CustomerId by, DateTimeOffset now)
+    {
+        if (by != Customer) return new Error(ErrorKind.Forbidden, "not_your_booking", "You can only confirm your own bookings.");
+        if (Status == BookingStatus.Confirmed) return null;
+        if (Status == BookingStatus.Expired || (Status == BookingStatus.Pending && now >= HoldExpiresAt)) return HoldExpired;
+        return IsDeclared(Status, BookingTrigger.Confirm)
+            ? null
+            : new Error(ErrorKind.Conflict, "invalid_transition", $"A booking that is {Describe(Status)} cannot be confirmed.");
     }
 
     /// <summary>The expiry job ends a hold that is past its time.</summary>

@@ -34,6 +34,12 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
 
     public FakeTimeProvider Time { get; } = new(Now);
 
+    /// <summary>The fake payment provider's webhook secret in tests.</summary>
+    public const string WebhookSecret = "whsec_test_secret_0123456789";
+
+    /// <summary>The fake payment provider the app uses: tests read what it charged and make it fail.</summary>
+    public BookingApp.Infrastructure.Payments.FakePaymentGateway Payments => Services.GetRequiredService<BookingApp.Infrastructure.Payments.FakePaymentGateway>();
+
     /// <summary>Errors the app logged while the test ran, so a failing test can say what went wrong on the server.</summary>
     public ConcurrentQueue<string> ServerErrors { get; } = new();
 
@@ -49,6 +55,7 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         builder.UseSetting("Storage:Provider", provider.ToString());
         builder.UseSetting("ConnectionStrings:Sqlite", $"Data Source={DatabaseFile}");
         if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
+        builder.UseSetting("Payments:Fake:WebhookSecret", WebhookSecret);
         builder.ConfigureLogging(logging => logging.AddProvider(new ErrorCollector(ServerErrors)));
         builder.ConfigureTestServices(services =>
         {
@@ -151,12 +158,13 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }
 
-    protected Task<HttpResponseMessage> Confirm(Guid id, HttpClient? client = null) =>
-        (client ?? Client).PostAsync($"/api/bookings/{id}/confirm", null, Ct);
+    /// <summary>Confirms a hold, paying the deposit with a fake provider token (tok_visa is approved).</summary>
+    protected Task<HttpResponseMessage> Confirm(Guid id, HttpClient? client = null, string? paymentToken = "tok_visa") =>
+        (client ?? Client).PostAsJsonAsync($"/api/bookings/{id}/confirm", new { paymentToken }, Ct);
 
-    protected async Task<BookingResponse> ConfirmOk(BookingResponse hold, HttpClient? client = null)
+    protected async Task<BookingResponse> ConfirmOk(BookingResponse hold, HttpClient? client = null, string paymentToken = "tok_visa")
     {
-        var response = await Confirm(hold.Id, client);
+        var response = await Confirm(hold.Id, client, paymentToken);
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }
