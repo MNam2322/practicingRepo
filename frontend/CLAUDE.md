@@ -39,6 +39,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 
 ## Rules
 
+- **Production build:** the Docker image serves `npm run build`'s `dist` from the API's `wwwroot` (README, "How the Docker image serves the web app"). Keep `index.html` free of inline scripts and styles (the Content-Security-Policy is same-origin only), keep routes after the `#`, and call the API with relative `/api/...` URLs so the same build works behind the Vite proxy and in the image.
 - **Antiforgery:** `request()` in api.ts sends the XSRF-TOKEN cookie's value as `X-XSRF-TOKEN` on every write, fetches `/api/antiforgery` when there is no token, and retries once after `antiforgery_failed`. Never call fetch for a write anywhere else.
 - **Holds and payment:** booking makes a hold and goes to `#/b/:id`, where the customer pays the deposit (`useConfirm`). Countdowns run on `serverNow()` (the browser clock may be off), and the API decides when a hold has expired: at zero the page asks again (`useBooking` polls an overdue hold) and shows what the API says. Payment errors come from the API (`payment_declined` shows its title, which says why); after `payment_unavailable`, retrying is safe.
 - **Times:** show `localStart` and `localEnd` from the API (venue time). Send `start` back exactly as the API gave it. Never compute slot times in the browser. "Today" is the venue's today, from `venueToday()`.

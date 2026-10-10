@@ -74,7 +74,7 @@ Read first: 4.6 Testing.
 
 ### 12. Production build
 Needs backend 20.
-- [ ] The backend image serves the built frontend. Document how in the README.
+- [x] The backend image serves the built frontend. Document how in the README.
 
 ## Changelog
 
@@ -94,3 +94,4 @@ Needs backend 20.
 - Task 10: "Repeat weekly" (2–12 weeks) in the booking panel creates a series and opens `#/s/:id`: which dates could not be held and why, one countdown and one payment for the held dates, per-date results, cancel the remaining dates; booked slots can be chosen to join their waitlist (place in line, email), and My bookings lists waitlist places with Leave.
 - Backend 19 follow-up: every write sends the antiforgery token (X-XSRF-TOKEN from the XSRF-TOKEN cookie), fetching one when missing and retrying once after `antiforgery_failed`.
 - Task 11: Vitest + Testing Library + MSW component tests (slot choice, hold → checkout with the antiforgery header, slot_taken → message and waitlist, field errors announced, cancel confirm) and a contrast test over every token pair in both themes; Playwright e2e (book → My bookings → cancel, keyboard-only booking, axe WCAG 2.2 AA on five pages in both themes); fixes found on the way: field errors announced (role="alert"), focus moves to the page on navigation, week-view past cells readable (no opacity).
+- Task 12: the backend image serves the production build (`npm run build` → the API's `wwwroot`); the README explains the build, the copy, how the API serves and caches it, why refreshing a `#/` route works, and that unknown `/api` paths stay JSON 404s; checked in the container: refreshing `#/mine`, `#/r/court-1` and `#/signin` keeps the page.

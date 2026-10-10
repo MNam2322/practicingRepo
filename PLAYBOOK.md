@@ -225,7 +225,7 @@ You need Docker Desktop for this step.
 
 ### Step 32: Frontend 12, production build
 Needs backend 20.
-- [ ] **Prompt:** "Do frontend task 12 (production build)."
+- [x] **Prompt:** "Do frontend task 12 (production build)."
 - **Check:** the README explains how the image serves the frontend. Refreshing on a page like `#/mine` still works inside the container.
 
 ### Step 33: Backend 21, CI

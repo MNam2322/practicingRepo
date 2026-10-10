@@ -91,7 +91,28 @@ To stop either one, press **Ctrl+C** in its terminal.
 
 **Optional: PostgreSQL instead of SQLite.** With Docker Desktop running, from the repo root: `docker compose up -d postgres`, then in terminal 1 run `dotnet run --project src/BookingApp.Api --launch-profile http-postgres` instead. `docker compose down` stops the database (add `-v` to delete its data).
 
-**Optional: the whole app in Docker.** From the repo root: `docker compose up --build`, then open http://localhost:8080. One image holds the API and the built web app, next to PostgreSQL. Stop the two dev terminals first.
+**Optional: the whole app in Docker.** From the repo root: `docker compose up --build`, then open http://localhost:8080. One image holds the API and the built web app, next to PostgreSQL. Stop the two dev terminals first. How that image serves the web app is explained below.
+
+### How the Docker image serves the web app
+
+In development there are two servers: Vite serves the React app on port 5173 and forwards `/api` to the .NET API on port 5080. In the image there is one, the API, and no Node at all.
+
+1. **Build.** The `Dockerfile` (repo root) builds the web app in a Node stage. `npm ci`, then `npm run build`, type-checks and writes `frontend/dist`: an `index.html` and the JavaScript and CSS in `assets/`, with a content hash in each file name (`index-DkkM4mBp.js`).
+2. **Copy.** The final stage puts `dist` into the API's `wwwroot` folder, next to the published API.
+3. **Serve.** At start-up the API sees `wwwroot` (`backend/src/BookingApp.Api/WebApp.cs`) and serves it.
+   - `/` returns `index.html`.
+   - Files under `/assets/` are served as they are.
+   - Every response gets the security headers, and the web app's Content-Security-Policy allows scripts and styles from the same site only. Keep `index.html` free of inline scripts.
+4. **Caching.**
+   - `/assets/*` files are sent with `Cache-Control: public, max-age=31536000, immutable`. Their names change whenever their content does, so browsers can keep them for a year.
+   - `index.html` is sent with `no-cache`, so the browser asks again each time and picks up a new release (with its new asset names) at once.
+5. **Refreshing a page.** The app's routes are after the `#` (`/#/mine`, `/#/b/<id>`). The browser never sends that part to the server: refreshing `/#/mine` asks for `/`, gets `index.html`, and the app shows My bookings again.
+6. **Other paths.**
+   - Any other path that is not the API also gets `index.html`, so an old or mistyped link lands in the app instead of an error page.
+   - Unknown `/api/...` paths still answer with a JSON 404 problem (`code: not_found`), never with the page.
+7. **One origin.** The page and the API share an origin (http://localhost:8080). The cookies (sign-in, the customer cookie, antiforgery) and the API calls work exactly as they do through the Vite proxy in development, with no CORS involved.
+
+To build only the web app the way the image does: `cd frontend`, then `npm ci` and `npm run build`. `npm run preview` serves `dist` locally, again forwarding `/api` to the API on port 5080.
 
 ## 4. Build the rest with Claude Code
 
