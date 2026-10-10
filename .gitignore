@@ -8,6 +8,8 @@ TestResults/
 # Node
 node_modules/
 dist/
+test-results/
+playwright-report/
 
 # Local data
 .data/

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -9,4 +10,7 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 5173, proxy: { '/api': api, '/health': api } },
   preview: { port: 4173, proxy: { '/api': api, '/health': api } },
+  // Component tests (npm run test): jsdom, the API mocked with MSW (src/test/). Browser tests are in e2e/ (npm run e2e).
+  // css: the contrast test reads index.css as text (Vitest stubs CSS otherwise).
+  test: { environment: 'jsdom', setupFiles: ['src/test/setup.ts'], include: ['src/**/*.test.{ts,tsx}'], css: true },
 })

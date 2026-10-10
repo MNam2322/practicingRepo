@@ -53,6 +53,7 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .cta { margin-top: auto; font-weight: 600; color: var(--brand); }
 
 /* resource page */
+main.page:focus { outline: none; }   /* focus lands here on a page change; it is not a control */
 .crumb { margin: 0 0 0.25rem; font-size: 0.9rem; }
 .days { display: flex; gap: 0.4rem; overflow-x: auto; padding: 0.75rem 0 1rem; scrollbar-width: thin; }
 .day { flex: none; padding: 0.45rem 0.8rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
@@ -228,7 +229,8 @@ a.btn { display: inline-block; text-decoration: none; }
 .cell.slot.free { color: var(--brand); background: var(--free); }
 .cell.slot.free:hover { border-color: var(--brand); }
 .cell.slot.booked, .cell.slot.past { color: var(--muted); background: var(--booked); font-weight: 500; }
-.cell.slot.past { opacity: 0.55; }
+/* Past cells are text, not disabled controls, so they must stay readable (4.5:1): marked by a dashed outline, not faded. */
+.cell.slot.past { background: transparent; border-style: dashed; opacity: 1; }
 .cell.slot.closed { font-weight: 500; }
 .cell.closed { border-color: transparent; color: var(--muted); }
 .week-skeleton { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 0; }

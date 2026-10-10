@@ -55,7 +55,8 @@ src/index.css           all styles; colour tokens on :root, dark mode below
   - visible focus states
   - no CSS framework or component library unless a task says so
 - **Components:** use `Button`, `Card`, `Field`, `Notice`/`ErrorNotice` and the skeletons from `src/components/` rather than writing their markup by hand. Loading states are skeletons at the size of the real content.
-- **Accessibility:** use real buttons and links, labelled inputs, `aria-pressed` and `aria-current` where they apply, and keep everything usable with the keyboard alone.
+- **Accessibility:** use real buttons and links, labelled inputs, `aria-pressed` and `aria-current` where they apply, and keep everything usable with the keyboard alone. Field errors are announced (role="alert" in `Field`); a new page moves focus to `main` (Layout). Text that is not a disabled control must keep 4.5:1: do not fade it with opacity. New colour tokens go into the contrast test's pairs.
+- **Tests:** test what a user does (Testing Library: find by role and text, click, type), never component internals; mock the API with MSW handlers, not by mocking modules.
 
 ## Commands (run from `frontend/`)
 
@@ -64,4 +65,5 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 - `npm run build`: type check plus production build
 - `npm run lint`
 - `npm run gen:api:file`: regenerate `src/lib/api.generated.ts` from `../backend/openapi/v1.json` (`npm run gen:api` reads the running API instead). openapi-typescript runs through npx, pinned, because it does not yet accept TypeScript 6 as a peer.
-- `npm run test` (from task 11)
+- `npm run test`: component tests (Vitest + Testing Library in jsdom; the API is mocked with MSW in `src/test/api.ts`, which refuses writes without the antiforgery header like the real API). Next to the component: `X.test.tsx`. `src/test/contrast.test.ts` checks every text/background token pair is ≥ 4.5:1 in both themes.
+- `npm run e2e`: Playwright against the running app (API and `npm run dev` first; `E2E_BASE_URL` if the UI is not on 5173): book → My bookings → cancel, keyboard-only booking, and axe (WCAG 2.2 AA) on the main pages in both themes. First time: `npx playwright install chromium`.

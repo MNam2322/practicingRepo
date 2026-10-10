@@ -213,7 +213,7 @@ Needs backend 14 and 15.
 - **Check:** ask: "List the security headers on a response, show what happens to a write with no antiforgery token, and show where the secrets now live."
 
 ### Step 30: Frontend 11, tests and accessibility
-- [ ] **Prompt:** "Do frontend task 11 (tests and accessibility)."
+- [x] **Prompt:** "Do frontend task 11 (tests and accessibility)."
 - **Check:** `npm run test` passes, and the Playwright test passes against the running app. Try booking with only the keyboard (Tab, Enter, Space).
 
 ## Phase 6: Delivery

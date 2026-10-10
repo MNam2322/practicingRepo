@@ -68,9 +68,9 @@ Needs backend 14 and 15.
 
 ### 11. Tests and accessibility
 Read first: 4.6 Testing.
-- [ ] Vitest with Testing Library, and MSW for the API: slot selection, booking, the `slot_taken` handling, and cancel confirm.
-- [ ] Playwright end-to-end tests against the running backend: book, then see it in My bookings, then cancel.
-- [ ] An accessibility pass: keyboard-only booking works, contrast is at least 4.5:1 in both themes, and form errors are announced.
+- [x] Vitest with Testing Library, and MSW for the API: slot selection, booking, the `slot_taken` handling, and cancel confirm.
+- [x] Playwright end-to-end tests against the running backend: book, then see it in My bookings, then cancel.
+- [x] An accessibility pass: keyboard-only booking works, contrast is at least 4.5:1 in both themes, and form errors are announced.
 
 ### 12. Production build
 Needs backend 20.
@@ -93,3 +93,4 @@ Needs backend 20.
 - Backend 13 follow-up: an optional Email field when booking (remembered; signed-in customers default to their account address, the API's field error shows next to it); the booking and checkout show where emails go.
 - Task 10: "Repeat weekly" (2–12 weeks) in the booking panel creates a series and opens `#/s/:id`: which dates could not be held and why, one countdown and one payment for the held dates, per-date results, cancel the remaining dates; booked slots can be chosen to join their waitlist (place in line, email), and My bookings lists waitlist places with Leave.
 - Backend 19 follow-up: every write sends the antiforgery token (X-XSRF-TOKEN from the XSRF-TOKEN cookie), fetching one when missing and retrying once after `antiforgery_failed`.
+- Task 11: Vitest + Testing Library + MSW component tests (slot choice, hold → checkout with the antiforgery header, slot_taken → message and waitlist, field errors announced, cancel confirm) and a contrast test over every token pair in both themes; Playwright e2e (book → My bookings → cancel, keyboard-only booking, axe WCAG 2.2 AA on five pages in both themes); fixes found on the way: field errors announced (role="alert"), focus moves to the page on navigation, week-view past cells readable (no opacity).
