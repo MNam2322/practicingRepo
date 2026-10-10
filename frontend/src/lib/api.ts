@@ -26,7 +26,13 @@ export type Booking = Schemas['BookingResponse'];
 export type Account = Schemas['AccountResponse'];
 /** movedBookings: anonymous bookings from this browser that now belong to the account. */
 export type SignedIn = Schemas['SignedInResponse'];
+export type Schedule = Schemas['ScheduleResponse'];
+export type ScheduleColumn = Schemas['ScheduleColumnResponse'];
+/** A booking as staff see it; actions say what the API will allow right now. */
+export type StaffBooking = Schemas['StaffBookingResponse'];
 type CreateBookingRequest = Schemas['CreateBookingRequest'];
+type StaffCancelRequest = Schemas['StaffCancelRequest'];
+type BlockTimeRequest = Schemas['BlockTimeRequest'];
 type SignUpRequest = Schemas['SignUpRequest'];
 type SignInRequest = Schemas['SignInRequest'];
 type Problem = Schemas['ValidationProblemDetails'] & { traceId?: string };
@@ -89,6 +95,14 @@ export const api = {
   signIn: (email: string, password: string) =>
     request<SignedIn>('/api/account/signin', { method: 'POST', body: JSON.stringify({ email, password } satisfies SignInRequest) }),
   signOut: () => request<void>('/api/account/signout', { method: 'POST' }),
+  // staff (Staff or Admin; the API refuses everyone else)
+  schedule: (date: string) => request<Schedule>(`/api/staff/schedule?date=${date}`),
+  staffComplete: (id: string) => request<StaffBooking>(`/api/staff/bookings/${id}/complete`, { method: 'POST' }),
+  staffNoShow: (id: string) => request<StaffBooking>(`/api/staff/bookings/${id}/no-show`, { method: 'POST' }),
+  staffCancel: (id: string, reason: string) =>
+    request<StaffBooking>(`/api/staff/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason } satisfies StaffCancelRequest) }),
+  blockTime: (resourceId: string, start: string, end: string, reason: string) =>
+    request<Closure>('/api/staff/closures', { method: 'POST', body: JSON.stringify({ resourceId, start, end, reason } satisfies BlockTimeRequest) }),
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 };
 

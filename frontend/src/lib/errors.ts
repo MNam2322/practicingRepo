@@ -20,6 +20,13 @@ export const ERROR_MESSAGES: Record<string, string> = {
   not_cancellable: 'This booking can no longer be cancelled.',
   too_late_to_cancel: 'It is too late to cancel this booking online. Contact the club.',
   changed_meanwhile: 'This booking was changed at the same moment. Reload and try again.',
+  // staff
+  invalid_transition: 'That cannot be done to this booking any more. The schedule has been refreshed.',
+  not_started: 'This booking has not started yet. Mark it completed or a no-show once it starts.',
+  already_ended: 'This booking has already ended. Mark it completed or a no-show instead.',
+  reason_required: 'Give a reason. The customer will see it.',
+  bookings_in_the_way: 'Confirmed bookings overlap that time. Cancel them first (with a reason), then block the time.',
+  end_before_start: 'The end must be after the start.',
   // accounts
   email_taken: 'There is already an account with that email. Sign in instead.',
   invalid_credentials: 'That email and password do not match an account.',

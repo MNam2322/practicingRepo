@@ -97,7 +97,7 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .booking { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.9rem 1.1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .booking.cancelled { opacity: 0.7; }
 .actions { display: flex; gap: 0.4rem; }
-.status { text-transform: capitalize; font-weight: 600; }
+.status { font-weight: 600; }
 .status.confirmed { color: var(--ok); }
 .status.cancelled { color: var(--danger); }
 
@@ -114,6 +114,37 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .account-menu { position: absolute; right: 0; top: calc(100% + 0.4rem); min-width: 14rem; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.55rem; z-index: 10; }
 .account-menu p { margin: 0; overflow-wrap: anywhere; }
 .account-placeholder { display: inline-block; width: 5rem; }
+
+/* staff schedule */
+.staff-bar { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; margin-bottom: 0.75rem; }
+.staff-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1.25rem; align-items: start; margin-bottom: 1.5rem; }
+.staff-side { position: sticky; top: 4.5rem; }
+.staff-panel { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.staff-panel .close { align-self: flex-start; }
+.staff-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.staff-details { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; margin: 0; }
+.staff-details dt { color: var(--muted); }
+.staff-details dd { margin: 0; }
+.timeline-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.timeline { display: grid; min-width: min-content; }
+.timeline-corner, .timeline-head { position: sticky; top: 0; z-index: 2; background: var(--surface); border-bottom: 1px solid var(--line); padding: 0.55rem 0.5rem; font-weight: 600; font-size: 0.9rem; }
+.timeline-axis { position: relative; border-right: 1px solid var(--line); }
+.timeline-axis span { position: absolute; right: 0.4rem; transform: translateY(-0.55rem); font-size: 0.75rem; color: var(--muted); }
+.timeline-axis span:first-child { transform: none; }
+.timeline-col { position: relative; border-right: 1px solid var(--line);
+  background-image: repeating-linear-gradient(to bottom, var(--line) 0 1px, transparent 1px 64px); }
+.timeline-col:last-child { border-right: 0; }
+.tl-shut { position: absolute; left: 0; right: 0; background: var(--surface-2); }
+.tl-closure { position: absolute; left: 3px; right: 3px; border-radius: 6px; overflow: hidden; padding: 0.2rem 0.4rem; font-size: 0.75rem; color: var(--muted);
+  background: repeating-linear-gradient(135deg, var(--booked) 0 6px, var(--line) 6px 9px); }
+.tl-booking { position: absolute; left: 4px; right: 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 0.05rem; overflow: hidden;
+  padding: 0.2rem 0.45rem; border-radius: 6px; border: 1px solid var(--brand); background: var(--brand-soft); color: var(--ink);
+  font: inherit; font-size: 0.8rem; text-align: left; cursor: pointer; }
+.tl-booking small { color: var(--muted); }
+.tl-booking.completed { border-color: var(--line); background: var(--surface-2); }
+.tl-booking.noShow { border-color: var(--danger); background: var(--danger-soft); }
+.tl-booking[aria-pressed="true"] { outline: 2px solid var(--brand); outline-offset: 1px; background: var(--brand); color: var(--brand-ink); }
+.tl-booking[aria-pressed="true"] small { color: var(--brand-ink); }
 
 /* booking details */
 .details { padding: 1.1rem 1.2rem; max-width: 36rem; margin: 1rem 0; }
@@ -186,11 +217,15 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 }
 
 @media (max-width: 760px) {
-  .layout-2 { grid-template-columns: 1fr; }
+  .layout-2, .staff-layout { grid-template-columns: minmax(0, 1fr); }
+  .staff-side { position: static; }
   .panel { position: static; }
   .booking { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 420px) {
+  /* The nav gets its own row under the brand, so four items (with Schedule for staff) still fit. */
+  .topbar { flex-wrap: wrap; row-gap: 0.35rem; padding-top: 0.55rem; padding-bottom: 0.55rem; }
+  .nav { width: 100%; justify-content: space-between; align-items: center; }
   .brand { font-size: 0.95rem; }
   .nav a { padding: 0.35rem 0.55rem; font-size: 0.9rem; }
   .account-name { display: none; }

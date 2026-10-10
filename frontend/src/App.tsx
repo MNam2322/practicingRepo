@@ -8,6 +8,7 @@ import { BookingPage } from './pages/BookingPage';
 import { MyBookings } from './pages/MyBookings';
 import { ResourcePage } from './pages/ResourcePage';
 import { SignInPage, SignUpPage } from './pages/SignInPage';
+import { StaffPage } from './pages/StaffPage';
 
 export default function App() {
   const route = useRoute();
@@ -28,6 +29,7 @@ export default function App() {
   else if (route.name === 'mine') page = <MyBookings />;
   else if (route.name === 'signin') page = <SignInPage key={route.next} next={route.next} />;
   else if (route.name === 'signup') page = <SignUpPage key={route.next} next={route.next} />;
+  else if (route.name === 'staff') page = <StaffPage key={route.date ?? 'today'} venue={venue!} date={route.date} />;
   else if (route.name === 'booking') page = <BookingPage key={route.id} id={route.id} venue={venue!} />;
   else if (route.name === 'resource') {
     const resource = resources.find((r) => r.id === route.id);

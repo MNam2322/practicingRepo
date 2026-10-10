@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { bookingWhen as when, type Booking } from '../lib/api';
+import { STATUS_LABEL } from '../lib/labels';
 import { describeError, useMyBookings } from '../lib/queries';
 import { CancelBooking } from '../components/CancelBooking';
 import { ErrorNotice } from '../components/Notice';
@@ -11,7 +12,8 @@ function Row({ b }: { b: Booking }) {
       <div>
         <a className="booking-link" href={`#/b/${b.id}`}><strong>{b.resourceName}</strong></a>
         <span className="muted"> · {when(b)}</span>
-        <div className="small muted">Under {b.customerName} · <span className={`status ${b.status}`}>{b.status}</span></div>
+        <div className="small muted">Under {b.customerName} · <span className={`status ${b.status}`}>{STATUS_LABEL[b.status]}</span></div>
+        {b.cancellationReason && <div className="small muted">Cancelled by the club: {b.cancellationReason}</div>}
       </div>
       <CancelBooking booking={b} />
     </li>

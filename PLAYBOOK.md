@@ -139,7 +139,7 @@ Needs backend 7.
 
 ### Step 15: Frontend 7, staff schedule
 Needs backend 8.
-- [ ] **Prompt:** "Do frontend task 7 (staff schedule)."
+- [x] **Prompt:** "Do frontend task 7 (staff schedule)."
 - **Check:** as staff, the schedule shows every resource for the day. Block an hour for maintenance, then check that customers can't book it.
 
 ### Step 16: Backend 9, admin features

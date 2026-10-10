@@ -1,7 +1,7 @@
 // Server state through TanStack Query: every read has a key, every write invalidates exactly the keys it affects.
 // Library: 9.7 "Server state libraries", 8.6 "Invalidation" and "Optimistic updates".
 import { focusManager, MutationCache, QueryCache, QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, bookingWhen, type Account, type Availability, type Booking } from './api';
+import { api, ApiError, bookingWhen, type Account, type Availability, type Booking, type StaffBooking } from './api';
 import { signInHref } from './router';
 import { useToast } from './toast';
 
@@ -13,6 +13,7 @@ export const keys = {
   mine: ['bookings', 'mine'] as const,
   booking: (id: string) => ['bookings', 'one', id] as const,
   me: ['me'] as const,
+  schedule: (date: string) => ['schedule', date] as const,
 };
 
 /**
@@ -184,6 +185,46 @@ export function useSignUp() {
 export function useSignOut() {
   const changed = useAccountChange();
   return useMutation({ mutationFn: api.signOut, onSuccess: () => changed(null) });
+}
+
+/** True when the signed-in account may use the staff tools. Only for showing the way there: the API decides. */
+export function useIsStaff() {
+  const me = useMe();
+  return !!me.data?.roles.some((r) => r === 'Staff' || r === 'Admin');
+}
+
+/** The staff day schedule; refreshed every minute while visible, like availability. */
+export function useSchedule(date: string) {
+  return useQuery({ queryKey: keys.schedule(date), queryFn: () => api.schedule(date), refetchInterval: 60_000, refetchOnWindowFocus: 'always' });
+}
+
+export type StaffAction = { kind: 'complete' | 'noShow' } | { kind: 'cancel'; reason: string };
+
+/** Complete, no-show or cancel a booking as staff; afterwards the day's schedule and slots are reloaded. */
+export function useStaffAction(date: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ booking, action }: { booking: StaffBooking; action: StaffAction }) =>
+      action.kind === 'cancel' ? api.staffCancel(booking.id, action.reason)
+        : action.kind === 'complete' ? api.staffComplete(booking.id)
+          : api.staffNoShow(booking.id),
+    onSettled: (_r, _e, { booking }) => {
+      void qc.invalidateQueries({ queryKey: keys.schedule(date) });
+      void qc.invalidateQueries({ queryKey: keys.availability(booking.resourceId, booking.localStart.slice(0, 10)) });
+      void qc.invalidateQueries({ queryKey: keys.bookings });
+    },
+  });
+}
+
+export function useBlockTime(date: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { resourceId: string; start: string; end: string; reason: string }) => api.blockTime(v.resourceId, v.start, v.end, v.reason),
+    onSettled: (_r, _e, v) => {
+      void qc.invalidateQueries({ queryKey: keys.schedule(date) });
+      void qc.invalidateQueries({ queryKey: keys.availability(v.resourceId, date) });
+    },
+  });
 }
 
 /** Message and trace id for any error a query or mutation can hold. */

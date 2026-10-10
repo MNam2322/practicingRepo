@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { formatDay, type Booking, type Venue } from '../lib/api';
+import { formatDay, type Venue } from '../lib/api';
 import { downloadIcs } from '../lib/calendar';
+import { STATUS_LABEL } from '../lib/labels';
 import { describeError, useBooking } from '../lib/queries';
 import { Button } from '../components/Button';
 import { CancelBooking } from '../components/CancelBooking';
@@ -8,9 +9,6 @@ import { Card } from '../components/Card';
 import { ErrorNotice } from '../components/Notice';
 import { BookingsSkeleton } from '../components/Skeleton';
 
-const STATUS_LABEL: Record<Booking['status'], string> = {
-  confirmed: 'Confirmed', cancelled: 'Cancelled', completed: 'Completed', noShow: 'No-show',
-};
 
 /** One booking: when and where, its status, cancel (if the API allows it) and an .ics download. */
 export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
@@ -47,6 +45,7 @@ export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
           <dt>Name</dt><dd>{b.customerName}</dd>
           <dt>Booked</dt><dd>{new Date(b.createdAt).toLocaleString()}</dd>
           {b.cancelledAt && <><dt>Cancelled</dt><dd>{new Date(b.cancelledAt).toLocaleString()}</dd></>}
+          {b.cancellationReason && <><dt>Reason</dt><dd>Cancelled by the club: {b.cancellationReason}</dd></>}
         </dl>
         <div className="actions">
           {upcoming && <Button onClick={() => downloadIcs(b, venue.name)}>Add to calendar</Button>}

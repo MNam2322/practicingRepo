@@ -1,8 +1,11 @@
 import type { ReactNode } from 'react';
 import type { Route } from '../lib/router';
 import { AccountMenu } from './AccountMenu';
+import { useIsStaff } from '../lib/queries';
 
 export function Layout({ venueName, route, children }: { venueName: string; route: Route; children: ReactNode }) {
+  // Only a way there for staff; the API refuses everyone else (library 10.2: hiding a link is not a control).
+  const isStaff = useIsStaff();
   return (
     <>
       <header className="topbar">
@@ -10,6 +13,7 @@ export function Layout({ venueName, route, children }: { venueName: string; rout
         <nav className="nav">
           <a href="#/" aria-current={route.name === 'home' || route.name === 'resource' ? 'page' : undefined}>Book</a>
           <a href="#/mine" aria-current={route.name === 'mine' || route.name === 'booking' ? 'page' : undefined}>My bookings</a>
+          {isStaff && <a href="#/staff" aria-current={route.name === 'staff' ? 'page' : undefined}>Schedule</a>}
           <AccountMenu />
         </nav>
       </header>
