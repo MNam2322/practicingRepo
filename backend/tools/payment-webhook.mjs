@@ -8,7 +8,8 @@
 //   --event: the provider's event id. Send the same id twice to see the second delivery change nothing.
 //   --bad-signature: sign with the wrong secret; the API answers 401 invalid_signature.
 //
-// Env: API (default http://localhost:5080), WEBHOOK_SECRET (default: the Development secret in appsettings.Development.json).
+// Env: API (default http://localhost:5080), WEBHOOK_SECRET (default: the Development secret from dotnet user-secrets).
+import { execFileSync } from 'node:child_process';
 import { createHmac, randomUUID } from 'node:crypto';
 
 const [type, paymentId, ...rest] = process.argv.slice(2);
@@ -18,7 +19,15 @@ if (!type || !paymentId) {
 }
 const option = (name) => { const i = rest.indexOf(name); return i >= 0 ? rest[i + 1] : undefined; };
 const api = process.env.API ?? 'http://localhost:5080';
-const secret = rest.includes('--bad-signature') ? 'not-the-shared-secret' : (process.env.WEBHOOK_SECRET ?? 'whsec_development_only_not_secret');
+/** The Development secret the API reads (tools/dev-secrets.mjs put it in user-secrets). */
+function userSecret(key) {
+  const listed = execFileSync('dotnet', ['user-secrets', 'list', '--project', 'src/BookingApp.Api'], { encoding: 'utf8' });
+  const line = listed.split(/?
+/).find((l) => l.startsWith(`${key} = `));
+  if (!line) throw new Error(`${key} is not in user-secrets: run node tools/dev-secrets.mjs first`);
+  return line.slice(key.length + 3);
+}
+const secret = rest.includes('--bad-signature') ? 'not-the-shared-secret' : (process.env.WEBHOOK_SECRET ?? userSecret('Payments:Fake:WebhookSecret'));
 
 const body = JSON.stringify({
   id: option('--event') ?? `evt_${randomUUID().replaceAll('-', '')}`,

@@ -209,7 +209,7 @@ Needs backend 14 and 15.
 - **Check:** Claude Code shows before and after timings and query plans. The load test shows exactly one success per slot.
 
 ### Step 29: Backend 19, security
-- [ ] **Prompt:** "Do backend task 19 (security hardening)."
+- [x] **Prompt:** "Do backend task 19 (security hardening)."
 - **Check:** ask: "List the security headers on a response, show what happens to a write with no antiforgery token, and show where the secrets now live."
 
 ### Step 30: Frontend 11, tests and accessibility

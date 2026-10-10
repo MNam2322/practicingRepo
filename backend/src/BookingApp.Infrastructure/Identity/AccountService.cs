@@ -8,7 +8,8 @@ using Microsoft.Extensions.Options;
 namespace BookingApp.Infrastructure.Identity;
 
 /// <summary>The outcome of signing up or in: the account, and how many anonymous bookings moved to it.</summary>
-public sealed record SignedIn(Account Account, int MovedBookings);
+/// <param name="Principal">Who is now signed in, for anything this same request issues for them (an antiforgery token).</param>
+public sealed record SignedIn(Account Account, int MovedBookings, ClaimsPrincipal Principal);
 
 /// <summary>
 /// Accounts: sign up, sign in, sign out and "who am I". Wraps ASP.NET Core Identity (UserManager, SignInManager), so
@@ -77,7 +78,7 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
     {
         var account = await ToAccountAsync(user);
         var moved = anonymous is { } from ? await bookings.ClaimAsync(from, account.CustomerId, cancellationToken) : 0;
-        return new SignedIn(account, moved);
+        return new SignedIn(account, moved, await signIn.CreateUserPrincipalAsync(user));
     }
 
     private async Task<Account> ToAccountAsync(AppUser user) =>

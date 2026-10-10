@@ -5,7 +5,9 @@
 //   docker run --rm -i -e BASE=http://host.docker.internal:5080 -v "<backend>/perf:/scripts" grafana/k6:1.8.1 run /scripts/booking-race.js
 //
 // (Or with k6 installed: k6 run perf/booking-race.js, BASE defaults to http://localhost:5080.) Run it against the API
-// on PostgreSQL (launch profile http-postgres) or SQLite. docs/performance.md has the last results.
+// on PostgreSQL (launch profile http-postgres) or SQLite, with the rate limits raised: every virtual user comes from
+// the same IP (RateLimits__WritesPerMinutePerIp=100000 RateLimits__RequestsPerMinute=100000). docs/performance.md has
+// the last results.
 import http from 'k6/http';
 import { check } from 'k6';
 import { Counter } from 'k6/metrics';
@@ -46,13 +48,15 @@ export function setup() {
 }
 
 export default function (data) {
-  // A cookie first (a read, not rate limited): writes are then limited per customer, as for real people.
+  // A customer cookie and an antiforgery token first, as the web app gets them; writes echo the token in a header.
   http.get(`${BASE}/api/bookings/mine`);
+  http.get(`${BASE}/api/antiforgery`);
+  const token = http.cookieJar().cookiesForURL(BASE)['XSRF-TOKEN'][0];
   const order = data.slots.map((s) => [Math.random(), s]).sort((a, b) => a[0] - b[0]).map(([, s]) => s);
   for (const slot of order) {
     const response = http.post(`${BASE}/api/bookings`,
       JSON.stringify({ resourceId: slot.resourceId, start: slot.start, slots: 1, name: `Racer ${__VU}` }),
-      { headers: { 'Content-Type': 'application/json' }, tags: { slot: slot.key } });
+      { headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': token }, tags: { slot: slot.key } });
     const code = response.status === 201 ? null : response.json('code');
     if (response.status === 201) booked.add(1, { slot: slot.key });
     else if (response.status === 409 && code === 'slot_taken') taken.add(1);

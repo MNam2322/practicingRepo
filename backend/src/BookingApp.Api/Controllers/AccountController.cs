@@ -33,6 +33,7 @@ public sealed class AccountController(AccountService accounts) : ApiControllerBa
         }
         if (!result.IsSuccess) return Failure(result.Error!);
         CurrentCustomer.ForgetAnonymous(HttpContext);
+        BookingSecurity.IssueAntiforgeryToken(HttpContext, result.Value!.Principal);   // tokens belong to who is signed in
         return Created("/api/me", ToResponse(result.Value!));
     }
 
@@ -51,6 +52,7 @@ public sealed class AccountController(AccountService accounts) : ApiControllerBa
         var result = await accounts.SignInAsync(request.Email!, request.Password!, CurrentCustomer.AnonymousId(HttpContext), ct);
         if (!result.IsSuccess) return Failure(result.Error!);
         CurrentCustomer.ForgetAnonymous(HttpContext);
+        BookingSecurity.IssueAntiforgeryToken(HttpContext, result.Value!.Principal);
         return ToResponse(result.Value!);
     }
 
@@ -62,6 +64,7 @@ public sealed class AccountController(AccountService accounts) : ApiControllerBa
     public async Task<IActionResult> SignOutOfAccount()
     {
         await accounts.SignOutAsync();
+        BookingSecurity.IssueAntiforgeryToken(HttpContext, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()));
         return NoContent();
     }
 

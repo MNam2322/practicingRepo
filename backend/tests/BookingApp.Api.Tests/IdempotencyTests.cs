@@ -100,12 +100,14 @@ public abstract class IdempotencyTests(StorageProvider provider) : ApiTest(provi
         var key = Guid.NewGuid().ToString();
         // One customer (one cookie) retrying the same booking ten times at once.
         using var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
-        var cookie = $"{CurrentCustomer.CookieName}={Core.Bookings.CustomerId.New()}";
+        var (antiforgery, token) = await AnonymousAntiforgeryAsync(client);
+        var cookie = $"{CurrentCustomer.CookieName}={Core.Bookings.CustomerId.New()}; {antiforgery}";
         var responses = await Task.WhenAll(Enumerable.Range(0, 10).Select(_ => Task.Run(async () =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/bookings") { Content = JsonContent.Create(BookingBody(10)) };
             request.Headers.Add("Idempotency-Key", key);
             request.Headers.Add("Cookie", cookie);
+            request.Headers.Add(BookingSecurity.HeaderName, token);
             using var response = await client.SendAsync(request, Ct);
             var code = response.StatusCode == HttpStatusCode.Conflict
                 ? (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString()

@@ -100,7 +100,8 @@ docker compose up -d                                                   # repo ro
 cd backend
 dotnet run -c Release --project tools/BookingApp.Perf -- seed         # about 10 s
 dotnet run -c Release --project tools/BookingApp.Perf -- measure --label now
-dotnet run --project src/BookingApp.Api --launch-profile http-postgres
+# rate limits raised: all the virtual users share one IP
+RateLimits__WritesPerMinutePerIp=100000 RateLimits__RequestsPerMinute=100000 dotnet run --project src/BookingApp.Api --launch-profile http-postgres
 # in another terminal, from backend/:
 docker run --rm -i -e BASE=http://host.docker.internal:5080 -v "$PWD/perf:/scripts" grafana/k6:1.8.1 run /scripts/booking-race.js
 ```

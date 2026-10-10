@@ -19,13 +19,15 @@ public abstract class ConcurrencyTests(StorageProvider provider) : ApiTest(provi
     {
         const int requests = 50;
         using var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        var (antiforgery, token) = await AnonymousAntiforgeryAsync(client);
         using var start = new ManualResetEventSlim();
 
         // Fifty different customers, so neither the per-customer limit nor the rate limiter gets in the way.
         var tasks = Enumerable.Range(0, requests).Select(_ => Task.Run(async () =>
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/bookings") { Content = JsonContent.Create(BookingBody(10)) };
-            request.Headers.Add("Cookie", $"{CurrentCustomer.CookieName}={CustomerId.New()}");
+            request.Headers.Add("Cookie", $"{CurrentCustomer.CookieName}={CustomerId.New()}; {antiforgery}");
+            request.Headers.Add(BookingSecurity.HeaderName, token);
             start.Wait(Ct);
             using var response = await client.SendAsync(request, Ct);
             return response.StatusCode;
@@ -43,13 +45,15 @@ public abstract class ConcurrencyTests(StorageProvider provider) : ApiTest(provi
     public async Task Parallel_overlapping_bookings_of_different_lengths_never_double_book()
     {
         using var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+        var (antiforgery, token) = await AnonymousAntiforgeryAsync(client);
         // 10:00-12:00, 11:00-12:00, 11:00-13:00 and 12:00-13:00 requested at once, many times each.
         var shapes = new[] { (10, 2), (11, 1), (11, 2), (12, 1) };
         var tasks = Enumerable.Range(0, 40).Select(i => Task.Run(async () =>
         {
             var (hour, slots) = shapes[i % shapes.Length];
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/bookings") { Content = JsonContent.Create(BookingBody(hour, slots)) };
-            request.Headers.Add("Cookie", $"{CurrentCustomer.CookieName}={CustomerId.New()}");
+            request.Headers.Add("Cookie", $"{CurrentCustomer.CookieName}={CustomerId.New()}; {antiforgery}");
+            request.Headers.Add(BookingSecurity.HeaderName, token);
             using var response = await client.SendAsync(request, Ct);
             Assert.True(response.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict, $"Unexpected {response.StatusCode}; server errors: {string.Join(" | ", Factory.ServerErrors.Distinct().Take(3))}");
         }, Ct));

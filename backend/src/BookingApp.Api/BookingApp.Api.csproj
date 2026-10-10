@@ -2,6 +2,8 @@
   <!-- The HTTP host. Thin: bind, validate, call BookingApp.Core, map results to HTTP. -->
   <PropertyGroup>
     <RootNamespace>BookingApp.Api</RootNamespace>
+    <!-- Development secrets live outside the repository (dotnet user-secrets; set up with: node tools/dev-secrets.mjs). -->
+    <UserSecretsId>booking-app-api-7b3e2c1a</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />

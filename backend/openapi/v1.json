@@ -929,6 +929,21 @@
         }
       }
     },
+    "/api/antiforgery": {
+      "get": {
+        "tags": [
+          "Antiforgery"
+        ],
+        "summary": "Sets the XSRF-TOKEN cookie; send its value in the X-XSRF-TOKEN header on every write.",
+        "description": "Every POST, PUT, PATCH and DELETE (except the payment provider's signed webhook) needs it: a page on another site\ncan make the browser send this site's cookies, but cannot read this one to copy it into a header. The token\nbelongs to whoever is signed in; signing in, up or out returns a new one.",
+        "operationId": "GetAntiforgeryToken",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/api/bookings": {
       "post": {
         "tags": [
@@ -4100,6 +4115,9 @@
     },
     {
       "name": "Admin"
+    },
+    {
+      "name": "Antiforgery"
     },
     {
       "name": "Bookings"

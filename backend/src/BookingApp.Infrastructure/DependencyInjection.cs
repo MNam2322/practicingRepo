@@ -78,7 +78,7 @@ public static class DependencyInjection
                 break;
             case StorageProvider.Postgres:
                 var postgres = configuration.GetConnectionString(ConnectionStrings.Postgres)
-                    ?? throw new InvalidOperationException("Storage:Provider is Postgres but ConnectionStrings:Postgres is not set.");
+                    ?? throw new InvalidOperationException("Storage:Provider is Postgres but ConnectionStrings:Postgres is not set. In Development run node tools/dev-secrets.mjs (from backend/); elsewhere set ConnectionStrings__Postgres.");
                 // Overlapping inserts racing on the exclusion constraint can deadlock (SQLSTATE 40P01); PostgreSQL rolls
                 // one back. The retrying execution strategy runs it again, and it then succeeds or gets 23P01 (slot_taken).
                 // Library 7.7 "Concurrency and transactions": an execution strategy retries whole operations.
@@ -141,7 +141,7 @@ public static class DependencyInjection
             .ValidateOnStart();
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<PaymentOptions>>().Value);
         services.AddOptions<FakePaymentOptions>().Bind(configuration.GetSection(FakePaymentOptions.Section))
-            .Validate(o => o.WebhookSecret.Length >= 16, "Payments:Fake:WebhookSecret must be set (16+ characters), for example with the environment variable Payments__Fake__WebhookSecret.")
+            .Validate(o => o.WebhookSecret.Length >= 16, "Payments:Fake:WebhookSecret must be set (16+ characters): in Development run node tools/dev-secrets.mjs (from backend/), elsewhere set the environment variable Payments__Fake__WebhookSecret.")
             .Validate(o => o.WebhookToleranceSeconds > 0, "Payments:Fake:WebhookToleranceSeconds must be positive.")
             .ValidateOnStart();
         services.AddSingleton<FakePaymentGateway>();

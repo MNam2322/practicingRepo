@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.Testing.Handlers;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,6 +69,11 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
         builder.UseSetting("Payments:Fake:WebhookSecret", WebhookSecret);
         builder.UseSetting("Email:Folder", EmailFolder);
+        // Rate limits out of the way (every test client shares one "IP"); RateLimitTests put the real ones back.
+        builder.UseSetting("RateLimits:RequestsPerMinute", "100000");
+        builder.UseSetting("RateLimits:WritesPerMinutePerAccount", "100000");
+        builder.UseSetting("RateLimits:WritesPerMinutePerIp", "100000");
+        builder.UseSetting("RateLimits:SignInsPerMinutePerIp", "100000");
         foreach (var (key, value) in settings ?? new Dictionary<string, string?>()) builder.UseSetting(key, value);
         builder.ConfigureLogging(logging => logging.AddProvider(new ErrorCollector(ServerErrors)));
         builder.ConfigureTestServices(services =>
@@ -100,6 +107,16 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
             }
         }
     }
+
+    /// <summary>A client that behaves like the web app: keeps cookies and sends the antiforgery token on writes.</summary>
+    public new HttpClient CreateClient() => BrowserClient(this, new CookieContainer());
+
+    /// <summary>Like <see cref="CreateClient()"/>, with cookies the test controls (such as a chosen customer cookie).</summary>
+    public HttpClient CreateClient(CookieContainer cookies) => BrowserClient(this, cookies);
+
+    /// <summary>A browser-like client for any factory (also one made with WithWebHostBuilder).</summary>
+    public static HttpClient BrowserClient(WebApplicationFactory<Program> factory, CookieContainer cookies) =>
+        factory.CreateDefaultClient(new Uri("http://localhost"), new XsrfHandler(cookies), new CookieContainerHandler(cookies));
 
     /// <summary>Venue-local time on a day, as the UTC instant the API expects.</summary>
     public static DateTimeOffset At(DateOnly day, int hour, int minute = 0) =>
@@ -184,6 +201,18 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }
 
+    /// <summary>
+    /// For tests that write the Cookie header themselves: an anonymous antiforgery pair (the cookie to send, and the token
+    /// for the X-XSRF-TOKEN header). Anonymous tokens are not tied to a customer, so one pair serves many customers.
+    /// </summary>
+    protected static async Task<(string Cookie, string Token)> AnonymousAntiforgeryAsync(HttpClient raw)
+    {
+        using var response = await raw.GetAsync("/api/antiforgery", Ct);
+        var cookies = response.Headers.GetValues("Set-Cookie").Select(c => c.Split(';')[0]).ToList();
+        var token = cookies.Single(c => c.StartsWith(BookingSecurity.TokenCookie + "=", StringComparison.Ordinal))[(BookingSecurity.TokenCookie.Length + 1)..];
+        return (string.Join("; ", cookies.Where(c => !c.StartsWith(BookingSecurity.TokenCookie + "=", StringComparison.Ordinal))), Uri.UnescapeDataString(token));
+    }
+
     /// <summary>Asserts an RFC 9457 problem response with a status and a stable code.</summary>
     protected static async Task AssertProblem(HttpResponseMessage response, int status, string code)
     {
@@ -204,6 +233,26 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
         PostgresTestServer.Release(_postgres);
         GC.SuppressFinalize(this);
     }
+}
+
+/// <summary>
+/// What the web app does (frontend/src/lib/api.ts): before a write, make sure there is an XSRF-TOKEN cookie (GET
+/// /api/antiforgery), then echo it in the X-XSRF-TOKEN header.
+/// </summary>
+internal sealed class XsrfHandler(CookieContainer cookies) : DelegatingHandler
+{
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (request.Method != HttpMethod.Get && request.Method != HttpMethod.Head && request.RequestUri is { } uri)
+        {
+            if (Token(uri) is null)
+                using (await base.SendAsync(new HttpRequestMessage(HttpMethod.Get, new Uri(uri, "/api/antiforgery")), cancellationToken)) { }
+            if (Token(uri) is { } token && !request.Headers.Contains(BookingSecurity.HeaderName)) request.Headers.Add(BookingSecurity.HeaderName, token);
+        }
+        return await base.SendAsync(request, cancellationToken);
+    }
+
+    private string? Token(Uri uri) => cookies.GetCookies(uri)[BookingSecurity.TokenCookie]?.Value;
 }
 
 /// <summary>Keeps every Error-level log line (with its exception) from the app under test.</summary>

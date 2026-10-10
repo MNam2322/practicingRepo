@@ -67,6 +67,7 @@ You need two terminals. In VS Code, open the `booking-app` folder, then **Termin
 
 ```
 cd backend
+node tools/dev-secrets.mjs        # once per machine: puts the development secrets in dotnet user-secrets
 dotnet run --project src/BookingApp.Api
 ```
 

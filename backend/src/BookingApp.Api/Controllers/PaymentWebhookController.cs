@@ -12,6 +12,7 @@ namespace BookingApp.Api.Controllers;
 /// webhook: verify, store, then work".
 /// </summary>
 [AllowAnonymous]
+[IgnoreAntiforgeryToken]   // server to server, no cookies: the signature is the proof of origin
 [Route("api/payments/webhook")]
 public sealed class PaymentWebhookController(DepositService deposits, IPaymentWebhookReader reader) : ApiControllerBase
 {

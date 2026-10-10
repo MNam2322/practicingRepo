@@ -194,6 +194,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/antiforgery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sets the XSRF-TOKEN cookie; send its value in the X-XSRF-TOKEN header on every write.
+         * @description Every POST, PUT, PATCH and DELETE (except the payment provider's signed webhook) needs it: a page on another site
+         *     can make the browser send this site's cookies, but cannot read this one to copy it into a header. The token
+         *     belongs to whoever is signed in; signing in, up or out returns a new one.
+         */
+        get: operations["GetAntiforgeryToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bookings": {
         parameters: {
             query?: never;
@@ -1791,6 +1813,24 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
+            };
+        };
+    };
+    GetAntiforgeryToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

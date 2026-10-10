@@ -39,6 +39,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 
 ## Rules
 
+- **Antiforgery:** `request()` in api.ts sends the XSRF-TOKEN cookie's value as `X-XSRF-TOKEN` on every write, fetches `/api/antiforgery` when there is no token, and retries once after `antiforgery_failed`. Never call fetch for a write anywhere else.
 - **Holds and payment:** booking makes a hold and goes to `#/b/:id`, where the customer pays the deposit (`useConfirm`). Countdowns run on `serverNow()` (the browser clock may be off), and the API decides when a hold has expired: at zero the page asks again (`useBooking` polls an overdue hold) and shows what the API says. Payment errors come from the API (`payment_declined` shows its title, which says why); after `payment_unavailable`, retrying is safe.
 - **Times:** show `localStart` and `localEnd` from the API (venue time). Send `start` back exactly as the API gave it. Never compute slot times in the browser. "Today" is the venue's today, from `venueToday()`.
 - **Errors:** switch on `ApiError.code` (`slot_taken`, `too_late_to_cancel`, …), not on message text. After `slot_taken`, refresh the slots. Friendly wording for each code lives only in `src/lib/errors.ts`; add new codes there. Show `ApiError.traceId` as a reference (ErrorNotice does).

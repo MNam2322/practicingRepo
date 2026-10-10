@@ -65,7 +65,7 @@ public sealed class ObservabilityTestsSqlite() : ObservabilityTests(StorageProvi
         var exported = new List<Activity>();
         await using var traced = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(s =>
             s.ConfigureOpenTelemetryTracerProvider(t => t.AddInMemoryExporter(exported))));
-        using var client = traced.CreateClient();
+        using var client = ApiFactory.BrowserClient(traced, new System.Net.CookieContainer());
 
         // Our own trace id (W3C traceparent), so spans from other tests running at the same time are told apart:
         // activity sources are process-wide.

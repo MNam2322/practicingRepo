@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
 using BookingApp.Api;
 using BookingApp.Api.Controllers;
 using BookingApp.Core.Bookings;
@@ -29,6 +28,8 @@ builder.Services.AddControllers(o =>
         o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
         // Deny by default: every controller action needs a signed-in user unless it is [AllowAnonymous].
         o.Filters.Add(new AuthorizeFilter());
+        // Every write (POST, PUT, PATCH, DELETE) needs the antiforgery token, unless it says [IgnoreAntiforgeryToken].
+        o.Filters.Add<AntiforgeryFilter>();
     })
     .AddJsonOptions(o =>
     {
@@ -48,18 +49,7 @@ builder.Services.AddBookingOpenApi();
 builder.Services.AddExceptionHandler<BadRequestHandler>();
 builder.Services.AddBookingAuth();
 builder.AddBookingTelemetry();
-builder.Services.AddRateLimiter(o =>
-{
-    o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // Writes are limited per account, else per customer cookie, else per IP: 20 a minute is plenty for a person.
-    o.AddPolicy(BookingsController.WritesPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
-        CurrentCustomer.AccountId(http)?.ToString() ?? http.Request.Cookies[CurrentCustomer.CookieName] ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-    // Sign-up and sign-in are limited per IP against password guessing (lockout also stops it per account).
-    o.AddPolicy(AccountController.SignInPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
-        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
-});
+builder.AddBookingSecurity();
 // The React app calls the API through the Vite proxy in development, so CORS only matters when it is
 // served from another origin. Origins come from configuration ("Cors:AllowedOrigins").
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -68,6 +58,8 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 
 var app = builder.Build();
 
+app.UseSecurityHeaders();
+if (!app.Environment.IsDevelopment()) app.UseHsts();   // only ever sent over HTTPS
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors();

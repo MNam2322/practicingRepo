@@ -95,13 +95,36 @@ export function formatMoney(m: { amount: number; currency: string }): string {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: m.currency }).format(m.amount);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// Antiforgery (library 10.4 "Cross-site request forgery"): every write carries the XSRF-TOKEN cookie's value in a
+// header. A page on another site can make the browser send our cookies, but cannot read this one to copy it.
+const XSRF_COOKIE = 'XSRF-TOKEN';
+const XSRF_HEADER = 'X-XSRF-TOKEN';
+const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function xsrfToken(): string | null {
+  const pair = document.cookie.split('; ').find((c) => c.startsWith(`${XSRF_COOKIE}=`));
+  return pair ? decodeURIComponent(pair.slice(XSRF_COOKIE.length + 1)) : null;
+}
+
+/** Gets a fresh token (the API sets the cookie). Also after signing in or out, when the old one stops counting. */
+async function refreshXsrf(): Promise<void> {
+  await fetch('/api/antiforgery', { credentials: 'include' }).catch(() => undefined);
+}
+
+async function request<T>(path: string, init?: RequestInit, retried = false): Promise<T> {
+  const write = !SAFE.has((init?.method ?? 'GET').toUpperCase());
+  if (write && !xsrfToken()) await refreshXsrf();
   let res: Response;
   try {
     res = await fetch(path, {
       credentials: 'include',
       ...init,
-      headers: { Accept: 'application/json', ...(init?.body ? { 'Content-Type': 'application/json' } : {}), ...init?.headers },
+      headers: {
+        Accept: 'application/json',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(write ? { [XSRF_HEADER]: xsrfToken() ?? '' } : {}),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiError(0, messageFor('network', 'Network error'), 'network');
@@ -110,6 +133,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const p = await res.json().catch(() => null) as Problem | null;
     const code = res.status === 429 ? 'rate_limited' : p?.code ?? null;
+    // A stale token (signed in or out in another tab): get a new one and try once more.
+    if (code === 'antiforgery_failed' && !retried) {
+      await refreshXsrf();
+      return request<T>(path, init, true);
+    }
     throw new ApiError(res.status, messageFor(code, p?.title ?? `${res.status} ${res.statusText}`), code, p?.traceId ?? null, p?.errors ?? {});
   }
   if (res.status === 204) return undefined as T;

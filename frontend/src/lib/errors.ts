@@ -54,6 +54,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Sign in to do that.',
   forbidden: 'Your account is not allowed to do that.',
   // the request itself
+  antiforgery_failed: 'Your session changed. Reload the page and try again.',
   validation_failed: 'Some details are missing or not valid. Check the form and try again.',
   rate_limited: 'Too many requests. Wait a minute and try again.',
   network: 'Can\'t reach the booking service. Check your connection and try again.',
