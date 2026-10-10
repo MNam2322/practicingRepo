@@ -126,20 +126,22 @@ internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, TimeProvid
     {
         await using var scope = scopes.CreateAsyncScope();
         var bookings = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
-        var catalog = await scope.ServiceProvider.GetRequiredService<IResourceRepository>().GetCatalogAsync(cancellationToken);
+        var resources = scope.ServiceProvider.GetRequiredService<IResourceRepository>();
+        var catalog = await resources.GetCatalogAsync(cancellationToken);
         var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), catalog.Venue.TimeZone).DateTime);
         var count = 0;
         foreach (var resource in catalog.Resources)
         {
             // Tomorrow: two booked slots, so the grid is not empty. Today: the first two slots, but only if they have
             // already started, so staff can try "completed" and "no-show" straight away.
-            count += await SeedAsync(bookings, catalog.Venue, resource, today.AddDays(1), [2, 5], onlyStarted: false, cancellationToken);
-            count += await SeedAsync(bookings, catalog.Venue, resource, today, [0, 1], onlyStarted: true, cancellationToken);
+            count += await SeedAsync(bookings, resources, catalog.Venue, resource, today.AddDays(1), [2, 5], onlyStarted: false, cancellationToken);
+            count += await SeedAsync(bookings, resources, catalog.Venue, resource, today, [0, 1], onlyStarted: true, cancellationToken);
         }
         LogSeeded(count, today);
     }
 
-    private async Task<int> SeedAsync(IBookingRepository bookings, Venue venue, Resource resource, DateOnly day, int[] slotOffsets, bool onlyStarted, CancellationToken cancellationToken)
+    private async Task<int> SeedAsync(IBookingRepository bookings, IResourceRepository resources, Venue venue, Resource resource, DateOnly day,
+        int[] slotOffsets, bool onlyStarted, CancellationToken cancellationToken)
     {
         var hours = resource.HoursOn(day.DayOfWeek);
         if (hours is null) return 0;
@@ -150,7 +152,10 @@ internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, TimeProvid
             if (TimeOnly.FromDateTime(localStart.AddMinutes(resource.SlotMinutes)) > hours.Close) continue;
             var start = AvailabilityCalculator.ToUtc(localStart, venue);
             if (onlyStarted && start > time.GetUtcNow()) continue;
-            var booking = Booking.Create(resource.Id, TimeRange.FromStart(start, resource.SlotLength), DemoCustomer, "Demo customer", time.GetUtcNow());
+            var range = TimeRange.FromStart(start, resource.SlotLength);
+            // Demo bookings obey the same closures as real ones.
+            if ((await resources.ClosuresAsync(resource.Id, range, cancellationToken)).Count > 0) continue;
+            var booking = Booking.Create(resource.Id, range, DemoCustomer, "Demo customer", time.GetUtcNow());
             if (await bookings.TryAddAsync(booking, cancellationToken)) count++;
         }
         return count;
