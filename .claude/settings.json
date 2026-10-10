@@ -23,7 +23,6 @@
       "Bash(git commit:*)"
     ],
     "deny": [
-      "Bash(git push:*)",
       "Read(./library/chapters/**)"
     ]
   }

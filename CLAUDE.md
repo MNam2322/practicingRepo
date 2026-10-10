@@ -2,7 +2,7 @@
 
 > **Git:** the remote is `origin`, https://github.com/MNam2322/practicingRepo (private).
 > - **Branches:** day-to-day work happens on `dev`. `main` only moves forward by merging `dev` once CI (`.github/workflows/ci.yml`) is green on it.
-> - **Pushing:** Claude Code commits but never pushes (`git push` is denied in `.claude/settings.json`). The user pushes.
+> - **Pushing:** Claude Code pushes only when the user asks for it in the conversation; otherwise it commits and says the work is ready to push.
 
 A court and room booking app for a sports club. Customers see free slots, book, and cancel. Staff and admin features, payments, reminders and more come from the task lists.
 
@@ -73,5 +73,5 @@ The library is the team's engineering handbook. **Before designing any task, loo
   - build, test and lint the half you changed
   - try the change against the running app
   - tick the task in its `TASKS.md`, add one Changelog line, and tick the step in `PLAYBOOK.md`
-  - commit on `dev` with the prefix `backend:`, `frontend:` or `repo:`, and tell the user it is ready to push
+  - commit on `dev` with the prefix `backend:`, `frontend:` or `repo:`, and push only if the user asks
 - **Don't change unrelated code.** Never weaken a test to make it pass.
