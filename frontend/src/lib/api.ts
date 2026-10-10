@@ -87,8 +87,16 @@ export const api = {
   resources: () => request<Resource[]>('/api/resources'),
   availability: (resourceId: string, date: string) =>
     request<Availability>(`/api/resources/${encodeURIComponent(resourceId)}/availability?date=${date}`),
-  book: (resourceId: string, start: string, slots: number, name: string) =>
-    request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest) }),
+  /**
+   * Books a slot. `idempotencyKey` identifies this booking attempt: send the same key when retrying the same booking
+   * and the API returns the first answer instead of booking twice.
+   */
+  book: (resourceId: string, start: string, slots: number, name: string, idempotencyKey?: string) =>
+    request<Booking>('/api/bookings', {
+      method: 'POST',
+      body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest),
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   /** The signed-in account, or null when nobody is signed in (the API answers 401). */

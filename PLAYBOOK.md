@@ -154,7 +154,7 @@ Needs backend 9.
 ## Phase 4: Real-world booking features
 
 ### Step 18: Backend 10, idempotent booking
-- [ ] **Prompt:** "Do backend task 10 (idempotent booking requests)."
+- [x] **Prompt:** "Do backend task 10 (idempotent booking requests)."
 - **Check:** send the same booking twice in `booking.http` with the same `Idempotency-Key`. You get the same booking back both times and only one booking exists.
 
 ### Step 19: Backend 11, holds

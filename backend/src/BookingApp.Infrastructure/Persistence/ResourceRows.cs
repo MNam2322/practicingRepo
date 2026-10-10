@@ -111,3 +111,16 @@ internal sealed class ClosureRow
 
     public Closure ToDomain() => new(Id, ResourceId, TimeRange.Create(StartUtc, EndUtc), Reason);
 }
+
+/// <summary>What was done with an Idempotency-Key, per caller. A null ResponseStatus means the request is still running.</summary>
+internal sealed class IdempotencyRow
+{
+    public string Scope { get; set; } = "";
+    public string Key { get; set; } = "";
+    public string RequestHash { get; set; } = "";
+    public DateTimeOffset ClaimedAt { get; set; }
+    public int? ResponseStatus { get; set; }
+    public string? ResponseBody { get; set; }
+    public string? ResponseContentType { get; set; }
+    public string? ResponseLocation { get; set; }
+}

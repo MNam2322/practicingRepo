@@ -935,9 +935,19 @@
           "Bookings"
         ],
         "summary": "Books one or more consecutive slots.",
-        "description": "Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the answer is 409 slot_taken.",
+        "description": "Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the\nanswer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a\nretry returns the first answer instead of booking twice.",
         "operationId": "CreateBooking",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
+          "description": "Cancelled when the client goes away.",
           "content": {
             "application/json": {
               "schema": {
@@ -984,7 +994,7 @@
             }
           },
           "409": {
-            "description": "slot_taken",
+            "description": "slot_taken, request_in_progress (same Idempotency-Key still running)",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -994,7 +1004,7 @@
             }
           },
           "422": {
-            "description": "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings",
+            "description": "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings, idempotency_key_reused",
             "content": {
               "application/problem+json": {
                 "schema": {

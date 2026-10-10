@@ -25,6 +25,9 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
   const [typedName, setName] = useState(readName);
   // The remembered name wins; a signed-in person without one gets their account name suggested.
   const name = typedName || (me.data?.name ?? '');
+  // One key per booking attempt: pressing "Book it" again after a lost response repeats the same attempt, and the API
+  // returns the first answer instead of booking twice. A new choice of time, length or name is a new attempt.
+  const [attemptKey, setAttemptKey] = useState(() => crypto.randomUUID());
   const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking; traceId?: string | null } | null>(null);
 
   const busy = bookMutation.isPending;
@@ -40,14 +43,15 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
   const chosenLength = Math.min(length, Math.max(maxLength, 1));
 
   function choose(start: string) {
-    setSelected(start); setLength(1); setMessage(null);
+    setSelected(start); setLength(1); setMessage(null); setAttemptKey(crypto.randomUUID());
   }
 
   async function book() {
     if (index < 0 || !name.trim()) return;
     setMessage(null);
     try {
-      const booking = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day });
+      const booking = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day, idempotencyKey: attemptKey });
+      setAttemptKey(crypto.randomUUID());
       saveName(name.trim());
       setMessage({ kind: 'ok', text: 'Booked.', booking });
       setSelected(null);
@@ -114,7 +118,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
             <p><strong>{slots[index].localStart}–{slots[index + chosenLength - 1]?.localEnd}</strong> · {formatDay(day, 'long')}</p>
             {maxLength > 1 && (
               <Field label="Length">
-                <select value={chosenLength} onChange={(e) => setLength(Number(e.target.value))}>
+                <select value={chosenLength} onChange={(e) => { setLength(Number(e.target.value)); setAttemptKey(crypto.randomUUID()); }}>
                   {Array.from({ length: maxLength }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>{n * resource.slotMinutes} minutes</option>
                   ))}
@@ -122,7 +126,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
               </Field>
             )}
             <Field label="Name for the booking">
-              <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={80} autoComplete="name" />
+              <input value={name} onChange={(e) => { setName(e.target.value); setAttemptKey(crypto.randomUUID()); }} required maxLength={80} autoComplete="name" />
             </Field>
             <Button type="submit" disabled={busy || !name.trim()}>{busy ? 'Booking…' : 'Book it'}</Button>
             <p className="muted small">Free cancellation up to {venue.policy.cancellationCutoffHours} hours before the start.</p>

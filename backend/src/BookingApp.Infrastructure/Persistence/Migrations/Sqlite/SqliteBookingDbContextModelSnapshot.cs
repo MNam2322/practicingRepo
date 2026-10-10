@@ -257,6 +257,54 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         });
                 });
 
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.IdempotencyRow", b =>
+                {
+                    b.Property<string>("Scope")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("key");
+
+                    b.Property<long>("ClaimedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("claimed_at");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("request_hash");
+
+                    b.Property<string>("ResponseBody")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("response_body");
+
+                    b.Property<string>("ResponseContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("response_content_type");
+
+                    b.Property<string>("ResponseLocation")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("response_location");
+
+                    b.Property<int?>("ResponseStatus")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("response_status");
+
+                    b.HasKey("Scope", "Key");
+
+                    b.HasIndex("ClaimedAt")
+                        .HasDatabaseName("ix_idempotency_keys_claimed_at");
+
+                    b.ToTable("idempotency_keys", (string)null);
+                });
+
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.OpeningHoursRow", b =>
                 {
                     b.Property<string>("ResourceId")

@@ -33,8 +33,10 @@ public abstract class ConcurrencyTests(StorageProvider provider) : ApiTest(provi
         start.Set();
         var statuses = await Task.WhenAll(tasks);
 
-        Assert.Equal(1, statuses.Count(s => s == HttpStatusCode.Created));
-        Assert.Equal(requests - 1, statuses.Count(s => s == HttpStatusCode.Conflict));
+        var counts = string.Join(", ", statuses.GroupBy(s => s).Select(g => $"{(int)g.Key}x{g.Count()}"))
+            + (Factory.ServerErrors.IsEmpty ? "" : "; server errors: " + string.Join(" | ", Factory.ServerErrors.Distinct().Take(3)));
+        Assert.True(statuses.Count(s => s == HttpStatusCode.Created) == 1, $"Expected exactly one 201; got {counts}");
+        Assert.True(statuses.Count(s => s == HttpStatusCode.Conflict) == requests - 1, $"Expected {requests - 1} x 409; got {counts}");
     }
 
     [Fact]
@@ -49,7 +51,7 @@ public abstract class ConcurrencyTests(StorageProvider provider) : ApiTest(provi
             using var request = new HttpRequestMessage(HttpMethod.Post, "/api/bookings") { Content = JsonContent.Create(BookingBody(hour, slots)) };
             request.Headers.Add("Cookie", $"{CurrentCustomer.CookieName}={CustomerId.New()}");
             using var response = await client.SendAsync(request, Ct);
-            Assert.True(response.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict, $"Unexpected {response.StatusCode}");
+            Assert.True(response.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict, $"Unexpected {response.StatusCode}; server errors: {string.Join(" | ", Factory.ServerErrors.Distinct().Take(3))}");
         }, Ct));
         await Task.WhenAll(tasks);
 

@@ -27,6 +27,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   reason_required: 'Give a reason. The customer will see it.',
   bookings_in_the_way: 'Confirmed bookings overlap that time. Cancel them first (with a reason), then block the time.',
   end_before_start: 'The end must be after the start.',
+  // retries
+  request_in_progress: 'Your booking is still being made. Wait a moment and check My bookings.',
+  idempotency_key_reused: 'Something went wrong with that attempt. Choose the time again and book.',
   // admin
   resource_exists: 'There is already a resource with that id. Choose another id.',
   resource_in_use: 'This resource has bookings, so it cannot be deleted. Add a closure instead.',

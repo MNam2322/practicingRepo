@@ -69,6 +69,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.
 - Every async path takes a `CancellationToken`. Log with `[LoggerMessage]`.
 - Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`. The `Venue` and `Booking` sections only seed the database on first run; after that the venue, its booking rules (`ResourceCatalog.Policy`), resources, opening hours and closures live in the database and admins change them.
+- **Idempotency:** a POST that must be safe to retry gets `[Idempotent]` (Api/Idempotent.cs): an `Idempotency-Key` header is claimed atomically per caller in `idempotency_keys`, the response is stored before it is sent, and a retry gets it back with `Idempotency-Replayed: true`. Known limit: the stored response is not in the same transaction as the change; a claim abandoned by a crash can be taken over after 2 minutes.
 - **Audit:** every admin change is written with an `AuditEntry` (actor = the signed-in account, request id, before/after JSON) in the same transaction. `audit_log` is append-only in the database (triggers on SQLite and PostgreSQL).
 - Rules any writer must obey are database constraints (keys, foreign keys, CHECKs, NOT NULL) as well as code. Migrations must upgrade a database that already has data: test the upgrade path, not just an empty database.
 - NuGet versions go in `Directory.Packages.props` (central package management), never in a `.csproj`.

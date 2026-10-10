@@ -205,7 +205,9 @@ export interface paths {
         put?: never;
         /**
          * Books one or more consecutive slots.
-         * @description Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the answer is 409 slot_taken.
+         * @description Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the
+         *     answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a
+         *     retry returns the first answer instead of booking twice.
          */
         post: operations["CreateBooking"];
         delete?: never;
@@ -1450,10 +1452,13 @@ export interface operations {
     CreateBooking: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
+        /** @description Cancelled when the client goes away. */
         requestBody: {
             content: {
                 "application/json": components["schemas"]["CreateBookingRequest"];
@@ -1488,7 +1493,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description slot_taken */
+            /** @description slot_taken, request_in_progress (same Idempotency-Key still running) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1497,7 +1502,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings */
+            /** @description too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings, idempotency_key_reused */
             422: {
                 headers: {
                     [name: string]: unknown;

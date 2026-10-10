@@ -106,7 +106,7 @@ Read first: 4.7 "Example 2: A booking lifecycle as a state machine", 12.6 "State
 
 ### 10. Idempotent booking requests
 Read first: 12.5 "Idempotency keys — preventing double charges", 8.2 "Idempotent HTTP APIs and safe retries".
-- [ ] `POST /api/bookings` accepts an `Idempotency-Key` header. A repeat of the same key returns the original response. The same key with a different body gives 422.
+- [x] `POST /api/bookings` accepts an `Idempotency-Key` header. A repeat of the same key returns the original response. The same key with a different body gives 422.
 
 ### 11. Holds that expire
 Read first: 8.7 "Background work inside the process", 7.9 "Atomic conditional update".
@@ -186,3 +186,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 7: ASP.NET Core Identity (cookie `bk-auth`, roles Customer/Staff/Admin, capability policies, deny-by-default filter); `AccountController` sign up/in/out and `GET /api/me`; anonymous bookings move to the account through the aggregate; lockout and per-IP sign-in rate limit. PostgreSQL inserts now lock the resource row first (no exclusion-check deadlocks) inside a retrying execution strategy.
 - Task 8: staff tools under the ViewSchedule policy: day schedule (all resources, any status, allowed actions per booking), complete / no-show after start, staff cancel with a reason the customer sees, block time (refused over confirmed bookings); the booking lifecycle is a transition table with an exhaustive test; Accounts:Bootstrap grants Staff/Admin by email.
 - Task 9: admin API (ManageVenue policy): resources create/update/delete, weekly hours, whole-day closures incl. venue-wide holidays, booking rules moved into the database; every change saved with an audit entry (actor, request id, before/after) in the same transaction; `audit_log` append-only by database triggers.
+- Task 10: `Idempotency-Key` on `POST /api/bookings`: atomic per-caller claim in `idempotency_keys`, response stored before it is sent and replayed with `Idempotency-Replayed: true`; 422 for a reused key with another body, 409 while in progress; hourly cleanup of keys older than 24 h; the frontend sends one key per booking attempt.

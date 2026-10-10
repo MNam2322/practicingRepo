@@ -1,5 +1,6 @@
 using BookingApp.Core.Admin;
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Common;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Persistence;
@@ -41,6 +42,7 @@ public static class DependencyInjection
                 services.AddSingleton<IResourceRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<IVenueAdminRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
+                services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
                 // Accounts only; one in-memory database per app instance.
                 var name = $"accounts-{Guid.NewGuid():N}";
                 services.AddDbContext<InMemoryBookingDbContext>(o => o.UseInMemoryDatabase(name));
@@ -104,8 +106,11 @@ public static class DependencyInjection
         services.AddScoped<IBookingRepository, EfBookingRepository>();
         services.AddScoped<IResourceRepository, EfResourceRepository>();
         services.AddScoped<IVenueAdminRepository, EfVenueAdminRepository>();
+        services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
         // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
         services.AddHostedService<DatabaseInitializer>();
+        // After the initializer, so its first run finds the table.
+        services.AddHostedService<IdempotencyKeyCleaner>();
     }
 
     /// <summary>"Data Source=.data/bookings.db" is relative to the API's folder; the folder is created if needed.</summary>

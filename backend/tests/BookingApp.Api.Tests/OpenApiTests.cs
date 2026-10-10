@@ -51,7 +51,7 @@ public sealed class OpenApiTests : ApiTest
 
         var create = operations.Single(o => o.Route == "POST /api/bookings").Op.GetProperty("responses");
         Assert.Equal(["201", "400", "404", "409", "422", "429"], create.EnumerateObject().Select(r => r.Name));
-        Assert.Equal("slot_taken", create.GetProperty("409").GetProperty("description").GetString());
+        Assert.Contains("slot_taken", create.GetProperty("409").GetProperty("description").GetString());
 
         var problem = doc.RootElement.GetProperty("components").GetProperty("schemas").GetProperty("ProblemDetails");
         Assert.True(problem.GetProperty("properties").TryGetProperty("code", out _));

@@ -21,6 +21,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
     public DbSet<ResourceRow> Resources => Set<ResourceRow>();
     public DbSet<ClosureRow> Closures => Set<ClosureRow>();
     public DbSet<AuditRow> AuditLog => Set<AuditRow>();
+    public DbSet<IdempotencyRow> IdempotencyKeys => Set<IdempotencyRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -64,6 +65,20 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         audit.Property(a => a.After).HasColumnName("after");
         audit.HasIndex(a => a.OccurredAt).HasDatabaseName("ix_audit_log_occurred_at");
         audit.HasIndex(a => new { a.Entity, a.EntityId, a.OccurredAt }).HasDatabaseName("ix_audit_log_entity");
+
+        // Idempotency keys: the primary key (scope, key) makes claiming a key atomic (library 8.2).
+        var idempotency = model.Entity<IdempotencyRow>();
+        idempotency.ToTable("idempotency_keys");
+        idempotency.HasKey(i => new { i.Scope, i.Key });
+        idempotency.Property(i => i.Scope).HasColumnName("scope").HasMaxLength(64);
+        idempotency.Property(i => i.Key).HasColumnName("key").HasMaxLength(100);
+        idempotency.Property(i => i.RequestHash).HasColumnName("request_hash").HasMaxLength(64).IsRequired();
+        idempotency.Property(i => i.ClaimedAt).HasColumnName("claimed_at");
+        idempotency.Property(i => i.ResponseStatus).HasColumnName("response_status");
+        idempotency.Property(i => i.ResponseBody).HasColumnName("response_body");
+        idempotency.Property(i => i.ResponseContentType).HasColumnName("response_content_type").HasMaxLength(100);
+        idempotency.Property(i => i.ResponseLocation).HasColumnName("response_location").HasMaxLength(200);
+        idempotency.HasIndex(i => i.ClaimedAt).HasDatabaseName("ix_idempotency_keys_claimed_at");
 
         var resource = model.Entity<ResourceRow>();
         resource.ToTable("resources", t =>
@@ -159,7 +174,7 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         var closure = model.Entity<ClosureRow>();
         UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
             closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
-            model.Entity<AuditRow>().Property(a => a.OccurredAt));
+            model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt));
         booking.Property(b => b.CancelledAt).HasConversion(new ValueConverter<DateTimeOffset?, long?>(
             v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null));
     }

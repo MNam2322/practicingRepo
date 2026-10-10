@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 
 namespace BookingApp.Api.Tests;
@@ -32,6 +34,9 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
 
     public FakeTimeProvider Time { get; } = new(Now);
 
+    /// <summary>Errors the app logged while the test ran, so a failing test can say what went wrong on the server.</summary>
+    public ConcurrentQueue<string> ServerErrors { get; } = new();
+
     public StorageProvider Provider => provider;
 
     /// <summary>The SQLite file for this app: a fresh temp file unless a test passes one to share between two apps.</summary>
@@ -44,6 +49,7 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         builder.UseSetting("Storage:Provider", provider.ToString());
         builder.UseSetting("ConnectionStrings:Sqlite", $"Data Source={DatabaseFile}");
         if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
+        builder.ConfigureLogging(logging => logging.AddProvider(new ErrorCollector(ServerErrors)));
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
@@ -158,5 +164,25 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
         if (Factory.Provider == StorageProvider.Sqlite) ApiFactory.DeleteDatabase(Factory.DatabaseFile);
         PostgresTestServer.Release(_postgres);
         GC.SuppressFinalize(this);
+    }
+}
+
+/// <summary>Keeps every Error-level log line (with its exception) from the app under test.</summary>
+internal sealed class ErrorCollector(ConcurrentQueue<string> errors) : ILoggerProvider
+{
+    public ILogger CreateLogger(string categoryName) => new Logger(categoryName, errors);
+
+    public void Dispose() { }
+
+    private sealed class Logger(string category, ConcurrentQueue<string> errors) : ILogger
+    {
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel >= LogLevel.Error;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (IsEnabled(logLevel)) errors.Enqueue($"{category}: {formatter(state, exception)} {exception?.GetType().Name}: {exception?.Message}");
+        }
     }
 }
