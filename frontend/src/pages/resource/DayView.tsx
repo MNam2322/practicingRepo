@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ApiError, formatDay, type Booking, type Resource, type Venue } from '../../lib/api';
-import { describeError, useAvailability, useBook } from '../../lib/queries';
+import { describeError, useAvailability, useBook, useMe } from '../../lib/queries';
 import { useToast } from '../../lib/toast';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -21,7 +21,10 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
 
   const [selected, setSelected] = useState<string | null>(initialAt ?? null);   // UTC start of the chosen slot
   const [length, setLength] = useState(1);
-  const [name, setName] = useState(readName);
+  const me = useMe();
+  const [typedName, setName] = useState(readName);
+  // The remembered name wins; a signed-in person without one gets their account name suggested.
+  const name = typedName || (me.data?.name ?? '');
   const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking; traceId?: string | null } | null>(null);
 
   const busy = bookMutation.isPending;

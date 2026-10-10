@@ -18,6 +18,8 @@ src/components/Toaster.tsx + src/lib/toast.ts   toasts: <Toaster> in main.tsx, u
 src/pages/Home.tsx      resources
 src/pages/ResourcePage.tsx  header, Day/Week toggle, legend; resource/DayView.tsx (slot grid, booking panel), resource/WeekView.tsx (7 days × times)
 src/pages/MyBookings.tsx    upcoming and past, cancel with confirm, rows link to the details page
+src/pages/SignInPage.tsx    #/signin and #/signup (?next= an in-app route only: router.safeNext)
+src/components/AccountMenu.tsx  top-bar Sign in link or account menu (useMe, sign out)
 src/pages/BookingPage.tsx   #/b/:id details, status, cancel, Add to calendar (src/lib/calendar.ts builds the .ics from UTC instants)
 src/lib/errors.ts       ERROR_MESSAGES: one friendly message per API error code
 src/pages/resource/slots.ts  SLOT_LABEL (free, booked, past, closed) and closure time formatting
@@ -28,6 +30,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 
 - **Times:** show `localStart` and `localEnd` from the API (venue time). Send `start` back exactly as the API gave it. Never compute slot times in the browser. "Today" is the venue's today, from `venueToday()`.
 - **Errors:** switch on `ApiError.code` (`slot_taken`, `too_late_to_cancel`, …), not on message text. After `slot_taken`, refresh the slots. Friendly wording for each code lives only in `src/lib/errors.ts`; add new codes there. Show `ApiError.traceId` as a reference (ErrorNotice does).
+- **Accounts:** `useMe()` is the signed-in account or null. Any request answered 401 `unauthenticated` sends the person to `#/signin?next=<where they were>` (lib/queries.ts); never build a redirect target from anything but `safeNext`.
 - **State:** server data comes from the API through the hooks in `src/lib/queries.ts`; never fetch in a component or an effect. Every write is a mutation that invalidates exactly the query keys it affects. localStorage is only for small UI preferences, such as the remembered name.
 - **Style:**
   - plain CSS in `src/index.css`

@@ -130,7 +130,7 @@ You need Docker Desktop installed and running for this step.
 
 ### Step 13: Frontend 6, sign in
 Needs backend 7.
-- [ ] **Prompt:** "Do frontend task 6 (sign in)."
+- [x] **Prompt:** "Do frontend task 6 (sign in)."
 - **Check:** book while signed out, then sign up. The message says your bookings moved, and they're in My bookings. Sign out and in again: they're still there.
 
 ### Step 14: Backend 8, staff features

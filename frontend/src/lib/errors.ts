@@ -20,6 +20,12 @@ export const ERROR_MESSAGES: Record<string, string> = {
   not_cancellable: 'This booking can no longer be cancelled.',
   too_late_to_cancel: 'It is too late to cancel this booking online. Contact the club.',
   changed_meanwhile: 'This booking was changed at the same moment. Reload and try again.',
+  // accounts
+  email_taken: 'There is already an account with that email. Sign in instead.',
+  invalid_credentials: 'That email and password do not match an account.',
+  account_locked: 'Too many failed attempts. Wait a few minutes and try again.',
+  unauthenticated: 'Sign in to do that.',
+  forbidden: 'Your account is not allowed to do that.',
   // the request itself
   validation_failed: 'Some details are missing or not valid. Check the form and try again.',
   rate_limited: 'Too many requests. Wait a minute and try again.',

@@ -1,7 +1,8 @@
 // Server state through TanStack Query: every read has a key, every write invalidates exactly the keys it affects.
 // Library: 9.7 "Server state libraries", 8.6 "Invalidation" and "Optimistic updates".
-import { focusManager, QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, bookingWhen, type Availability, type Booking } from './api';
+import { focusManager, MutationCache, QueryCache, QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { api, ApiError, bookingWhen, type Account, type Availability, type Booking } from './api';
+import { signInHref } from './router';
 import { useToast } from './toast';
 
 export const keys = {
@@ -11,7 +12,17 @@ export const keys = {
   bookings: ['bookings'] as const,
   mine: ['bookings', 'mine'] as const,
   booking: (id: string) => ['bookings', 'one', id] as const,
+  me: ['me'] as const,
 };
+
+/**
+ * Any request answered "401 unauthenticated" (for example a staff page after the session expired) sends the person to
+ * sign in, and back to where they were afterwards. /api/me is not an error: it means "signed out" (api.me).
+ */
+function onUnauthenticated(error: unknown) {
+  if (error instanceof ApiError && error.status === 401 && error.code === 'unauthenticated' && !location.hash.startsWith('#/sign'))
+    location.hash = signInHref();
+}
 
 /**
  * TanStack Query refetches "on focus" when the tab becomes visible. Also count the window itself gaining focus, so two
@@ -33,6 +44,8 @@ focusManager.setEventListener((setFocused) => {
 
 export function createQueryClient() {
   return new QueryClient({
+    queryCache: new QueryCache({ onError: onUnauthenticated }),
+    mutationCache: new MutationCache({ onError: onUnauthenticated }),
     defaultOptions: {
       queries: {
         // A 4xx will not change on retry (not found, validation, rules); only network errors and 5xx are retried.
@@ -132,6 +145,45 @@ export function useCancelBooking() {
       void qc.invalidateQueries({ queryKey: keys.availability(b.resourceId, dayOf(b)) });
     },
   });
+}
+
+/** The signed-in account, or null. Shared by the account menu and anything that depends on who is signed in. */
+export function useMe() {
+  return useQuery({ queryKey: keys.me, queryFn: api.me, staleTime: 5 * 60_000 });
+}
+
+/**
+ * After signing in, up or out, "who am I" changes and so does every booking list (the customer is now the account,
+ * or anonymous again): set the account and drop the cached bookings.
+ */
+function useAccountChange() {
+  const qc = useQueryClient();
+  return (account: Account | null) => {
+    qc.setQueryData(keys.me, account);
+    qc.removeQueries({ queryKey: keys.bookings });
+    void qc.invalidateQueries({ queryKey: keys.availabilityAll });
+  };
+}
+
+export function useSignIn() {
+  const changed = useAccountChange();
+  return useMutation({
+    mutationFn: (v: { email: string; password: string }) => api.signIn(v.email, v.password),
+    onSuccess: (signedIn) => changed(signedIn.account),
+  });
+}
+
+export function useSignUp() {
+  const changed = useAccountChange();
+  return useMutation({
+    mutationFn: (v: { email: string; password: string; name: string }) => api.signUp(v.email, v.password, v.name),
+    onSuccess: (signedIn) => changed(signedIn.account),
+  });
+}
+
+export function useSignOut() {
+  const changed = useAccountChange();
+  return useMutation({ mutationFn: api.signOut, onSuccess: () => changed(null) });
 }
 
 /** Message and trace id for any error a query or mutation can hold. */

@@ -22,7 +22,13 @@ export type Closure = Schemas['ClosureResponse'];
 export type Availability = Schemas['AvailabilityResponse'];
 /** localStart/localEnd are venue wall-clock "yyyy-MM-ddTHH:mm". */
 export type Booking = Schemas['BookingResponse'];
+/** The signed-in account. roles: Customer, and Staff or Admin where granted. */
+export type Account = Schemas['AccountResponse'];
+/** movedBookings: anonymous bookings from this browser that now belong to the account. */
+export type SignedIn = Schemas['SignedInResponse'];
 type CreateBookingRequest = Schemas['CreateBookingRequest'];
+type SignUpRequest = Schemas['SignUpRequest'];
+type SignInRequest = Schemas['SignInRequest'];
 type Problem = Schemas['ValidationProblemDetails'] & { traceId?: string };
 
 /**
@@ -60,6 +66,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const code = res.status === 429 ? 'rate_limited' : p?.code ?? null;
     throw new ApiError(res.status, messageFor(code, p?.title ?? `${res.status} ${res.statusText}`), code, p?.traceId ?? null, p?.errors ?? {});
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -72,6 +79,16 @@ export const api = {
     request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest) }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
+  /** The signed-in account, or null when nobody is signed in (the API answers 401). */
+  me: () => request<Account>('/api/me').catch((e: unknown) => {
+    if (e instanceof ApiError && e.status === 401) return null;
+    throw e;
+  }),
+  signUp: (email: string, password: string, name: string) =>
+    request<SignedIn>('/api/account/signup', { method: 'POST', body: JSON.stringify({ email, password, name } satisfies SignUpRequest) }),
+  signIn: (email: string, password: string) =>
+    request<SignedIn>('/api/account/signin', { method: 'POST', body: JSON.stringify({ email, password } satisfies SignInRequest) }),
+  signOut: () => request<void>('/api/account/signout', { method: 'POST' }),
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 };
 
