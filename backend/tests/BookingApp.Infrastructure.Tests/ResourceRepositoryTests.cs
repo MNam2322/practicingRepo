@@ -10,8 +10,8 @@ namespace BookingApp.Infrastructure.Tests;
 /// <summary>A migrated SQLite file with the venue and two courts, for repository tests.</summary>
 internal static class TestDatabase
 {
-    public static BookingDbContext Context(string file) =>
-        new(new DbContextOptionsBuilder<BookingDbContext>().UseSqlite($"Data Source={file}").Options);
+    public static SqliteBookingDbContext Context(string file) =>
+        new(new DbContextOptionsBuilder<SqliteBookingDbContext>().UseSqlite($"Data Source={file}").Options);
 
     public static async Task SeedAsync(BookingDbContext db)
     {

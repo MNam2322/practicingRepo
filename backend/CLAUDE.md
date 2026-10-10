@@ -18,11 +18,12 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
-src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite)
-  Repositories/                EfBookingRepository, EfResourceRepository (Sqlite); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
-  Persistence/                 BookingDbContext (tables, keys, FKs, CHECKs), BookingRow/ResourceRows (stored shapes), StorageOptions,
+src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite | Postgres)
+  Repositories/                EfBookingRepository, EfResourceRepository (Sqlite, Postgres); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
+  Persistence/                 BookingDbContext (shared model: tables, keys, FKs, CHECKs) with SqliteBookingDbContext and
+                               PostgresBookingDbContext (tstzrange period + EXCLUDE constraint), BookingRow/ResourceRows, StorageOptions,
                                DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
-                               Migrations/ (generated; read every one before committing)
+                               Migrations/Sqlite and Migrations/Postgres (generated per provider; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Controllers/ (ApiControllerBase, Venue, Resources, Bookings),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
@@ -39,7 +40,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 ## Rules that must always hold
 
-1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
+1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; on PostgreSQL it does no check at all and the `ex_bookings_no_overlap` exclusion constraint refuses the insert (SQLSTATE 23P01 → `slot_taken`); a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
 2. **Times are UTC everywhere except at the edges.** Store and compare `DateTimeOffset` in UTC. Venue-local time is used only for opening hours, the slot grid and display. Never use `DateTime.Now`; use `TimeProvider`.
 3. **State changes go through the aggregate.** `Booking` methods enforce the lifecycle. Controllers and services never set fields directly.
 4. **Errors are problem details with a stable `code`:**
@@ -70,5 +71,9 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - `dotnet build`
 - `dotnet test` (from task 1). After an intended API contract change: `UPDATE_OPENAPI=1 dotnet test`, then commit `openapi/v1.json`.
 - `dotnet format --verify-no-changes`
-- New migration (after changing BookingDbContext): `dotnet ef migrations add <Name> --project src/BookingApp.Infrastructure --startup-project src/BookingApp.Infrastructure --output-dir Persistence/Migrations` (`dotnet tool restore` first). Read the generated file before committing.
+- New migration (after changing the model), once per provider (`dotnet tool restore` first):
+  - `dotnet ef migrations add <Name> --context SqliteBookingDbContext --project src/BookingApp.Infrastructure --startup-project src/BookingApp.Infrastructure --output-dir Persistence/Migrations/Sqlite`
+  - the same with `--context PostgresBookingDbContext` and `--output-dir Persistence/Migrations/Postgres`
+  - read both generated files before committing; things EF Core cannot express (like `EXCLUDE`) go in as `migrationBuilder.Sql`.
+- PostgreSQL: `docker compose up -d` (repo root), then `dotnet run --project src/BookingApp.Api --launch-profile http-postgres`. Tests start their own PostgreSQL with Testcontainers; without Docker those tests are skipped, and `REQUIRE_DOCKER=1 dotnet test` makes that a failure (use it in CI).
 - `dotnet run --project src/BookingApp.Api`: http://localhost:5080. Bookings are stored in `src/BookingApp.Api/.data/bookings.db` (SQLite, git-ignored); delete that folder to start empty. In Development it seeds demo bookings for tomorrow, and serves the API reference at http://localhost:5080/scalar and the document at `/openapi/v1.json`.

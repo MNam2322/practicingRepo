@@ -123,7 +123,7 @@ public sealed class SqliteBookingRepositoryTests : BookingRepositoryContract
 
     private BookingDbContext NewContext()
     {
-        var context = new BookingDbContext(new DbContextOptionsBuilder<BookingDbContext>().UseSqlite($"Data Source={_file}").Options);
+        var context = new SqliteBookingDbContext(new DbContextOptionsBuilder<SqliteBookingDbContext>().UseSqlite($"Data Source={_file}").Options);
         lock (_contexts) _contexts.Add(context);
         return context;
     }
@@ -132,7 +132,7 @@ public sealed class SqliteBookingRepositoryTests : BookingRepositoryContract
 
     public override async ValueTask InitializeAsync()
     {
-        await using var db = new BookingDbContext(new DbContextOptionsBuilder<BookingDbContext>().UseSqlite($"Data Source={_file}").Options);
+        await using var db = new SqliteBookingDbContext(new DbContextOptionsBuilder<SqliteBookingDbContext>().UseSqlite($"Data Source={_file}").Options);
         await db.Database.MigrateAsync(Ct);
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", Ct);
         await TestDatabase.SeedAsync(db);

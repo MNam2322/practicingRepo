@@ -46,7 +46,7 @@ git --version
 
 Then install Claude Code by following https://docs.claude.com/en/docs/claude-code. Either use the VS Code extension, or run `claude` in the terminal.
 
-You only need Docker Desktop later, from playbook step 11 (PostgreSQL).
+You only need Docker Desktop for PostgreSQL (playbook step 11 onwards). Without it the app runs on SQLite, and the PostgreSQL tests are skipped.
 
 ## 2. Put the project in place
 
@@ -85,6 +85,8 @@ You only need `npm install` the first time. Then open http://localhost:5173.
 In Development the API books two demo slots per resource for tomorrow, so you can see booked slots straight away. Bookings are stored in a SQLite file, `backend/src/BookingApp.Api/.data/bookings.db`, so they survive restarts. Stop the API and delete the `.data` folder to start with an empty database.
 
 To stop either one, press **Ctrl+C** in its terminal.
+
+**Optional: PostgreSQL instead of SQLite.** With Docker Desktop running, from the repo root: `docker compose up -d`, then in terminal 1 run `dotnet run --project src/BookingApp.Api --launch-profile http-postgres` instead. `docker compose down` stops the database (add `-v` to delete its data).
 
 ## 4. Build the rest with Claude Code
 

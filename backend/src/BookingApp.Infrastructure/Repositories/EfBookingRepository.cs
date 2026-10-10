@@ -5,6 +5,7 @@ using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace BookingApp.Infrastructure.Repositories;
 
@@ -15,12 +16,42 @@ namespace BookingApp.Infrastructure.Repositories;
 internal sealed class EfBookingRepository(BookingDbContext db) : IBookingRepository
 {
     /// <summary>
-    /// The overlap check and the insert must be one atomic step. On SQLite the transaction starts with
-    /// <c>BEGIN IMMEDIATE</c>, which takes the database's write lock before the check runs, so a second writer waits
-    /// until the first has committed and then sees its row (library 7.4: a multi-row invariant needs serialisable
-    /// work or a lock). A plain read-then-insert would let two requests both see the slot free.
+    /// The overlap check and the insert must be one atomic step; a read-then-insert would let two requests both see
+    /// the slot free. How depends on the database:
+    /// <list type="bullet">
+    /// <item>PostgreSQL: no check here at all. The insert either succeeds or breaks the exclusion constraint
+    /// (SQLSTATE 23P01), and the database decides (library 7.2: "any rule of the form no two rows may... belongs in a
+    /// constraint").</item>
+    /// <item>SQLite, which has no such constraint: the check and the insert run in one transaction that starts with
+    /// <c>BEGIN IMMEDIATE</c>, taking the write lock before the check, so a second writer waits and then sees the first
+    /// row (library 7.4: a multi-row invariant needs serialisable work or a lock).</item>
+    /// </list>
     /// </summary>
-    public async Task<bool> TryAddAsync(Booking booking, CancellationToken cancellationToken)
+    public Task<bool> TryAddAsync(Booking booking, CancellationToken cancellationToken) =>
+        db.Database.IsNpgsql() ? InsertGuardedByConstraintAsync(booking, cancellationToken) : CheckAndInsertUnderLockAsync(booking, cancellationToken);
+
+    private async Task<bool> InsertGuardedByConstraintAsync(Booking booking, CancellationToken cancellationToken)
+    {
+        var row = BookingRow.From(booking);
+        row.Version = booking.Version + 1;
+        db.Bookings.Add(row);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            booking.MarkSaved();
+            return true;
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
+        {
+            return false;
+        }
+        finally
+        {
+            db.ChangeTracker.Clear();
+        }
+    }
+
+    private async Task<bool> CheckAndInsertUnderLockAsync(Booking booking, CancellationToken cancellationToken)
     {
         await db.Database.OpenConnectionAsync(cancellationToken);
         try

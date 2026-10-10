@@ -3,4 +3,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BookingApp.Infrastructure\BookingApp.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

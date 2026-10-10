@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BookingApp.Infrastructure.Persistence;
+using BookingApp.Tests.Shared;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -16,7 +17,9 @@ namespace BookingApp.Api.Tests;
 /// The real app in-process. Only time is replaced, so tests can move the clock. Library: 4.6 "Integration testing an API"
 /// ("replace as little as possible") and "TimeProvider — testing time-dependent code".
 /// </summary>
-public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemory, string? databaseFile = null) : WebApplicationFactory<Program>
+/// <param name="postgres">For the Postgres provider: a connection string to the test database (PostgresTestServer).</param>
+public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemory, string? databaseFile = null, string? postgres = null)
+    : WebApplicationFactory<Program>
 {
     /// <summary>Monday 1 June 2026, 07:00 at the venue (Asia/Ho_Chi_Minh, UTC+7).</summary>
     public static readonly DateTimeOffset Now = new(2026, 6, 1, 0, 0, 0, TimeSpan.Zero);
@@ -36,7 +39,8 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         // Not Development: no demo bookings, so every test starts from an empty database.
         builder.UseEnvironment("Testing");
         builder.UseSetting("Storage:Provider", provider.ToString());
-        builder.UseSetting("ConnectionStrings:Bookings", $"Data Source={DatabaseFile}");
+        builder.UseSetting("ConnectionStrings:Sqlite", $"Data Source={DatabaseFile}");
+        if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
@@ -71,24 +75,30 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         new DateTimeOffset(day.ToDateTime(new TimeOnly(hour, minute)), TimeSpan.FromHours(7)).ToUniversalTime();
 }
 
-/// <summary>A fresh app per test, so tests never share bookings (library 4.6: "Tests must not share state").</summary>
-public abstract class ApiTest : IDisposable
+/// <summary>
+/// A fresh app per test, so tests never share bookings (library 4.6: "Tests must not share state"). On Postgres each
+/// test also gets its own database. Created in InitializeAsync, because that may wait for the database server.
+/// </summary>
+public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemory) : IAsyncLifetime
 {
     protected static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
     };
 
-    protected ApiTest(StorageProvider provider = StorageProvider.InMemory)
+    private string? _postgres;
+
+    public async ValueTask InitializeAsync()
     {
-        Factory = new ApiFactory(provider);
+        _postgres = provider == StorageProvider.Postgres ? await PostgresTestServer.NewDatabaseAsync() : null;
+        Factory = new ApiFactory(provider, postgres: _postgres);
         Client = Factory.CreateClient();
     }
 
-    protected ApiFactory Factory { get; }
+    protected ApiFactory Factory { get; private set; } = null!;
 
     /// <summary>A client that keeps cookies, like a browser.</summary>
-    protected HttpClient Client { get; }
+    protected HttpClient Client { get; private set; } = null!;
 
     protected static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -115,11 +125,13 @@ public abstract class ApiTest : IDisposable
         Assert.False(string.IsNullOrEmpty(problem.GetProperty("title").GetString()));
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Client.Dispose();
-        Factory.Dispose();
+        Client?.Dispose();
+        if (Factory is null) return;
+        await Factory.DisposeAsync();
         if (Factory.Provider == StorageProvider.Sqlite) ApiFactory.DeleteDatabase(Factory.DatabaseFile);
+        PostgresTestServer.Release(_postgres);
         GC.SuppressFinalize(this);
     }
 }

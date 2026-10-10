@@ -69,3 +69,6 @@ public sealed class ConcurrencyTestsInMemory() : ConcurrencyTests(StorageProvide
 
 /// <summary>On SQLite the guard is BEGIN IMMEDIATE in EfBookingRepository; the requests really do contend for the file lock.</summary>
 public sealed class ConcurrencyTestsSqlite() : ConcurrencyTests(StorageProvider.Sqlite);
+
+/// <summary>On PostgreSQL the guard is the exclusion constraint: the repository does no overlap check of its own.</summary>
+public sealed class ConcurrencyTestsPostgres() : ConcurrencyTests(StorageProvider.Postgres);

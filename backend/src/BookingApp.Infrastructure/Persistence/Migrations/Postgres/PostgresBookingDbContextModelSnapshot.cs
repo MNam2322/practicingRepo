@@ -4,66 +4,79 @@ using BookingApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using NpgsqlTypes;
 
 #nullable disable
 
-namespace BookingApp.Infrastructure.Persistence.Migrations
+namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
 {
-    [DbContext(typeof(BookingDbContext))]
-    partial class BookingDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(PostgresBookingDbContext))]
+    partial class PostgresBookingDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "btree_gist");
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.BookingRow", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<long?>("CancelledAt")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
 
-                    b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
                     b.Property<Guid>("CustomerId")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("uuid")
                         .HasColumnName("customer_id");
 
                     b.Property<string>("CustomerName")
                         .IsRequired()
                         .HasMaxLength(80)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(80)")
                         .HasColumnName("customer_name");
 
-                    b.Property<long>("EndUtc")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("EndUtc")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_utc");
+
+                    b.Property<NpgsqlRange<DateTimeOffset>>("Period")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("tstzrange")
+                        .HasColumnName("period")
+                        .HasComputedColumnSql("tstzrange(start_utc, end_utc, '[)')", true);
 
                     b.Property<string>("ResourceId")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("resource_id");
 
-                    b.Property<long>("StartUtc")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("StartUtc")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_utc");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("status");
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("version");
 
                     b.HasKey("Id");
@@ -83,30 +96,30 @@ namespace BookingApp.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.ClosureRow", b =>
                 {
                     b.Property<Guid>("Id")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<long>("EndUtc")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("EndUtc")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_utc");
 
                     b.Property<string>("Reason")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(200)")
                         .HasColumnName("reason");
 
                     b.Property<string>("ResourceId")
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("resource_id");
 
-                    b.Property<long>("StartUtc")
-                        .HasColumnType("INTEGER")
+                    b.Property<DateTimeOffset>("StartUtc")
+                        .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_utc");
 
                     b.HasKey("Id");
@@ -124,19 +137,19 @@ namespace BookingApp.Infrastructure.Persistence.Migrations
                 {
                     b.Property<string>("ResourceId")
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("resource_id");
 
                     b.Property<int>("Day")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("day_of_week");
 
                     b.Property<TimeOnly>("Close")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("time without time zone")
                         .HasColumnName("close_time");
 
                     b.Property<TimeOnly>("Open")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("time without time zone")
                         .HasColumnName("open_time");
 
                     b.HasKey("ResourceId", "Day");
@@ -153,35 +166,35 @@ namespace BookingApp.Infrastructure.Persistence.Migrations
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("id");
 
                     b.Property<int>("Capacity")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("capacity");
 
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(16)")
                         .HasColumnName("kind");
 
                     b.Property<int>("MaxSlotsPerBooking")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("max_slots_per_booking");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<int>("SlotMinutes")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("slot_minutes");
 
                     b.Property<int>("SortOrder")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("sort_order");
 
                     b.HasKey("Id");
@@ -201,19 +214,19 @@ namespace BookingApp.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.VenueRow", b =>
                 {
                     b.Property<int>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("integer")
                         .HasColumnName("id");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
                     b.Property<string>("TimeZoneId")
                         .IsRequired()
                         .HasMaxLength(64)
-                        .HasColumnType("TEXT")
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("time_zone_id");
 
                     b.HasKey("Id");

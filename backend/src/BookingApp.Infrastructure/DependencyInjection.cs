@@ -37,12 +37,15 @@ public static class DependencyInjection
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
                 break;
             case StorageProvider.Sqlite:
-                var connectionString = SqliteConnectionString(configuration.GetConnectionString(ConnectionStrings.Bookings), contentRoot);
-                services.AddDbContext<BookingDbContext>(o => o.UseSqlite(connectionString));
-                services.AddScoped<IBookingRepository, EfBookingRepository>();
-                services.AddScoped<IResourceRepository, EfResourceRepository>();
-                // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
-                services.AddHostedService<DatabaseInitializer>();
+                var sqlite = SqliteConnectionString(configuration.GetConnectionString(ConnectionStrings.Sqlite), contentRoot);
+                services.AddDbContext<SqliteBookingDbContext>(o => o.UseSqlite(sqlite));
+                AddEfRepositories<SqliteBookingDbContext>(services);
+                break;
+            case StorageProvider.Postgres:
+                var postgres = configuration.GetConnectionString(ConnectionStrings.Postgres)
+                    ?? throw new InvalidOperationException("Storage:Provider is Postgres but ConnectionStrings:Postgres is not set.");
+                services.AddDbContext<PostgresBookingDbContext>(o => o.UseNpgsql(postgres));
+                AddEfRepositories<PostgresBookingDbContext>(services);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown Storage:Provider '{storage.Provider}'.");
@@ -50,6 +53,16 @@ public static class DependencyInjection
 
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;
+    }
+
+    /// <summary>The EF Core repositories over whichever database was chosen; they depend only on the shared BookingDbContext.</summary>
+    private static void AddEfRepositories<TContext>(IServiceCollection services) where TContext : BookingDbContext
+    {
+        services.AddScoped<BookingDbContext>(sp => sp.GetRequiredService<TContext>());
+        services.AddScoped<IBookingRepository, EfBookingRepository>();
+        services.AddScoped<IResourceRepository, EfResourceRepository>();
+        // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
+        services.AddHostedService<DatabaseInitializer>();
     }
 
     /// <summary>"Data Source=.data/bookings.db" is relative to the API's folder; the folder is created if needed.</summary>

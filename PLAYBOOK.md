@@ -115,7 +115,7 @@ Needs backend 2.
 
 ### Step 11: Backend 6, PostgreSQL
 You need Docker Desktop installed and running for this step.
-- [ ] **Prompt:** "Do backend task 6 (PostgreSQL with an exclusion constraint)."
+- [x] **Prompt:** "Do backend task 6 (PostgreSQL with an exclusion constraint)."
 - **Check:**
   - `docker compose up -d` starts PostgreSQL
   - the API runs with `Storage:Provider` set to `Postgres`

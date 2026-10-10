@@ -70,9 +70,9 @@ Read first: 7.2 The relational model and SQL, 7.2 "Constraints: the integrity th
 
 ### 6. PostgreSQL with an exclusion constraint
 Read first: 7.3 "Specialised index types", 7.9 "Atomic conditional update", 7.8 Running databases.
-- [ ] Add a PostgreSQL provider (Npgsql) and `docker-compose.yml` with PostgreSQL 17. You need Docker Desktop.
-- [ ] Prevent overlaps **in the database**: a `tstzrange` column with `EXCLUDE USING gist (resource_id WITH =, time WITH &&) WHERE (status = 'confirmed')`, using the `btree_gist` extension. Map the constraint violation (SQLSTATE 23P01) to `slot_taken`.
-- [ ] Run the integration tests against PostgreSQL with Testcontainers.
+- [x] Add a PostgreSQL provider (Npgsql) and `docker-compose.yml` with PostgreSQL 17. You need Docker Desktop.
+- [x] Prevent overlaps **in the database**: a `tstzrange` column with `EXCLUDE USING gist (resource_id WITH =, time WITH &&) WHERE (status = 'confirmed')`, using the `btree_gist` extension. Map the constraint violation (SQLSTATE 23P01) to `slot_taken`.
+- [x] Run the integration tests against PostgreSQL with Testcontainers.
 
 **Done when:** the parallel test passes on PostgreSQL, with the constraint (not app code) doing the blocking.
 
@@ -182,3 +182,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 3: request validation with DataAnnotations on `CreateBookingRequest` (resourceId, start, slots 1–24, name ≤ 80); 400 `validation_failed` with camelCase field errors; business rules still 422; strict JSON numbers.
 - Task 4: EF Core with SQLite: `BookingDbContext` (bookings table, (resource, start) and customer indexes, `version` concurrency token, UTC ticks on SQLite), migrations applied at start-up, `EfBookingRepository` with `BEGIN IMMEDIATE` for the atomic insert; `Storage:Provider` InMemory | Sqlite; API booking/concurrency tests run on both.
 - Task 5: venue, resources, opening hours and closures in the database (FKs, CHECKs), seeded from the Venue settings on first run; closures (per resource or venue-wide) make slots `closed` and bookings 422 `resource_closed`; the migration upgrades databases that already hold bookings.
+- Task 6: PostgreSQL 17 (`docker-compose.yml`, `http-postgres` profile) with a generated `tstzrange` period and `EXCLUDE USING gist (resource_id WITH =, period WITH &&) WHERE status = Confirmed`; 23P01 → `slot_taken`, no app-side check; per-provider contexts and migrations; Testcontainers tests on PostgreSQL (raw-SQL proof that the database blocks overlaps).

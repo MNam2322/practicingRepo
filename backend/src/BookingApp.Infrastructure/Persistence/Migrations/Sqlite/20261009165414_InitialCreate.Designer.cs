@@ -8,9 +8,9 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BookingApp.Infrastructure.Persistence.Migrations
+namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
 {
-    [DbContext(typeof(BookingDbContext))]
+    [DbContext(typeof(SqliteBookingDbContext))]
     [Migration("20261009165414_InitialCreate")]
     partial class InitialCreate
     {

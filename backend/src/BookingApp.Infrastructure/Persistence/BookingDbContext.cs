@@ -11,7 +11,7 @@ namespace BookingApp.Infrastructure.Persistence;
 /// Rules every writer must obey are constraints here, not just checks in code (library 7.2 "Constraints: the integrity
 /// the application cannot enforce"): keys, foreign keys, CHECKs and NOT NULL.
 /// </summary>
-internal sealed class BookingDbContext(DbContextOptions<BookingDbContext> options) : DbContext(options)
+internal abstract class BookingDbContext(DbContextOptions options) : DbContext(options)
 {
     public DbSet<BookingRow> Bookings => Set<BookingRow>();
     public DbSet<VenueRow> Venue => Set<VenueRow>();
@@ -90,15 +90,26 @@ internal sealed class BookingDbContext(DbContextOptions<BookingDbContext> option
         // My bookings.
         booking.HasIndex(b => b.CustomerId).HasDatabaseName("ix_bookings_customer");
 
-        if (Database.IsSqlite())
-        {
-            // SQLite has no date type and cannot compare or sort DateTimeOffset in SQL. Every time here is UTC, so
-            // storing UTC ticks as an INTEGER keeps comparisons, ordering and the index correct.
-            UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
-                closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt));
-            booking.Property(b => b.CancelledAt).HasConversion(new ValueConverter<DateTimeOffset?, long?>(
-                v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null));
-        }
+        ConfigureProvider(model);
+    }
+
+    /// <summary>What differs per database: column types, extensions and the constraints only one engine has.</summary>
+    protected abstract void ConfigureProvider(ModelBuilder model);
+}
+
+/// <summary>SQLite: a file, no date type. Migrations in Migrations/Sqlite.</summary>
+internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbContext> options) : BookingDbContext(options)
+{
+    protected override void ConfigureProvider(ModelBuilder model)
+    {
+        // SQLite has no date type and cannot compare or sort DateTimeOffset in SQL. Every time here is UTC, so
+        // storing UTC ticks as an INTEGER keeps comparisons, ordering and the index correct.
+        var booking = model.Entity<BookingRow>();
+        var closure = model.Entity<ClosureRow>();
+        UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
+            closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt));
+        booking.Property(b => b.CancelledAt).HasConversion(new ValueConverter<DateTimeOffset?, long?>(
+            v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null));
     }
 
     private static void UtcTicks(params PropertyBuilder<DateTimeOffset>[] properties)
@@ -108,9 +119,37 @@ internal sealed class BookingDbContext(DbContextOptions<BookingDbContext> option
     }
 }
 
-/// <summary>Lets <c>dotnet ef migrations add</c> build the context without starting the API.</summary>
-internal sealed class DesignTimeBookingDbContextFactory : Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<BookingDbContext>
+/// <summary>
+/// PostgreSQL: times are timestamptz, and the database itself refuses overlapping confirmed bookings with an exclusion
+/// constraint over a tstzrange (added in the migration; library 7.2 "EXCLUDE", 7.3 "Specialised index types").
+/// Migrations in Migrations/Postgres.
+/// </summary>
+internal sealed class PostgresBookingDbContext(DbContextOptions<PostgresBookingDbContext> options) : BookingDbContext(options)
 {
-    public BookingDbContext CreateDbContext(string[] args) =>
-        new(new DbContextOptionsBuilder<BookingDbContext>().UseSqlite("Data Source=design-time.db").Options);
+    /// <summary>Name of the exclusion constraint; violating it raises SQLSTATE 23P01.</summary>
+    public const string NoOverlapConstraint = "ex_bookings_no_overlap";
+
+    protected override void ConfigureProvider(ModelBuilder model)
+    {
+        // btree_gist lets a GiST index (needed for range overlap, &&) also compare resource_id with =.
+        model.HasPostgresExtension("btree_gist");
+        // [start, end) as a range, kept in step by the database. The exclusion constraint is built on it.
+        model.Entity<BookingRow>().Property<NpgsqlTypes.NpgsqlRange<DateTime>>("Period")
+            .HasColumnName("period")
+            .HasComputedColumnSql("tstzrange(start_utc, end_utc, '[)')", stored: true);
+    }
+}
+
+/// <summary>Lets <c>dotnet ef migrations add --context SqliteBookingDbContext</c> build the context without starting the API.</summary>
+internal sealed class DesignTimeSqliteFactory : Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<SqliteBookingDbContext>
+{
+    public SqliteBookingDbContext CreateDbContext(string[] args) =>
+        new(new DbContextOptionsBuilder<SqliteBookingDbContext>().UseSqlite("Data Source=design-time.db").Options);
+}
+
+/// <summary>For <c>dotnet ef migrations add --context PostgresBookingDbContext</c>. No database is contacted.</summary>
+internal sealed class DesignTimePostgresFactory : Microsoft.EntityFrameworkCore.Design.IDesignTimeDbContextFactory<PostgresBookingDbContext>
+{
+    public PostgresBookingDbContext CreateDbContext(string[] args) =>
+        new(new DbContextOptionsBuilder<PostgresBookingDbContext>().UseNpgsql("Host=localhost;Database=design_time").Options);
 }

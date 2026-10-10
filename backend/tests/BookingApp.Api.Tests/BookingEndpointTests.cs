@@ -216,3 +216,5 @@ public abstract class BookingEndpointTests(StorageProvider provider) : ApiTest(p
 public sealed class BookingEndpointTestsInMemory() : BookingEndpointTests(StorageProvider.InMemory);
 
 public sealed class BookingEndpointTestsSqlite() : BookingEndpointTests(StorageProvider.Sqlite);
+
+public sealed class BookingEndpointTestsPostgres() : BookingEndpointTests(StorageProvider.Postgres);

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace BookingApp.Infrastructure.Persistence.Migrations
+namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
 {
     /// <inheritdoc />
     public partial class ResourcesAndClosures : Migration

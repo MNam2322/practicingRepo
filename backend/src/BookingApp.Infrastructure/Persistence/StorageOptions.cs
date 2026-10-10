@@ -1,13 +1,13 @@
 namespace BookingApp.Infrastructure.Persistence;
 
-public enum StorageProvider { InMemory, Sqlite }
+public enum StorageProvider { InMemory, Sqlite, Postgres }
 
 /// <summary>The "Storage" configuration section: where bookings live.</summary>
 public sealed class StorageOptions
 {
     public const string Section = "Storage";
 
-    /// <summary>InMemory (lost on restart; tests and quick demos) or Sqlite (a file; survives restarts).</summary>
+    /// <summary>InMemory (lost on restart; tests and quick demos), Sqlite (a file) or Postgres (docker compose up -d).</summary>
     public StorageProvider Provider { get; set; } = StorageProvider.Sqlite;
 
     /// <summary>
@@ -17,8 +17,9 @@ public sealed class StorageOptions
     public bool MigrateOnStartup { get; set; } = true;
 }
 
-/// <summary>Connection string names under "ConnectionStrings".</summary>
+/// <summary>Connection string names under "ConnectionStrings", one per provider.</summary>
 public static class ConnectionStrings
 {
-    public const string Bookings = "Bookings";
+    public const string Sqlite = "Sqlite";
+    public const string Postgres = "Postgres";
 }
