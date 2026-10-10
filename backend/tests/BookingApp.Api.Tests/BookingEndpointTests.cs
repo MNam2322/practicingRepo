@@ -22,9 +22,11 @@ public abstract class BookingEndpointTests(StorageProvider provider) : ApiTest(p
         Assert.Equal("Tennis court 1", booking.ResourceName);
         Assert.Equal("2026-06-02T10:00", booking.LocalStart);
         Assert.Equal("2026-06-02T12:00", booking.LocalEnd);
-        Assert.Equal(BookingStatus.Confirmed, booking.Status);
+        Assert.Equal(BookingStatus.Pending, booking.Status);   // a hold until the customer confirms it
+        Assert.Equal(ApiFactory.Now.AddMinutes(10), booking.HoldExpiresAt);
         Assert.Equal("Nam", booking.CustomerName);
         Assert.True(booking.CanCancel);
+        Assert.True(booking.CanConfirm);
     }
 
     [Fact]

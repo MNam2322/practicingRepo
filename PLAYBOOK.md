@@ -158,7 +158,7 @@ Needs backend 9.
 - **Check:** send the same booking twice in `booking.http` with the same `Idempotency-Key`. You get the same booking back both times and only one booking exists.
 
 ### Step 19: Backend 11, holds
-- [ ] **Prompt:** "Do backend task 11 (holds that expire)."
+- [x] **Prompt:** "Do backend task 11 (holds that expire)."
 - **Check:**
   - create a hold: the slot shows as taken
   - ask Claude Code to shorten the hold to one minute in Development settings

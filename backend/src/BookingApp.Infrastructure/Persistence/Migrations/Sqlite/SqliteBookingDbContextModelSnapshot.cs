@@ -182,6 +182,10 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("INTEGER")
                         .HasColumnName("end_utc");
 
+                    b.Property<long?>("HoldExpiresAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("hold_expires_at");
+
                     b.Property<string>("ResourceId")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -210,6 +214,9 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
 
                     b.HasIndex("ResourceId", "StartUtc")
                         .HasDatabaseName("ix_bookings_resource_start");
+
+                    b.HasIndex("Status", "HoldExpiresAt")
+                        .HasDatabaseName("ix_bookings_status_hold_expires");
 
                     b.ToTable("bookings", null, t =>
                         {

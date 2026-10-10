@@ -18,7 +18,8 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
     {
         lock (_gate)
         {
-            var clash = _bookings.Values.Any(b => b.ResourceId == booking.ResourceId && b.BlocksSlot && b.Time.Overlaps(booking.Time));
+            ExpireDue(booking.CreatedAt);
+            var clash = _bookings.Values.Any(b => b.ResourceId == booking.ResourceId && b.BlocksAt(booking.CreatedAt) && b.Time.Overlaps(booking.Time));
             if (clash) return Task.FromResult(false);
             booking.MarkSaved();
             _bookings[booking.Id] = booking;
@@ -43,12 +44,26 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
         lock (_gate) return Task.FromResult(_bookings.GetValueOrDefault(id));
     }
 
+    public Task<int> ExpireDueHoldsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        lock (_gate) return Task.FromResult(ExpireDue(now));
+    }
+
+    /// <summary>Expires every hold past its time. Call under the lock.</summary>
+    private int ExpireDue(DateTimeOffset now)
+    {
+        var expired = 0;
+        foreach (var b in _bookings.Values.Where(b => b.Status == BookingStatus.Pending && b.HoldExpiresAt <= now))
+            if (b.Expire(now).IsSuccess) { b.MarkSaved(); expired++; }
+        return expired;
+    }
+
     public Task<IReadOnlyList<Booking>> BlockingAsync(string resourceId, TimeRange window, CancellationToken cancellationToken)
     {
         lock (_gate)
         {
             IReadOnlyList<Booking> found = [.. _bookings.Values
-                .Where(b => b.ResourceId == resourceId && b.BlocksSlot && b.Time.Overlaps(window))
+                .Where(b => b.ResourceId == resourceId && b.Status is BookingStatus.Confirmed or BookingStatus.Pending && b.Time.Overlaps(window))
                 .OrderBy(b => b.Time.Start)];
             return Task.FromResult(found);
         }

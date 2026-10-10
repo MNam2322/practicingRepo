@@ -110,10 +110,10 @@ Read first: 12.5 "Idempotency keys — preventing double charges", 8.2 "Idempote
 
 ### 11. Holds that expire
 Read first: 8.7 "Background work inside the process", 7.9 "Atomic conditional update".
-- [ ] Booking becomes two steps:
+- [x] Booking becomes two steps:
   - a 10-minute hold, with status `Pending`, which blocks the slot
   - then confirm
-- [ ] A background job releases expired holds.
+- [x] A background job releases expired holds.
 
 **Unblocks frontend 9.**
 
@@ -187,3 +187,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 8: staff tools under the ViewSchedule policy: day schedule (all resources, any status, allowed actions per booking), complete / no-show after start, staff cancel with a reason the customer sees, block time (refused over confirmed bookings); the booking lifecycle is a transition table with an exhaustive test; Accounts:Bootstrap grants Staff/Admin by email.
 - Task 9: admin API (ManageVenue policy): resources create/update/delete, weekly hours, whole-day closures incl. venue-wide holidays, booking rules moved into the database; every change saved with an audit entry (actor, request id, before/after) in the same transaction; `audit_log` append-only by database triggers.
 - Task 10: `Idempotency-Key` on `POST /api/bookings`: atomic per-caller claim in `idempotency_keys`, response stored before it is sent and replayed with `Idempotency-Replayed: true`; 422 for a reused key with another body, 409 while in progress; hourly cleanup of keys older than 24 h; the frontend sends one key per booking attempt.
+- Task 11: holds — booking makes a `Pending` hold (Holds:Minutes, default 10) that blocks the slot until `POST /api/bookings/{id}/confirm` (idempotent; 409 `hold_expired`) or release; expired holds stop blocking at once (lazy check on read, conditional UPDATE before each insert) and `HoldExpiryService` sweeps them to `Expired`; the PostgreSQL exclusion constraint now covers `Pending` too; the frontend holds and confirms in one go until frontend task 9.

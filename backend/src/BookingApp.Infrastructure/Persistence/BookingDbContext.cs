@@ -135,6 +135,9 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         booking.Property(b => b.CreatedAt).HasColumnName("created_at");
         booking.Property(b => b.CancelledAt).HasColumnName("cancelled_at");
         booking.Property(b => b.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(Booking.MaxReasonLength);
+        booking.Property(b => b.HoldExpiresAt).HasColumnName("hold_expires_at");
+        // The expiry job's query: holds still Pending, by expiry time.
+        booking.HasIndex(b => new { b.Status, b.HoldExpiresAt }).HasDatabaseName("ix_bookings_status_hold_expires");
         booking.Property(b => b.Version).HasColumnName("version").IsConcurrencyToken();
         // A resource with bookings cannot be deleted by accident: RESTRICT, the right default (library 7.2).
         booking.HasOne<ResourceRow>().WithMany().HasForeignKey(b => b.ResourceId).OnDelete(DeleteBehavior.Restrict);
@@ -175,8 +178,10 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
             closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
             model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt));
-        booking.Property(b => b.CancelledAt).HasConversion(new ValueConverter<DateTimeOffset?, long?>(
-            v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null));
+        var nullableTicks = new ValueConverter<DateTimeOffset?, long?>(
+            v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null);
+        booking.Property(b => b.CancelledAt).HasConversion(nullableTicks);
+        booking.Property(b => b.HoldExpiresAt).HasConversion(nullableTicks);
     }
 
     private static void UtcTicks(params PropertyBuilder<DateTimeOffset>[] properties)

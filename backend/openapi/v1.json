@@ -934,8 +934,8 @@
         "tags": [
           "Bookings"
         ],
-        "summary": "Books one or more consecutive slots.",
-        "description": "Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the\nanswer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a\nretry returns the first answer instead of booking twice.",
+        "summary": "Holds one or more consecutive slots: the first step of booking. Confirm the hold to book.",
+        "description": "The answer is a booking with status \"pending\" and holdExpiresAt: the slot is the customer's until then, and is\nreleased if it is not confirmed in time. Send a slot's start exactly as the availability response gave it.\nSomeone may take the same slot first: then the answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a\nretry returns the first answer instead of booking twice.",
         "operationId": "CreateBooking",
         "parameters": [
           {
@@ -1005,6 +1005,89 @@
           },
           "422": {
             "description": "too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings, idempotency_key_reused",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bookings/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Bookings"
+        ],
+        "summary": "Confirms the current customer's hold, before it expires. Confirming twice is harmless.",
+        "operationId": "ConfirmBooking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The booking (hold) id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "not_your_booking",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "booking_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "hold_expired, invalid_transition, changed_meanwhile",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1108,7 +1191,7 @@
         "tags": [
           "Bookings"
         ],
-        "summary": "Cancels a booking while the cancellation rules allow it.",
+        "summary": "Cancels a booking while the cancellation rules allow it, or releases a hold at any time.",
         "operationId": "CancelBooking",
         "parameters": [
           {
@@ -1961,7 +2044,9 @@
           "createdAt",
           "cancelledAt",
           "canCancel",
-          "cancellationReason"
+          "cancellationReason",
+          "holdExpiresAt",
+          "canConfirm"
         ],
         "type": "object",
         "properties": {
@@ -2014,6 +2099,16 @@
               "null",
               "string"
             ]
+          },
+          "holdExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "canConfirm": {
+            "type": "boolean"
           }
         }
       },
@@ -2022,7 +2117,9 @@
           "confirmed",
           "cancelled",
           "completed",
-          "noShow"
+          "noShow",
+          "pending",
+          "expired"
         ],
         "description": "Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal."
       },

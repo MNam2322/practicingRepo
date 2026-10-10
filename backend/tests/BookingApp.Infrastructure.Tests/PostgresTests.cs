@@ -40,6 +40,9 @@ public sealed class PostgresBookingRepositoryTests : BookingRepositoryContract
     }
 
     [Fact]
+    public Task A_confirm_loaded_before_the_expiry_is_refused() => A_confirm_racing_the_expiry_loses();
+
+    [Fact]
     public async Task Saving_a_stale_copy_is_refused()
     {
         var booking = NewBooking();
@@ -104,6 +107,17 @@ public sealed class PostgresExclusionConstraintTests : IAsyncLifetime
         await InsertAsync("court-1", "2026-06-02 11:00Z", "2026-06-02 12:00Z");   // [10,11) and [11,12) only touch
         await InsertAsync("court-2", "2026-06-02 10:00Z", "2026-06-02 11:00Z");   // another resource
         await InsertAsync("court-1", "2026-06-02 10:00Z", "2026-06-02 11:00Z", "Cancelled");   // not blocking
+    }
+
+    [Fact]
+    public async Task A_hold_blocks_in_the_database_and_an_expired_one_does_not()
+    {
+        await InsertAsync("court-1", "2026-06-02 10:00Z", "2026-06-02 11:00Z", "Pending");
+        var error = await Assert.ThrowsAsync<PostgresException>(() => InsertAsync("court-1", "2026-06-02 10:00Z", "2026-06-02 11:00Z"));
+        Assert.Equal(PostgresErrorCodes.ExclusionViolation, error.SqlState);
+
+        await InsertAsync("court-2", "2026-06-02 10:00Z", "2026-06-02 11:00Z", "Expired");
+        await InsertAsync("court-2", "2026-06-02 10:00Z", "2026-06-02 11:00Z");
     }
 
     [Fact]

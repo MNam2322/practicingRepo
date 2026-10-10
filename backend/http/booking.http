@@ -18,10 +18,16 @@ GET {{base}}/api/resources
 GET {{base}}/api/resources/court-1/availability?date=2026-10-20
 
 ### Book: "start" is a slot's "start" from availability (UTC). A bk-customer cookie is issued on first call.
+### This makes a hold: status "pending" with "holdExpiresAt" (10 minutes, Holds:Minutes). The slot is taken until
+### the hold is confirmed, released (cancel), or expires; then it is free again by itself.
+# @name hold
 POST {{base}}/api/bookings
 Content-Type: application/json
 
 { "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "slots": 1, "name": "Nam" }
+
+### Confirm the hold above before it expires (409 hold_expired after). Confirming twice is harmless.
+POST {{base}}/api/bookings/{{hold.response.body.id}}/confirm
 
 ### My bookings
 GET {{base}}/api/bookings/mine

@@ -14,10 +14,11 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
     /// <summary>Rate limit for writes, per customer cookie (Program.cs).</summary>
     public const string WritesPolicy = "booking-writes";
 
-    /// <summary>Books one or more consecutive slots.</summary>
+    /// <summary>Holds one or more consecutive slots: the first step of booking. Confirm the hold to book.</summary>
     /// <remarks>
-    /// Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the
-    /// answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a
+    /// The answer is a booking with status "pending" and holdExpiresAt: the slot is the customer's until then, and is
+    /// released if it is not confirmed in time. Send a slot's start exactly as the availability response gave it.
+    /// Someone may take the same slot first: then the answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a
     /// retry returns the first answer instead of booking twice.
     /// </remarks>
     /// <param name="request">The booking.</param>
@@ -47,6 +48,22 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         return Created($"/api/bookings/{body.Id}", body);
     }
 
+    /// <summary>Confirms the current customer's hold, before it expires. Confirming twice is harmless.</summary>
+    /// <param name="id">The booking (hold) id.</param>
+    [HttpPost("{id:guid}/confirm")]
+    [EnableRateLimiting(WritesPolicy)]
+    [EndpointName("ConfirmBooking")]
+    [ProducesResponseType<BookingResponse>(StatusCodes.Status200OK, Json)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden, ProblemJson, Description = "not_your_booking")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound, ProblemJson, Description = "booking_not_found")]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ProblemJson, Description = "hold_expired, invalid_transition, changed_meanwhile")]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<ActionResult<BookingResponse>> Confirm(Guid id, CurrentCustomer customer, CancellationToken ct)
+    {
+        var result = await bookings.ConfirmAsync(customer.Id, id, ct);
+        return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
+    }
+
     /// <summary>The current customer's bookings, oldest first.</summary>
     [HttpGet("mine")]
     [EndpointName("GetMyBookings")]
@@ -71,7 +88,7 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
     }
 
-    /// <summary>Cancels a booking while the cancellation rules allow it.</summary>
+    /// <summary>Cancels a booking while the cancellation rules allow it, or releases a hold at any time.</summary>
     /// <param name="id">The booking id.</param>
     [HttpPost("{id:guid}/cancel")]
     [EnableRateLimiting(WritesPolicy)]

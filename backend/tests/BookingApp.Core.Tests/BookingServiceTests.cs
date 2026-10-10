@@ -21,7 +21,7 @@ public sealed class BookingServiceTests
     public BookingServiceTests()
     {
         _resources.Policy = _policy;
-        _service = new BookingService(_resources, new InMemoryBookingRepository(), _time);
+        _service = new BookingService(_resources, new InMemoryBookingRepository(), new HoldOptions { Minutes = 10 }, _time);
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -125,6 +125,7 @@ public sealed class BookingServiceTests
     public async Task Cancelling_close_to_the_start_is_too_late()
     {
         var booking = (await Book(Alice, 10)).Value!;
+        Assert.True((await _service.ConfirmAsync(Alice, booking.Id, Ct)).IsSuccess);
         _time.SetUtcNow(booking.Time.Start.AddHours(-1));
 
         var result = await _service.CancelAsync(Alice, booking.Id, Ct);
@@ -201,5 +202,44 @@ public sealed class BookingServiceTests
         Assert.Equal(SlotState.Free, day.Slots.Single(s => s.LocalStart.Hour == 11).State);
         Assert.Equal(SlotState.Booked, day.Slots.Single(s => s.LocalStart.Hour == 12).State);
         Assert.Equal("Coaching", Assert.Single(day.Closures).Reason);
+    }
+
+    [Fact]
+    public async Task Booking_makes_a_hold_that_blocks_until_confirmed()
+    {
+        var hold = (await Book(Alice, 10)).Value!;
+        Assert.Equal(BookingStatus.Pending, hold.Status);
+        Assert.Equal(Now.AddMinutes(10), hold.HoldExpiresAt);
+        Assert.Equal("slot_taken", (await Book(Bob, 10)).Error?.Code);
+
+        var confirmed = await _service.ConfirmAsync(Alice, hold.Id, Ct);
+        Assert.Equal(BookingStatus.Confirmed, confirmed.Value!.Status);
+        Assert.Equal("not_your_booking", (await _service.ConfirmAsync(Bob, hold.Id, Ct)).Error?.Code);
+    }
+
+    [Fact]
+    public async Task An_expired_hold_frees_the_slot_even_before_the_job_runs()
+    {
+        var hold = (await Book(Alice, 10)).Value!;
+        _time.Advance(TimeSpan.FromMinutes(11));
+
+        var slots = (await _service.AvailabilityAsync("court-1", Tomorrow, Ct)).Value!.Slots;
+        Assert.Equal(SlotState.Free, slots.Single(s => s.LocalStart.Hour == 10).State);
+        Assert.True((await Book(Bob, 10)).IsSuccess);
+        Assert.Equal("hold_expired", (await _service.ConfirmAsync(Alice, hold.Id, Ct)).Error?.Code);
+    }
+
+    [Fact]
+    public async Task The_expiry_job_releases_due_holds_only()
+    {
+        await Book(Alice, 10);
+        _time.Advance(TimeSpan.FromMinutes(5));
+        await Book(Alice, 12);
+        _time.Advance(TimeSpan.FromMinutes(6));   // the first is 11 minutes old, the second 6
+
+        Assert.Equal(1, await _service.ExpireDueHoldsAsync(Ct));
+        Assert.Equal(0, await _service.ExpireDueHoldsAsync(Ct));   // safe to run twice
+        var mine = await _service.MineAsync(Alice, Ct);
+        Assert.Equal([BookingStatus.Expired, BookingStatus.Pending], mine.Select(b => b.Status));
     }
 }

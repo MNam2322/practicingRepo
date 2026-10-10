@@ -56,10 +56,11 @@ public sealed class StaffService(IResourceRepository resources, IBookingReposito
         if (end <= start) return new Error(ErrorKind.RuleViolation, "end_before_start", "The end must be after the start.");
         if (string.IsNullOrWhiteSpace(reason)) return new Error(ErrorKind.RuleViolation, "reason_required", "Say why the time is blocked.");
         var range = TimeRange.Create(start, end);
-        var inTheWay = await bookings.BlockingAsync(resource.Id, range, cancellationToken);
-        if (inTheWay.Count > 0)
+        var now = time.GetUtcNow();
+        var inTheWay = (await bookings.BlockingAsync(resource.Id, range, cancellationToken)).Count(b => b.BlocksAt(now));
+        if (inTheWay > 0)
             return new Error(ErrorKind.Conflict, "bookings_in_the_way",
-                $"{inTheWay.Count} confirmed booking(s) overlap that time. Cancel them first, with a reason, then block the time.");
+                $"{inTheWay} booking(s) or hold(s) overlap that time. Cancel them first, with a reason, then block the time.");
         var closure = new Closure(Guid.CreateVersion7(), resource.Id, range, reason.Trim());
         await resources.AddClosureAsync(closure, cancellationToken);
         return Result<Closure>.Ok(closure);

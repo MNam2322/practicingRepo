@@ -88,10 +88,11 @@ public sealed partial class AdminService(IResourceRepository resources, IBooking
         var window = TimeRange.Create(AvailabilityCalculator.DayWindow(catalog.Venue, from).Start, AvailabilityCalculator.DayWindow(catalog.Venue, to).End);
         var affected = resource is null ? catalog.Resources : [resource];
         var inTheWay = 0;
-        foreach (var r in affected) inTheWay += (await bookings.BlockingAsync(r.Id, window, cancellationToken)).Count;
+        var now = time.GetUtcNow();
+        foreach (var r in affected) inTheWay += (await bookings.BlockingAsync(r.Id, window, cancellationToken)).Count(b => b.BlocksAt(now));
         if (inTheWay > 0)
             return new Error(ErrorKind.Conflict, "bookings_in_the_way",
-                $"{inTheWay} confirmed booking(s) fall inside those days. Cancel them first, with a reason, then add the closure.");
+                $"{inTheWay} booking(s) or hold(s) fall inside those days. Cancel them first, with a reason, then add the closure.");
 
         var closure = new Closure(Guid.CreateVersion7(), resource?.Id, window, reason.Trim());
         await admin.AddClosureAsync(closure, Audit(actor, "closure.added", "closure", closure.Id.ToString(), null, DescribeClosure(closure)), cancellationToken);

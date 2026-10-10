@@ -16,14 +16,16 @@ public sealed class BookingStateMachineTests
 
     /// <summary>A booking from 10:00 to 11:00 tomorrow, in the given status.</summary>
     private static Booking InStatus(BookingStatus status) =>
-        Booking.Restore(Guid.NewGuid(), "court-1", Hour(Tomorrow, 10), Owner, "Nam", status, Now, null, 1);
+        Booking.Restore(Guid.NewGuid(), "court-1", Hour(Tomorrow, 10), Owner, "Nam", status, Now, null, 1, holdExpiresAt: Now.AddMinutes(10));
 
     /// <summary>Fires a trigger at a moment when its guards hold: before the start for a cancel, during the booking otherwise.</summary>
     private static Result<Booking> Fire(Booking b, BookingTrigger trigger) => trigger switch
     {
         BookingTrigger.Cancel => b.CancelByStaff("Court flooded", b.Time.Start.AddHours(-1)),
         BookingTrigger.Complete => b.Complete(b.Time.Start.AddMinutes(30)),
-        _ => b.MarkNoShow(b.Time.Start.AddMinutes(30)),
+        BookingTrigger.MarkNoShow => b.MarkNoShow(b.Time.Start.AddMinutes(30)),
+        BookingTrigger.Confirm => b.Confirm(Owner, Now.AddMinutes(5)),          // before the hold expires
+        _ => b.Expire(Now.AddMinutes(10)),                                       // once it is due
     };
 
     private static IEnumerable<(BookingStatus Status, BookingTrigger Trigger)> Pairs() =>
@@ -45,7 +47,19 @@ public sealed class BookingStateMachineTests
         var booking = InStatus(status);
         var result = Fire(booking, trigger);
 
-        if (Booking.IsDeclared(status, trigger))
+        if (status == BookingStatus.Confirmed && trigger == BookingTrigger.Confirm)
+        {
+            // Not in the table on purpose: confirming a confirmed booking is a harmless no-op (idempotent confirm).
+            Assert.True(result.IsSuccess);
+            Assert.Equal(status, booking.Status);
+        }
+        else if (status == BookingStatus.Expired && trigger == BookingTrigger.Confirm)
+        {
+            // Refused like any undeclared pair, with a clearer code: the customer needs to know the hold ran out.
+            Assert.Equal("hold_expired", result.Error?.Code);
+            Assert.Equal(status, booking.Status);
+        }
+        else if (Booking.IsDeclared(status, trigger))
         {
             Assert.True(result.IsSuccess, $"{status} --{trigger}--> should be allowed");
             Assert.NotEqual(status, booking.Status);
@@ -63,7 +77,10 @@ public sealed class BookingStateMachineTests
     {
         var declared = Pairs().Where(p => Booking.IsDeclared(p.Status, p.Trigger));
         Assert.Equal(
-            [(BookingStatus.Confirmed, BookingTrigger.Cancel), (BookingStatus.Confirmed, BookingTrigger.Complete), (BookingStatus.Confirmed, BookingTrigger.MarkNoShow)],
+            [
+                (BookingStatus.Confirmed, BookingTrigger.Cancel), (BookingStatus.Confirmed, BookingTrigger.Complete), (BookingStatus.Confirmed, BookingTrigger.MarkNoShow),
+                (BookingStatus.Pending, BookingTrigger.Cancel), (BookingStatus.Pending, BookingTrigger.Confirm), (BookingStatus.Pending, BookingTrigger.Expire),
+            ],
             declared);
     }
 
@@ -80,7 +97,7 @@ public sealed class BookingStateMachineTests
         var onTime = trigger == BookingTrigger.Complete ? booking.Complete(booking.Time.Start) : booking.MarkNoShow(booking.Time.Start);
         Assert.True(onTime.IsSuccess);
         Assert.Equal(outcome, booking.Status);
-        Assert.False(booking.BlocksSlot);
+        Assert.False(booking.BlocksAt(Now));
     }
 
     [Fact]
@@ -128,5 +145,39 @@ public sealed class BookingStateMachineTests
 
         var done = InStatus(BookingStatus.Completed);
         Assert.False(done.CanStaff(BookingTrigger.Cancel, now) || done.CanStaff(BookingTrigger.Complete, now) || done.CanStaff(BookingTrigger.MarkNoShow, now));
+    }
+
+    [Fact]
+    public void A_hold_blocks_until_it_expires_and_can_be_confirmed_until_then()
+    {
+        var hold = Booking.CreateHold("court-1", Hour(Tomorrow, 10), Owner, "Nam", Now, TimeSpan.FromMinutes(10));
+        Assert.Equal(BookingStatus.Pending, hold.Status);
+        Assert.True(hold.BlocksAt(Now.AddMinutes(9)));
+        Assert.False(hold.BlocksAt(Now.AddMinutes(10)));
+
+        Assert.Equal("not_your_booking", hold.Confirm(CustomerId.New(), Now).Error?.Code);
+        Assert.Equal("hold_expired", hold.Confirm(Owner, Now.AddMinutes(10)).Error?.Code);
+        Assert.Equal(BookingStatus.Pending, hold.Status);
+        Assert.True(hold.Confirm(Owner, Now.AddMinutes(9)).IsSuccess);
+        Assert.Equal(BookingStatus.Confirmed, hold.Status);
+        Assert.True(hold.Confirm(Owner, Now.AddMinutes(30)).IsSuccess);   // again: harmless
+    }
+
+    [Fact]
+    public void A_hold_cannot_expire_early_and_an_expired_one_cannot_be_confirmed()
+    {
+        var hold = Booking.CreateHold("court-1", Hour(Tomorrow, 10), Owner, "Nam", Now, TimeSpan.FromMinutes(10));
+        Assert.Equal("hold_not_due", hold.Expire(Now.AddMinutes(5)).Error?.Code);
+        Assert.True(hold.Expire(Now.AddMinutes(10)).IsSuccess);
+        Assert.Equal(BookingStatus.Expired, hold.Status);
+        Assert.Equal("hold_expired", hold.Confirm(Owner, Now.AddMinutes(11)).Error?.Code);
+    }
+
+    [Fact]
+    public void A_hold_can_be_released_inside_the_cut_off()
+    {
+        var hold = Booking.CreateHold("court-1", Hour(Tomorrow, 10), Owner, "Nam", Now, TimeSpan.FromMinutes(10));
+        Assert.True(hold.Cancel(Owner, hold.Time.Start.AddMinutes(-30), Policy).IsSuccess);
+        Assert.Equal(BookingStatus.Cancelled, hold.Status);
     }
 }

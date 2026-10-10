@@ -113,7 +113,7 @@ function Column({ column, day, start, end, selectedId, onSelect }: {
           </div>
         );
       })}
-      {column.bookings.filter((b) => b.status !== 'cancelled').map((b) => {
+      {column.bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'expired').map((b) => {
         const from = minutesInto(day, b.localStart), to = minutesInto(day, b.localEnd);
         return (
           <button key={b.id} type="button" className={`tl-booking ${b.status}`} aria-pressed={b.id === selectedId}

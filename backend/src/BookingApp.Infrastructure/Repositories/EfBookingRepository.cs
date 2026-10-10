@@ -44,6 +44,8 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
             db.ChangeTracker.Clear();
             await using var transaction = await db.Database.BeginTransactionAsync(ct);
             await db.Database.ExecuteSqlAsync($"SELECT 1 FROM resources WHERE id = {booking.ResourceId} FOR NO KEY UPDATE", ct);
+            // Holds past their time must not keep the slot: release them before the constraint looks.
+            await ExpireDueHoldsAsync(booking.ResourceId, booking.CreatedAt, ct);
             var row = BookingRow.From(booking);
             row.Version = booking.Version + 1;
             db.Bookings.Add(row);
@@ -74,9 +76,11 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
             // Disposing an uncommitted transaction rolls it back, so an early return releases the lock.
             await using var transaction = await BeginWriteTransactionAsync(cancellationToken);
             await db.Database.UseTransactionAsync(transaction, cancellationToken);
+            await ExpireDueHoldsAsync(booking.ResourceId, booking.CreatedAt, cancellationToken);
             var start = booking.Time.Start;
             var end = booking.Time.End;
-            var clash = await db.Bookings.AnyAsync(b => b.ResourceId == booking.ResourceId && b.Status == BookingStatus.Confirmed
+            var clash = await db.Bookings.AnyAsync(b => b.ResourceId == booking.ResourceId
+                && (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)
                 && b.StartUtc < end && start < b.EndUtc, cancellationToken);
             if (clash) return false;
 
@@ -135,11 +139,23 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         var start = window.Start;
         var end = window.End;
         var rows = await db.Bookings.AsNoTracking()
-            .Where(b => b.ResourceId == resourceId && b.Status == BookingStatus.Confirmed && b.StartUtc < end && start < b.EndUtc)
+            .Where(b => b.ResourceId == resourceId && (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)
+                && b.StartUtc < end && start < b.EndUtc)
             .OrderBy(b => b.StartUtc)
             .ToListAsync(cancellationToken);
         return [.. rows.Select(r => r.ToDomain())];
     }
+
+    public Task<int> ExpireDueHoldsAsync(DateTimeOffset now, CancellationToken cancellationToken) => ExpireDueHoldsAsync(null, now, cancellationToken);
+
+    /// <summary>
+    /// One conditional UPDATE: only holds that are still Pending and past their time change, so it is safe to run twice
+    /// and a confirm racing it either wins (the row is no longer Pending) or loses (its version check fails).
+    /// </summary>
+    private Task<int> ExpireDueHoldsAsync(string? resourceId, DateTimeOffset now, CancellationToken cancellationToken) =>
+        db.Bookings
+            .Where(b => b.Status == BookingStatus.Pending && b.HoldExpiresAt <= now && (resourceId == null || b.ResourceId == resourceId))
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Expired).SetProperty(b => b.Version, b => b.Version + 1), cancellationToken);
 
     public async Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken)
     {

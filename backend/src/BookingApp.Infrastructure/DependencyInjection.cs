@@ -68,6 +68,10 @@ public static class DependencyInjection
         }
 
         AddAccounts(services);
+        services.AddOptions<HoldOptions>().Bind(configuration.GetSection(HoldOptions.Section))
+            .Validate(o => o.Minutes > 0 && o.SweepSeconds > 0, "Holds:Minutes and Holds:SweepSeconds must be positive.").ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<HoldOptions>>().Value);
+        services.AddHostedService<HoldExpiryService>();
         services.AddOptions<AccountBootstrapOptions>().Bind(configuration.GetSection(AccountBootstrapOptions.Section));
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;

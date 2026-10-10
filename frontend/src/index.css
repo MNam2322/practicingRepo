@@ -179,6 +179,9 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .cancel-booking { display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start; }
 .status.completed { color: var(--muted); }
 .status.noShow { color: var(--danger); }
+.status.pending { color: var(--brand); }
+.status.expired { color: var(--muted); }
+.tl-booking.pending { border-style: dashed; }
 .trace code { font-size: 0.8em; word-break: break-all; }
 
 /* view bar: day/week toggle and legend */

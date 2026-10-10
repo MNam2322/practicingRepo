@@ -97,6 +97,8 @@ export const api = {
       body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest),
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     }),
+  /** Confirms a hold before it expires. Confirming an already confirmed booking is harmless. */
+  confirm: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}/confirm`, { method: 'POST' }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   /** The signed-in account, or null when nobody is signed in (the API answers 401). */

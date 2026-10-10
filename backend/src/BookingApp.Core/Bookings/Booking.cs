@@ -4,10 +4,10 @@ using BookingApp.Core.Scheduling;
 namespace BookingApp.Core.Bookings;
 
 /// <summary>Where a booking is in its life. Transitions are in <see cref="Booking"/>'s table; anything not there is illegal.</summary>
-public enum BookingStatus { Confirmed, Cancelled, Completed, NoShow }
+public enum BookingStatus { Confirmed, Cancelled, Completed, NoShow, Pending, Expired }
 
 /// <summary>What can happen to a booking.</summary>
-public enum BookingTrigger { Cancel, Complete, MarkNoShow }
+public enum BookingTrigger { Cancel, Complete, MarkNoShow, Confirm, Expire }
 
 /// <summary>Identifies a customer: a signed-in account's id, or an anonymous browser cookie's.</summary>
 public readonly record struct CustomerId(Guid Value)
@@ -29,17 +29,25 @@ public readonly record struct CustomerId(Guid Value)
 /// The booking aggregate. Every state change goes through a method here, so the rules live in one place and a booking
 /// can never be in a state the rules do not allow. The lifecycle is an explicit transition table:
 /// <code>
+///   Pending   --Confirm----> Confirmed   (the customer, before the hold expires)
+///   Pending   --Cancel-----> Cancelled   (the customer releases the hold, or staff cancel it)
+///   Pending   --Expire-----> Expired     (the expiry job, once the hold is past its time)
 ///   Confirmed --Cancel-----> Cancelled   (customer before the cut-off; staff before the end, with a reason)
 ///   Confirmed --Complete---> Completed   (staff, once it has started)
 ///   Confirmed --MarkNoShow-> NoShow      (staff, once it has started)
-///   Cancelled, Completed, NoShow: terminal
+///   Cancelled, Completed, NoShow, Expired: terminal
 /// </code>
-/// Library: 4.7 "Example 2: A booking lifecycle as a state machine", 12.6 "State machines for aggregate lifecycles".
+/// A hold (Pending) blocks the slot until it is confirmed, released or expires. Library: 4.7 "Example 2: A booking
+/// lifecycle as a state machine", 12.6 "State machines for aggregate lifecycles", 7.9 Case 14 (held, confirmed,
+/// released or expired).
 /// </summary>
 public sealed class Booking
 {
     private static readonly Dictionary<(BookingStatus, BookingTrigger), BookingStatus> Transitions = new()
     {
+        [(BookingStatus.Pending, BookingTrigger.Confirm)] = BookingStatus.Confirmed,
+        [(BookingStatus.Pending, BookingTrigger.Cancel)] = BookingStatus.Cancelled,
+        [(BookingStatus.Pending, BookingTrigger.Expire)] = BookingStatus.Expired,
         [(BookingStatus.Confirmed, BookingTrigger.Cancel)] = BookingStatus.Cancelled,
         [(BookingStatus.Confirmed, BookingTrigger.Complete)] = BookingStatus.Completed,
         [(BookingStatus.Confirmed, BookingTrigger.MarkNoShow)] = BookingStatus.NoShow,
@@ -47,8 +55,8 @@ public sealed class Booking
 
     public const int MaxReasonLength = 200;
 
-    private Booking(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName,
-        BookingStatus status, DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason)
+    private Booking(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName, BookingStatus status,
+        DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason, DateTimeOffset? holdExpiresAt)
     {
         Id = id;
         ResourceId = resourceId;
@@ -60,6 +68,7 @@ public sealed class Booking
         CancelledAt = cancelledAt;
         Version = version;
         CancellationReason = cancellationReason;
+        HoldExpiresAt = holdExpiresAt;
     }
 
     public Guid Id { get; }
@@ -74,11 +83,19 @@ public sealed class Booking
     /// <summary>Why staff cancelled it. Null when the customer cancelled, or it was not cancelled.</summary>
     public string? CancellationReason { get; private set; }
 
+    /// <summary>When a hold (Pending) stops counting. Null for bookings that were never a hold.</summary>
+    public DateTimeOffset? HoldExpiresAt { get; }
+
     /// <summary>Incremented by the repository on every save. Used for optimistic concurrency.</summary>
     public int Version { get; private set; }
 
-    /// <summary>Holds a slot: only Confirmed bookings block other bookings.</summary>
-    public bool BlocksSlot => Status == BookingStatus.Confirmed;
+    /// <summary>Holds the slot at this moment: a confirmed booking, or a hold that has not expired yet.</summary>
+    public bool BlocksAt(DateTimeOffset now) =>
+        Status == BookingStatus.Confirmed || (Status == BookingStatus.Pending && now < HoldExpiresAt);
+
+    /// <summary>The status as people should see it now: a hold past its time is expired, even before the expiry job runs.</summary>
+    public BookingStatus StatusAt(DateTimeOffset now) =>
+        Status == BookingStatus.Pending && now >= HoldExpiresAt ? BookingStatus.Expired : Status;
 
     /// <summary>True when the table has a transition for this status and trigger (guards aside).</summary>
     public static bool IsDeclared(BookingStatus status, BookingTrigger trigger) => Transitions.ContainsKey((status, trigger));
@@ -94,21 +111,51 @@ public sealed class Booking
         _ => false,
     };
 
+    /// <summary>A confirmed booking straight away (staff and demo data; customers start with a hold).</summary>
     public static Booking Create(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now) =>
-        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null);
+        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null, null);
+
+    /// <summary>A hold: it blocks the slot for <paramref name="holdFor"/>, until it is confirmed or released.</summary>
+    public static Booking CreateHold(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now, TimeSpan holdFor) =>
+        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Pending, now, null, 0, null, now + holdFor);
 
     /// <summary>For repositories rebuilding a booking they saved. Not for creating new bookings.</summary>
     public static Booking Restore(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName,
-        BookingStatus status, DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason = null) =>
-        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason);
+        BookingStatus status, DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason = null,
+        DateTimeOffset? holdExpiresAt = null) =>
+        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason, holdExpiresAt);
 
-    /// <summary>The customer cancels their own booking, up to the policy's cut-off before the start.</summary>
+    /// <summary>
+    /// The customer confirms their hold before it expires. Confirming a booking that is already confirmed changes nothing
+    /// and succeeds, so a retried confirm is harmless (library 7.9: "idempotent confirm").
+    /// </summary>
+    public Result<Booking> Confirm(CustomerId by, DateTimeOffset now)
+    {
+        if (by != Customer) return new Error(ErrorKind.Forbidden, "not_your_booking", "You can only confirm your own bookings.");
+        if (Status == BookingStatus.Confirmed) return Result<Booking>.Ok(this);
+        if (Status == BookingStatus.Expired || (Status == BookingStatus.Pending && now >= HoldExpiresAt))
+            return HoldExpired;
+        return Fire(BookingTrigger.Confirm, now);
+    }
+
+    /// <summary>The expiry job ends a hold that is past its time.</summary>
+    public Result<Booking> Expire(DateTimeOffset now)
+    {
+        if (Status == BookingStatus.Pending && now < HoldExpiresAt)
+            return new Error(ErrorKind.Conflict, "hold_not_due", "This hold has not expired yet.");
+        return Fire(BookingTrigger.Expire, now);
+    }
+
+    /// <summary>
+    /// The customer cancels their own booking, up to the policy's cut-off before the start. A hold can always be
+    /// released: it is not a booking yet.
+    /// </summary>
     public Result<Booking> Cancel(CustomerId by, DateTimeOffset now, BookingPolicy policy)
     {
         if (by != Customer) return new Error(ErrorKind.Forbidden, "not_your_booking", "You can only cancel your own bookings.");
         if (!IsDeclared(Status, BookingTrigger.Cancel))
             return new Error(ErrorKind.Conflict, "not_cancellable", $"This booking is {Describe(Status)} and cannot be cancelled.");
-        if (Time.Start - now < policy.CancellationCutoff)
+        if (Status == BookingStatus.Confirmed && Time.Start - now < policy.CancellationCutoff)
             return new Error(ErrorKind.RuleViolation, "too_late_to_cancel",
                 $"Bookings can be cancelled up to {policy.CancellationCutoff.TotalHours:0.#} hours before they start.");
         return Fire(BookingTrigger.Cancel, now);
@@ -140,6 +187,9 @@ public sealed class Booking
     /// <summary>Called by a repository after a successful save.</summary>
     public void MarkSaved() => Version++;
 
+    public static readonly Error HoldExpired =
+        new(ErrorKind.Conflict, "hold_expired", "This hold has expired and the time was released. Choose a time again.");
+
     private Result<Booking> StaffOutcome(BookingTrigger trigger, DateTimeOffset now)
     {
         if (IsDeclared(Status, trigger) && now < Time.Start)
@@ -159,6 +209,7 @@ public sealed class Booking
     private static string Describe(BookingStatus status) => status switch
     {
         BookingStatus.NoShow => "a no-show",
+        BookingStatus.Pending => "a hold",
         _ => status.ToString().ToLowerInvariant(),
     };
 
@@ -166,6 +217,8 @@ public sealed class Booking
     {
         BookingTrigger.Cancel => "cancelled",
         BookingTrigger.Complete => "marked completed",
+        BookingTrigger.Confirm => "confirmed",
+        BookingTrigger.Expire => "expired",
         _ => "marked a no-show",
     };
 }

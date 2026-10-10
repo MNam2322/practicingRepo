@@ -73,14 +73,22 @@ public sealed record CreateBookingRequest
 public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
-    DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason)
+    DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason,
+    DateTimeOffset? HoldExpiresAt, bool CanConfirm)
 {
-    public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now) => new(
-        b.Id, b.ResourceId, catalog.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
-        ClosureResponse.Local(b.Time.Start, catalog.Venue), ClosureResponse.Local(b.Time.End, catalog.Venue),
-        b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
-        b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff,
-        b.CancellationReason);
+    /// <param name="now">The moment the answers (canCancel, canConfirm) are worked out for.</param>
+    public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now)
+    {
+        var liveHold = b.Status == BookingStatus.Pending && now < b.HoldExpiresAt;
+        return new(
+            b.Id, b.ResourceId, catalog.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
+            ClosureResponse.Local(b.Time.Start, catalog.Venue), ClosureResponse.Local(b.Time.End, catalog.Venue),
+            b.StatusAt(now),
+            b.CustomerName, b.CreatedAt, b.CancelledAt,
+            // A live hold can always be released; a confirmed booking until the cut-off.
+            liveHold || (b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff),
+            b.CancellationReason, b.HoldExpiresAt, liveHold);
+    }
 }
 
 /// <summary>Create an account. The password needs at least 10 characters; no other rules.</summary>
@@ -134,7 +142,7 @@ public sealed record StaffBookingResponse(
 {
     public static StaffBookingResponse From(Booking b, Venue venue, DateTimeOffset now) => new(
         b.Id, b.ResourceId, b.Time.Start, b.Time.End, ClosureResponse.Local(b.Time.Start, venue), ClosureResponse.Local(b.Time.End, venue),
-        b.Status, b.CustomerName, b.CancellationReason,
+        b.StatusAt(now), b.CustomerName, b.CancellationReason,
         new StaffActions(b.CanStaff(BookingTrigger.Complete, now), b.CanStaff(BookingTrigger.MarkNoShow, now), b.CanStaff(BookingTrigger.Cancel, now)));
 }
 

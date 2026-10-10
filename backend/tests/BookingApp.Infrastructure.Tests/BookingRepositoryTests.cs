@@ -55,6 +55,63 @@ public abstract class BookingRepositoryContract : IAsyncLifetime
         Assert.True(await NewRepository().TryAddAsync(NewBooking(0, 1, "court-2"), Ct));
     }
 
+    private static Booking NewHold(int hourOffset = 0, DateTimeOffset? at = null) =>
+        Booking.CreateHold("court-1", TimeRange.FromStart(Ten.AddHours(hourOffset), TimeSpan.FromHours(1)), CustomerId.New(), "Nam",
+            at ?? Now, TimeSpan.FromMinutes(10));
+
+    [Fact]
+    public async Task A_hold_is_stored_with_its_expiry_and_blocks_while_it_lasts()
+    {
+        var hold = NewHold();
+        Assert.True(await NewRepository().TryAddAsync(hold, Ct));
+        var loaded = (await NewRepository().FindAsync(hold.Id, Ct))!;
+        Assert.Equal(BookingStatus.Pending, loaded.Status);
+        Assert.Equal(Now.AddMinutes(10), loaded.HoldExpiresAt);
+
+        Assert.False(await NewRepository().TryAddAsync(NewHold(at: Now.AddMinutes(9)), Ct));
+        Assert.Single(await NewRepository().BlockingAsync("court-1", hold.Time, Ct));
+    }
+
+    [Fact]
+    public async Task An_insert_after_the_hold_expires_releases_it_first()
+    {
+        var hold = NewHold();
+        await NewRepository().TryAddAsync(hold, Ct);
+
+        Assert.True(await NewRepository().TryAddAsync(NewHold(at: Now.AddMinutes(10)), Ct));
+        Assert.Equal(BookingStatus.Expired, (await NewRepository().FindAsync(hold.Id, Ct))!.Status);
+    }
+
+    [Fact]
+    public async Task Expiring_due_holds_changes_only_those_and_bumps_their_version()
+    {
+        var due = NewHold();
+        var later = NewHold(hourOffset: 2, at: Now.AddMinutes(5));
+        var confirmed = NewBooking(hourOffset: 4);
+        foreach (var b in new[] { due, later, confirmed }) await NewRepository().TryAddAsync(b, Ct);
+
+        Assert.Equal(1, await NewRepository().ExpireDueHoldsAsync(Now.AddMinutes(12), Ct));
+        Assert.Equal(0, await NewRepository().ExpireDueHoldsAsync(Now.AddMinutes(12), Ct));
+        Assert.Equal(BookingStatus.Expired, (await NewRepository().FindAsync(due.Id, Ct))!.Status);
+        Assert.Equal(BookingStatus.Pending, (await NewRepository().FindAsync(later.Id, Ct))!.Status);
+        Assert.Equal(BookingStatus.Confirmed, (await NewRepository().FindAsync(confirmed.Id, Ct))!.Status);
+    }
+
+    /// <summary>
+    /// For database repositories (in memory there is no stale copy): a confirm read before the expiry job ran is
+    /// refused when saved, because the expiry bumped the version. The expiry won; the confirm reloads and says so.
+    /// </summary>
+    protected async Task A_confirm_racing_the_expiry_loses()
+    {
+        var hold = NewHold();
+        await NewRepository().TryAddAsync(hold, Ct);
+        var stale = (await NewRepository().FindAsync(hold.Id, Ct))!;
+        Assert.Equal(1, await NewRepository().ExpireDueHoldsAsync(Now.AddMinutes(20), Ct));
+        Assert.True(stale.Confirm(stale.Customer, Now.AddMinutes(6)).IsSuccess);
+        Assert.False(await NewRepository().UpdateAsync(stale, Ct));
+        Assert.Equal(BookingStatus.Expired, (await NewRepository().FindAsync(hold.Id, Ct))!.Status);
+    }
+
     [Fact]
     public async Task A_cancelled_booking_no_longer_blocks()
     {
@@ -137,6 +194,9 @@ public sealed class SqliteBookingRepositoryTests : BookingRepositoryContract
         await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;", Ct);
         await TestDatabase.SeedAsync(db);
     }
+
+    [Fact]
+    public Task A_confirm_loaded_before_the_expiry_is_refused() => A_confirm_racing_the_expiry_loses();
 
     [Fact]
     public async Task Saving_a_stale_copy_is_refused()

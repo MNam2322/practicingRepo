@@ -106,8 +106,11 @@ const dayOf = (b: Booking) => b.localStart.slice(0, 10);
 export function useBook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { resourceId: string; start: string; slots: number; name: string; day: string; idempotencyKey: string }) =>
-      api.book(v.resourceId, v.start, v.slots, v.name, v.idempotencyKey),
+    // Booking holds the slot, then confirms the hold straight away. (Frontend task 9 puts a payment step in between.)
+    mutationFn: async (v: { resourceId: string; start: string; slots: number; name: string; day: string; idempotencyKey: string }) => {
+      const hold = await api.book(v.resourceId, v.start, v.slots, v.name, v.idempotencyKey);
+      return hold.canConfirm ? api.confirm(hold.id) : hold;
+    },
     onSuccess: (booking) => {
       qc.setQueryData(keys.booking(booking.id), booking);
       void qc.invalidateQueries({ queryKey: keys.bookings });

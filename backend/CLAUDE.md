@@ -18,6 +18,7 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
+  Bookings/HoldOptions.cs      Holds settings: how long a hold lasts (Minutes), how often expired holds are swept
   Accounts/Account.cs          Account, Roles (Customer, Staff, Admin)
   Staff/StaffService.cs        service: day schedule, complete / no-show / staff cancel (through the aggregate), block time
   Admin/AdminService.cs        service: resources, hours, closures, booking rules; every change saved with an AuditEntry
@@ -28,12 +29,13 @@ src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMe
   Persistence/                 BookingDbContext (shared model: tables, keys, FKs, CHECKs) with SqliteBookingDbContext and
                                PostgresBookingDbContext (tstzrange period + EXCLUDE constraint), BookingRow/ResourceRows, StorageOptions,
                                DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
+                               HoldExpiryService and IdempotencyKeyCleaner (background jobs on TimeProvider),
                                Migrations/Sqlite and Migrations/Postgres (generated per provider; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Authorization.cs (auth cookie, policies), Controllers/ (ApiControllerBase,
                                Venue, Resources, Bookings, Account, Staff, Admin),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
-                               Api.Tests (WebApplicationFactory; booking and concurrency tests run on InMemory and Sqlite)
+                               Api.Tests (WebApplicationFactory; API tests run on InMemory, Sqlite and Postgres)
 http/booking.http              one request per route
 openapi/v1.json                the API contract, generated from the controllers; a test fails if it drifts
 ```
@@ -46,7 +48,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 ## Rules that must always hold
 
-1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; on PostgreSQL it does no check at all and the `ex_bookings_no_overlap` exclusion constraint refuses the insert (SQLSTATE 23P01 → `slot_taken`); a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
+1. **No two blocking bookings for the same resource overlap.** Blocking means confirmed, or a hold (`Pending`) that has not expired. This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; on PostgreSQL it does no check at all and the `ex_bookings_no_overlap` exclusion constraint refuses the insert (SQLSTATE 23P01 → `slot_taken`); a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
 2. **Times are UTC everywhere except at the edges.** Store and compare `DateTimeOffset` in UTC. Venue-local time is used only for opening hours, the slot grid and display. Never use `DateTime.Now`; use `TimeProvider`.
 3. **State changes go through the aggregate.** `Booking` methods enforce the lifecycle through its transition table; anything not in the table is refused (`invalid_transition`). Adding a status or trigger means adding rows, and the exhaustive test in `BookingStateMachineTests` covers every pair. Controllers and services never set fields directly.
 4. **Errors are problem details with a stable `code`:**
@@ -70,6 +72,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - Every async path takes a `CancellationToken`. Log with `[LoggerMessage]`.
 - Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`. The `Venue` and `Booking` sections only seed the database on first run; after that the venue, its booking rules (`ResourceCatalog.Policy`), resources, opening hours and closures live in the database and admins change them.
 - **Idempotency:** a POST that must be safe to retry gets `[Idempotent]` (Api/Idempotent.cs): an `Idempotency-Key` header is claimed atomically per caller in `idempotency_keys`, the response is stored before it is sent, and a retry gets it back with `Idempotency-Replayed: true`. Known limit: the stored response is not in the same transaction as the change; a claim abandoned by a crash can be taken over after 2 minutes.
+- **Holds:** `POST /api/bookings` makes a hold (`Pending`, `holdExpiresAt` = now + Holds:Minutes) that blocks the slot; `POST /api/bookings/{id}/confirm` confirms it (idempotent; 409 `hold_expired` once it ran out). A hold stops blocking the moment it expires, without waiting for any job: reads check `BlocksAt(now)` / `StatusAt(now)`, and every insert first expires due holds for its resource in the same transaction (one conditional UPDATE). `HoldExpiryService` sweeps every Holds:SweepSeconds so the stored status catches up; a confirm racing it loses on the version check. Staff and demo bookings are created confirmed (`Booking.Create`).
 - **Audit:** every admin change is written with an `AuditEntry` (actor = the signed-in account, request id, before/after JSON) in the same transaction. `audit_log` is append-only in the database (triggers on SQLite and PostgreSQL).
 - Rules any writer must obey are database constraints (keys, foreign keys, CHECKs, NOT NULL) as well as code. Migrations must upgrade a database that already has data: test the upgrade path, not just an empty database.
 - NuGet versions go in `Directory.Packages.props` (central package management), never in a `.csproj`.

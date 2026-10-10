@@ -139,10 +139,25 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
     protected Task<HttpResponseMessage> Book(int hour, int slots = 1, string resourceId = "court-1", HttpClient? client = null) =>
         (client ?? Client).PostAsJsonAsync("/api/bookings", BookingBody(hour, slots, resourceId), Ct);
 
-    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1")
+    /// <summary>Holds a slot and confirms it, as the booking page does: a confirmed booking.</summary>
+    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1") =>
+        await ConfirmOk(await HoldOk(hour, slots, client, resourceId), client);
+
+    /// <summary>Holds a slot without confirming it.</summary>
+    protected async Task<BookingResponse> HoldOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1")
     {
         var response = await Book(hour, slots, resourceId, client);
         Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
+    }
+
+    protected Task<HttpResponseMessage> Confirm(Guid id, HttpClient? client = null) =>
+        (client ?? Client).PostAsync($"/api/bookings/{id}/confirm", null, Ct);
+
+    protected async Task<BookingResponse> ConfirmOk(BookingResponse hold, HttpClient? client = null)
+    {
+        var response = await Confirm(hold.Id, client);
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }
 

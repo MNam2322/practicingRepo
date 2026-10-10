@@ -204,12 +204,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Books one or more consecutive slots.
-         * @description Send a slot's start exactly as the availability response gave it. Someone may book the same slot first: then the
-         *     answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a
+         * Holds one or more consecutive slots: the first step of booking. Confirm the hold to book.
+         * @description The answer is a booking with status "pending" and holdExpiresAt: the slot is the customer's until then, and is
+         *     released if it is not confirmed in time. Send a slot's start exactly as the availability response gave it.
+         *     Someone may take the same slot first: then the answer is 409 slot_taken. Send an Idempotency-Key (a new GUID per booking, the same one on every retry of it) and a
          *     retry returns the first answer instead of booking twice.
          */
         post: operations["CreateBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/bookings/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirms the current customer's hold, before it expires. Confirming twice is harmless. */
+        post: operations["ConfirmBooking"];
         delete?: never;
         options?: never;
         head?: never;
@@ -259,7 +277,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Cancels a booking while the cancellation rules allow it. */
+        /** Cancels a booking while the cancellation rules allow it, or releases a hold at any time. */
         post: operations["CancelBooking"];
         delete?: never;
         options?: never;
@@ -485,12 +503,15 @@ export interface components {
             cancelledAt: null | string;
             canCancel: boolean;
             cancellationReason: null | string;
+            /** Format: date-time */
+            holdExpiresAt: null | string;
+            canConfirm: boolean;
         };
         /**
          * @description Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal.
          * @enum {unknown}
          */
-        BookingStatus: "confirmed" | "cancelled" | "completed" | "noShow";
+        BookingStatus: "confirmed" | "cancelled" | "completed" | "noShow" | "pending" | "expired";
         /** @description A time a resource (or the whole venue) is closed. localStart/localEnd are venue wall-clock "yyyy-MM-ddTHH:mm". */
         ClosureResponse: {
             /** Format: uuid */
@@ -1504,6 +1525,67 @@ export interface operations {
             };
             /** @description too_soon, too_far_ahead, not_whole_slots, too_long, outside_opening_hours, not_on_slot_grid, resource_closed, name_required, too_many_bookings, idempotency_key_reused */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ConfirmBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The booking (hold) id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"];
+                };
+            };
+            /** @description not_your_booking */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description booking_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description hold_expired, invalid_transition, changed_meanwhile */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

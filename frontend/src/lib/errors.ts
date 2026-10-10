@@ -4,6 +4,7 @@
 export const ERROR_MESSAGES: Record<string, string> = {
   // availability and booking
   slot_taken: 'Someone has just booked that time. Pick another slot.',
+  hold_expired: 'Your hold ran out and the time was released. Pick a time again.',
   too_soon: 'That time is too close to now. Pick a later slot.',
   too_far_ahead: 'That date is too far ahead. Pick a date inside the booking window.',
   not_whole_slots: 'Bookings last a whole number of slots.',

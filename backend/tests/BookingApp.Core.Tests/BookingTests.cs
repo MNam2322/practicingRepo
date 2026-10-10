@@ -16,7 +16,7 @@ public sealed class BookingTests
     {
         var booking = NewBooking();
         Assert.Equal(BookingStatus.Confirmed, booking.Status);
-        Assert.True(booking.BlocksSlot);
+        Assert.True(booking.BlocksAt(Now));
         Assert.Equal("Nam", booking.CustomerName);
     }
 
@@ -29,7 +29,7 @@ public sealed class BookingTests
         Assert.True(result.IsSuccess);
         Assert.Equal(BookingStatus.Cancelled, booking.Status);
         Assert.Equal(Now, booking.CancelledAt);
-        Assert.False(booking.BlocksSlot);
+        Assert.False(booking.BlocksAt(Now));
     }
 
     [Fact]

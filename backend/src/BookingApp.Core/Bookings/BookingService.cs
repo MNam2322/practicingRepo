@@ -7,7 +7,7 @@ namespace BookingApp.Core.Bookings;
 public sealed record DayAvailability(Venue Venue, IReadOnlyList<Slot> Slots, IReadOnlyList<Closure> Closures);
 
 /// <summary>The booking use cases. Controllers call these; they never touch a repository directly.</summary>
-public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, TimeProvider time)
+public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, HoldOptions holds, TimeProvider time)
 {
     public async Task<Result<DayAvailability>> AvailabilityAsync(string resourceId, DateOnly localDay, CancellationToken cancellationToken)
     {
@@ -15,9 +15,11 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         var resource = catalog.Find(resourceId);
         if (resource is null) return NotFound(resourceId);
         var window = AvailabilityCalculator.DayWindow(catalog.Venue, localDay);
-        var blocking = await bookings.BlockingAsync(resource.Id, window, cancellationToken);
+        var now = time.GetUtcNow();
+        // Holds past their time no longer count, even before the expiry job has marked them.
+        var blocking = (await bookings.BlockingAsync(resource.Id, window, cancellationToken)).Where(b => b.BlocksAt(now));
         var closures = await resources.ClosuresAsync(resource.Id, window, cancellationToken);
-        var notBefore = time.GetUtcNow().AddMinutes(catalog.Policy.MinLeadMinutes);
+        var notBefore = now.AddMinutes(catalog.Policy.MinLeadMinutes);
         var slots = AvailabilityCalculator.ForDay(resource, catalog.Venue, localDay, blocking.Select(b => b.Time), notBefore, closures.Select(c => c.Time));
         return Result<DayAvailability>.Ok(new DayAvailability(catalog.Venue, slots, closures));
     }
@@ -39,11 +41,12 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         if (closures.Count > 0)
             return new Error(ErrorKind.RuleViolation, "resource_closed", $"{resource.Name} is closed at that time: {closures[0].Reason}.");
 
-        var active = (await bookings.ForCustomerAsync(customer, cancellationToken)).Count(b => b.BlocksSlot && b.Time.End > now);
+        var active = (await bookings.ForCustomerAsync(customer, cancellationToken)).Count(b => b.BlocksAt(now) && b.Time.End > now);
         if (active >= policy.MaxActiveBookingsPerCustomer)
             return new Error(ErrorKind.RuleViolation, "too_many_bookings", $"You can hold up to {policy.MaxActiveBookingsPerCustomer} upcoming bookings.");
 
-        var booking = Booking.Create(resource.Id, range, customer, customerName, now);
+        // A hold: it blocks the slot until the customer confirms, releases it, or it expires.
+        var booking = Booking.CreateHold(resource.Id, range, customer, customerName, now, holds.HoldFor);
         return await bookings.TryAddAsync(booking, cancellationToken)
             ? Result<Booking>.Ok(booking)
             : new Error(ErrorKind.Conflict, "slot_taken", "Someone has just booked that time. Pick another slot.");
@@ -60,6 +63,28 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
             ? result
             : new Error(ErrorKind.Conflict, "changed_meanwhile", "This booking was changed at the same time. Reload and try again.");
     }
+
+    /// <summary>Turns the customer's hold into a booking. Safe to repeat: confirming a confirmed booking returns it.</summary>
+    public async Task<Result<Booking>> ConfirmAsync(CustomerId customer, Guid bookingId, CancellationToken cancellationToken)
+    {
+        var booking = await bookings.FindAsync(bookingId, cancellationToken);
+        if (booking is null) return new Error(ErrorKind.NotFound, "booking_not_found", "There is no such booking.");
+        var wasConfirmed = booking.Status == BookingStatus.Confirmed;
+        var result = booking.Confirm(customer, time.GetUtcNow());
+        if (!result.IsSuccess || wasConfirmed) return result;
+        if (await bookings.UpdateAsync(booking, cancellationToken)) return result;
+        // Someone changed it at the same moment: most likely the expiry job. Say which.
+        var current = await bookings.FindAsync(bookingId, cancellationToken);
+        return current?.Status switch
+        {
+            BookingStatus.Expired => Booking.HoldExpired,
+            BookingStatus.Confirmed => Result<Booking>.Ok(current),
+            _ => new Error(ErrorKind.Conflict, "changed_meanwhile", "This booking was changed at the same time. Reload and try again."),
+        };
+    }
+
+    /// <summary>Releases every hold past its time (the expiry job). Returns how many.</summary>
+    public Task<int> ExpireDueHoldsAsync(CancellationToken cancellationToken) => bookings.ExpireDueHoldsAsync(time.GetUtcNow(), cancellationToken);
 
     public async Task<Result<Booking>> GetAsync(CustomerId customer, Guid bookingId, CancellationToken cancellationToken)
     {

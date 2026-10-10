@@ -189,6 +189,10 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_utc");
 
+                    b.Property<DateTimeOffset?>("HoldExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("hold_expires_at");
+
                     b.Property<NpgsqlRange<DateTime>>("Period")
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("tstzrange")
@@ -223,6 +227,9 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
 
                     b.HasIndex("ResourceId", "StartUtc")
                         .HasDatabaseName("ix_bookings_resource_start");
+
+                    b.HasIndex("Status", "HoldExpiresAt")
+                        .HasDatabaseName("ix_bookings_status_hold_expires");
 
                     b.ToTable("bookings", null, t =>
                         {
