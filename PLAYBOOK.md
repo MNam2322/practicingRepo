@@ -148,7 +148,7 @@ Needs backend 8.
 
 ### Step 17: Frontend 8, admin pages
 Needs backend 9.
-- [ ] **Prompt:** "Do frontend task 8 (admin pages)."
+- [x] **Prompt:** "Do frontend task 8 (admin pages)."
 - **Check:** add a new resource and a holiday closure from the UI. Submit a form with a bad value: the error shows next to the right field.
 
 ## Phase 4: Real-world booking features

@@ -7,11 +7,14 @@
 //   #/mine                               my bookings
 //   #/b/<id>                             one booking
 //   #/staff  #/staff/2026-10-20             staff day schedule (staff only; the API checks)
+//   #/admin  #/admin/<resources|closures|rules|audit>   venue set-up (admins only; the API checks)
 //   #/signin?next=<route>  #/signup?next=<route>   then back to <route> (an in-app route only)
 // View and selection live in the URL, so a link reproduces what the user sees (library 9.4 "Kinds of state").
 import { useEffect, useState } from 'react';
 
 export type ResourceView = 'day' | 'week';
+export const ADMIN_SECTIONS = ['resources', 'closures', 'rules', 'audit'] as const;
+export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 
 export type Route =
   | { name: 'home' }
@@ -20,6 +23,7 @@ export type Route =
   | { name: 'booking'; id: string }
   | { name: 'signin' | 'signup'; next: string }
   | { name: 'staff'; date?: string }
+  | { name: 'admin'; section: AdminSection }
   | { name: 'notfound' };
 
 export function parseHash(hash: string): Route {
@@ -31,6 +35,8 @@ export function parseHash(hash: string): Route {
     return { name: path === '/signin' ? 'signin' : 'signup', next: safeNext(new URLSearchParams(rawQuery).get('next')) };
   const staff = path.match(/^\/staff(?:\/(\d{4}-\d{2}-\d{2}))?$/);
   if (staff) return { name: 'staff', date: staff[1] };
+  const admin = path.match(/^\/admin(?:\/(resources|closures|rules|audit))?$/);
+  if (admin) return { name: 'admin', section: (admin[1] ?? 'resources') as AdminSection };
   const b = path.match(/^\/b\/([0-9a-f-]{36})$/i);
   if (b) return { name: 'booking', id: b[1] };
   const m = path.match(/^\/r\/([\w-]+)(?:\/(\d{4}-\d{2}-\d{2}))?(\/week)?$/);

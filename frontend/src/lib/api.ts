@@ -32,6 +32,12 @@ export type ScheduleColumn = Schemas['ScheduleColumnResponse'];
 export type StaffBooking = Schemas['StaffBookingResponse'];
 type CreateBookingRequest = Schemas['CreateBookingRequest'];
 type StaffCancelRequest = Schemas['StaffCancelRequest'];
+export type ResourceInput = Schemas['CreateResourceRequest'];
+export type ResourceChanges = Schemas['UpdateResourceRequest'];
+export type HoursInput = Schemas['OpeningHoursRequest'];
+export type PolicyInput = Schemas['PolicyRequest'];
+export type AdminClosureInput = Schemas['AdminClosureRequest'];
+export type AuditEntry = Schemas['AuditEntryResponse'];
 type BlockTimeRequest = Schemas['BlockTimeRequest'];
 type SignUpRequest = Schemas['SignUpRequest'];
 type SignInRequest = Schemas['SignInRequest'];
@@ -101,6 +107,18 @@ export const api = {
   staffNoShow: (id: string) => request<StaffBooking>(`/api/staff/bookings/${id}/no-show`, { method: 'POST' }),
   staffCancel: (id: string, reason: string) =>
     request<StaffBooking>(`/api/staff/bookings/${id}/cancel`, { method: 'POST', body: JSON.stringify({ reason } satisfies StaffCancelRequest) }),
+  // admin (Admin only; the API refuses everyone else)
+  createResource: (input: ResourceInput) => request<Resource>('/api/admin/resources', { method: 'POST', body: JSON.stringify(input) }),
+  updateResource: (id: string, changes: ResourceChanges) =>
+    request<Resource>(`/api/admin/resources/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(changes) }),
+  setHours: (id: string, hours: HoursInput[]) =>
+    request<Resource>(`/api/admin/resources/${encodeURIComponent(id)}/hours`, { method: 'PUT', body: JSON.stringify({ hours }) }),
+  deleteResource: (id: string) => request<void>(`/api/admin/resources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  adminClosures: (from: string, to: string) => request<Closure[]>(`/api/admin/closures?from=${from}&to=${to}`),
+  addClosure: (input: AdminClosureInput) => request<Closure>('/api/admin/closures', { method: 'POST', body: JSON.stringify(input) }),
+  deleteClosure: (id: string) => request<void>(`/api/admin/closures/${id}`, { method: 'DELETE' }),
+  updatePolicy: (input: PolicyInput) => request<Policy>('/api/admin/policy', { method: 'PUT', body: JSON.stringify(input) }),
+  audit: (take = 50) => request<AuditEntry[]>(`/api/admin/audit?take=${take}`),
   blockTime: (resourceId: string, start: string, end: string, reason: string) =>
     request<Closure>('/api/staff/closures', { method: 'POST', body: JSON.stringify({ resourceId, start, end, reason } satisfies BlockTimeRequest) }),
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),

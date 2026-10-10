@@ -27,6 +27,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   reason_required: 'Give a reason. The customer will see it.',
   bookings_in_the_way: 'Confirmed bookings overlap that time. Cancel them first (with a reason), then block the time.',
   end_before_start: 'The end must be after the start.',
+  // admin
+  resource_exists: 'There is already a resource with that id. Choose another id.',
+  resource_in_use: 'This resource has bookings, so it cannot be deleted. Add a closure instead.',
+  invalid_resource_id: 'Use lowercase letters, digits and dashes for the id, such as court-3.',
+  closure_not_found: 'That closure no longer exists. The list has been refreshed.',
   // accounts
   email_taken: 'There is already an account with that email. Sign in instead.',
   invalid_credentials: 'That email and password do not match an account.',

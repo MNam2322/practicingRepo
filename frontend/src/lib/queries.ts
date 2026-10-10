@@ -14,6 +14,8 @@ export const keys = {
   booking: (id: string) => ['bookings', 'one', id] as const,
   me: ['me'] as const,
   schedule: (date: string) => ['schedule', date] as const,
+  adminClosures: (from: string, to: string) => ['admin', 'closures', from, to] as const,
+  audit: ['admin', 'audit'] as const,
 };
 
 /**
@@ -225,6 +227,45 @@ export function useBlockTime(date: string) {
       void qc.invalidateQueries({ queryKey: keys.availability(v.resourceId, date) });
     },
   });
+}
+
+/** True when the signed-in account may change the venue set-up. Only for showing the way there: the API decides. */
+export function useIsAdmin() {
+  return !!useMe().data?.roles.includes('Admin');
+}
+
+export function useAdminClosures(from: string, to: string) {
+  return useQuery({ queryKey: keys.adminClosures(from, to), queryFn: () => api.adminClosures(from, to) });
+}
+
+export function useAuditLog() {
+  return useQuery({ queryKey: keys.audit, queryFn: () => api.audit(50) });
+}
+
+/**
+ * An admin change. Afterwards everything it can affect is reloaded: resources and rules (basics), every day's slots,
+ * closures, the staff schedule and the audit log.
+ */
+export function useAdminChange<TInput, TResult>(change: (input: TInput) => Promise<TResult>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: change,
+    onSettled: () => {
+      for (const key of [keys.basics, keys.availabilityAll, ['admin'], ['schedule']]) void qc.invalidateQueries({ queryKey: key });
+    },
+  });
+}
+
+/** The first message the API gave for a field (keys are JSON names, e.g. "slotMinutes"), or null. */
+export function fieldError(error: unknown, field: string): string | null {
+  return error instanceof ApiError ? error.fieldErrors[field]?.[0] ?? null : null;
+}
+
+/** A problem that is not about one field: shown above the form. Field errors are shown next to their fields instead. */
+export function formError(error: unknown): { message: string; traceId: string | null } | null {
+  if (!error) return null;
+  if (error instanceof ApiError && error.code === 'validation_failed' && Object.keys(error.fieldErrors).length > 0) return null;
+  return describeError(error);
 }
 
 /** Message and trace id for any error a query or mutation can hold. */
