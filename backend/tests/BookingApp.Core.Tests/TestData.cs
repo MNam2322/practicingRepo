@@ -35,6 +35,9 @@ internal sealed class TestResources(params Resource[] resources) : IResourceRepo
     public Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Closure>>([.. _closures.Where(c => c.AppliesTo(resourceId) && c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)]);
 
+    public Task<IReadOnlyList<Closure>> AllClosuresAsync(TimeRange window, CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<Closure>>([.. _closures.Where(c => c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)]);
+
     public Task AddClosureAsync(Closure closure, CancellationToken cancellationToken)
     {
         _closures.Add(closure);

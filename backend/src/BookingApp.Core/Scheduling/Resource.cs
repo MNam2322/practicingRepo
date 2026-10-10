@@ -58,5 +58,8 @@ public interface IResourceRepository
     /// <summary>Closures for this resource, or for the whole venue, that overlap the window, ordered by start.</summary>
     Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken);
 
+    /// <summary>Every closure, of any resource or the whole venue, that overlaps the window, ordered by start.</summary>
+    Task<IReadOnlyList<Closure>> AllClosuresAsync(TimeRange window, CancellationToken cancellationToken);
+
     Task AddClosureAsync(Closure closure, CancellationToken cancellationToken);
 }

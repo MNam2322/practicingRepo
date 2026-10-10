@@ -86,6 +86,8 @@ In Development the API books two demo slots per resource for tomorrow, so you ca
 
 To stop either one, press **Ctrl+C** in its terminal.
 
+**Staff and admin in development.** Add your account email to `Accounts:Bootstrap:Staff` (or `Admin`) in `backend/src/BookingApp.Api/appsettings.Development.json`, restart the API and sign in again. In Development the demo data includes bookings earlier today, so you can try marking one completed or a no-show.
+
 **Optional: PostgreSQL instead of SQLite.** With Docker Desktop running, from the repo root: `docker compose up -d`, then in terminal 1 run `dotnet run --project src/BookingApp.Api --launch-profile http-postgres` instead. `docker compose down` stops the database (add `-v` to delete its data).
 
 ## 4. Build the rest with Claude Code

@@ -88,6 +88,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         booking.Property(b => b.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16);
         booking.Property(b => b.CreatedAt).HasColumnName("created_at");
         booking.Property(b => b.CancelledAt).HasColumnName("cancelled_at");
+        booking.Property(b => b.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(Booking.MaxReasonLength);
         booking.Property(b => b.Version).HasColumnName("version").IsConcurrencyToken();
         // A resource with bookings cannot be deleted by accident: RESTRICT, the right default (library 7.2).
         booking.HasOne<ResourceRow>().WithMany().HasForeignKey(b => b.ResourceId).OnDelete(DeleteBehavior.Restrict);

@@ -545,6 +545,438 @@
         }
       }
     },
+    "/api/staff/schedule": {
+      "get": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Every resource's bookings (any status) and closures for one venue-local day, with the actions allowed on each booking.",
+        "operationId": "GetSchedule",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "A venue-local day (yyyy-MM-dd). Leave it out for today at the venue.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/bookings/{id}/complete": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Records that a booking took place. Only once it has started.",
+        "operationId": "CompleteBooking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The booking id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "booking_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "invalid_transition, changed_meanwhile",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "not_started",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/bookings/{id}/no-show": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Records that nobody came. Only once it has started.",
+        "operationId": "MarkNoShow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The booking id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBookingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "booking_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "invalid_transition, changed_meanwhile",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "not_started",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Cancels any booking that has not ended, with a reason the customer sees. Frees the slot.",
+        "operationId": "StaffCancelBooking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The booking id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCancelRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/StaffCancelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffBookingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed (errors.reason)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "booking_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "invalid_transition, changed_meanwhile",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "already_ended, reason_required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/staff/closures": {
+      "post": {
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Blocks time on a resource (maintenance, an event) so customers cannot book it.",
+        "operationId": "BlockTime",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockTimeRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockTimeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClosureResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "resource_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "bookings_in_the_way",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "end_before_start, reason_required",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/venue": {
       "get": {
         "tags": [
@@ -633,6 +1065,48 @@
           }
         }
       },
+      "BlockTimeRequest": {
+        "required": [
+          "resourceId",
+          "start",
+          "end",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "end": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Block time on a resource: start and end are UTC instants, such as slot starts from availability."
+      },
       "BookingResponse": {
         "required": [
           "id",
@@ -646,7 +1120,8 @@
           "customerName",
           "createdAt",
           "cancelledAt",
-          "canCancel"
+          "canCancel",
+          "cancellationReason"
         ],
         "type": "object",
         "properties": {
@@ -693,6 +1168,12 @@
           },
           "canCancel": {
             "type": "boolean"
+          },
+          "cancellationReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -703,7 +1184,7 @@
           "completed",
           "noShow"
         ],
-        "description": "Confirmed → Cancelled, or Confirmed → Completed / NoShow after it ends (staff actions, TASKS.md).\nLibrary: 4.7 \"Example 2: A booking lifecycle as a state machine\", 12.6 \"State machines for aggregate lifecycles\"."
+        "description": "Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal."
       },
       "ClosureResponse": {
         "required": [
@@ -940,6 +1421,79 @@
           }
         }
       },
+      "ScheduleColumnResponse": {
+        "required": [
+          "resourceId",
+          "resourceName",
+          "slotMinutes",
+          "open",
+          "close",
+          "bookings",
+          "closures"
+        ],
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "slotMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "open": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Venue-local \"HH:mm\", or null when closed all day."
+          },
+          "close": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffBookingResponse"
+            }
+          },
+          "closures": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClosureResponse"
+            }
+          }
+        }
+      },
+      "ScheduleResponse": {
+        "required": [
+          "date",
+          "timeZone",
+          "resources"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScheduleColumnResponse"
+            }
+          }
+        },
+        "description": "The day schedule: one column per resource."
+      },
       "SignedInResponse": {
         "required": [
           "account",
@@ -1058,6 +1612,97 @@
         ],
         "description": "Past wins over Closed, Closed over Booked: a slot is shown with the most decisive reason it cannot be booked."
       },
+      "StaffActions": {
+        "required": [
+          "complete",
+          "noShow",
+          "cancel"
+        ],
+        "type": "object",
+        "properties": {
+          "complete": {
+            "type": "boolean"
+          },
+          "noShow": {
+            "type": "boolean"
+          },
+          "cancel": {
+            "type": "boolean"
+          }
+        },
+        "description": "What staff may do to a booking right now (the domain's transition table plus its guards)."
+      },
+      "StaffBookingResponse": {
+        "required": [
+          "id",
+          "resourceId",
+          "start",
+          "end",
+          "localStart",
+          "localEnd",
+          "status",
+          "customerName",
+          "cancellationReason",
+          "actions"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "localStart": {
+            "type": "string"
+          },
+          "localEnd": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "cancellationReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actions": {
+            "$ref": "#/components/schemas/StaffActions"
+          }
+        },
+        "description": "A booking as staff see it on the schedule."
+      },
+      "StaffCancelRequest": {
+        "required": [
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Cancel a booking as staff. The customer sees the reason."
+      },
       "ValidationProblemDetails": {
         "type": "object",
         "properties": {
@@ -1137,6 +1782,9 @@
     },
     {
       "name": "Resources"
+    },
+    {
+      "name": "Staff"
     },
     {
       "name": "Venue"

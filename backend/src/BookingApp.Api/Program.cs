@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddBookingInfrastructure(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<VenueService>();
+builder.Services.AddScoped<BookingApp.Core.Staff.StaffService>();
 
 // ---- HTTP concerns ----
 builder.Services.AddControllers(o =>

@@ -88,12 +88,12 @@ Read first: 10.2 Authentication and authorization, 10.2 "Authorization policies 
 
 ### 8. Staff features
 Read first: 4.7 "Example 2: A booking lifecycle as a state machine", 12.6 "State machines for aggregate lifecycles".
-- [ ] A staff-only `StaffController` (authorization policy, not role checks in code), backed by a service:
+- [x] A staff-only `StaffController` (authorization policy, not role checks in code), backed by a service:
   - the day schedule across all resources
   - mark a booking completed or no-show, allowed only after it starts
   - cancel any booking with a reason
   - block time for maintenance
-- [ ] Extend the state machine and test every allowed and disallowed transition.
+- [x] Extend the state machine and test every allowed and disallowed transition.
 
 **Unblocks frontend 7.**
 
@@ -184,3 +184,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 5: venue, resources, opening hours and closures in the database (FKs, CHECKs), seeded from the Venue settings on first run; closures (per resource or venue-wide) make slots `closed` and bookings 422 `resource_closed`; the migration upgrades databases that already hold bookings.
 - Task 6: PostgreSQL 17 (`docker-compose.yml`, `http-postgres` profile) with a generated `tstzrange` period and `EXCLUDE USING gist (resource_id WITH =, period WITH &&) WHERE status = Confirmed`; 23P01 → `slot_taken`, no app-side check; per-provider contexts and migrations; Testcontainers tests on PostgreSQL (raw-SQL proof that the database blocks overlaps).
 - Task 7: ASP.NET Core Identity (cookie `bk-auth`, roles Customer/Staff/Admin, capability policies, deny-by-default filter); `AccountController` sign up/in/out and `GET /api/me`; anonymous bookings move to the account through the aggregate; lockout and per-IP sign-in rate limit. PostgreSQL inserts now lock the resource row first (no exclusion-check deadlocks) inside a retrying execution strategy.
+- Task 8: staff tools under the ViewSchedule policy: day schedule (all resources, any status, allowed actions per booking), complete / no-show after start, staff cancel with a reason the customer sees, block time (refused over confirmed bookings); the booking lifecycle is a transition table with an exhaustive test; Accounts:Bootstrap grants Staff/Admin by email.

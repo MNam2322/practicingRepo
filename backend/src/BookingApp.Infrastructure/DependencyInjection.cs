@@ -62,6 +62,7 @@ public static class DependencyInjection
         }
 
         AddAccounts(services);
+        services.AddOptions<AccountBootstrapOptions>().Bind(configuration.GetSection(AccountBootstrapOptions.Section));
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;
     }
@@ -114,7 +115,7 @@ public static class DependencyInjection
 }
 
 /// <summary>
-/// Adds a few bookings tomorrow so the availability grid is not empty on first run. Development only.
+/// Adds demo bookings (tomorrow, and earlier today) so the grids and the staff schedule are not empty. Development only.
 /// Repositories may be scoped (EF Core), so it works inside its own scope.
 /// </summary>
 internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, TimeProvider time, ILogger<DemoSeeder> logger) : IHostedService
@@ -126,26 +127,37 @@ internal sealed partial class DemoSeeder(IServiceScopeFactory scopes, TimeProvid
         await using var scope = scopes.CreateAsyncScope();
         var bookings = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
         var catalog = await scope.ServiceProvider.GetRequiredService<IResourceRepository>().GetCatalogAsync(cancellationToken);
-        var tomorrow = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), catalog.Venue.TimeZone).DateTime).AddDays(1);
+        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(time.GetUtcNow(), catalog.Venue.TimeZone).DateTime);
         var count = 0;
         foreach (var resource in catalog.Resources)
         {
-            var hours = resource.HoursOn(tomorrow.DayOfWeek);
-            if (hours is null) continue;
-            foreach (var offset in new[] { 2, 5 })
-            {
-                var localStart = tomorrow.ToDateTime(hours.Open).AddMinutes(resource.SlotMinutes * offset);
-                if (TimeOnly.FromDateTime(localStart.AddMinutes(resource.SlotMinutes)) > hours.Close) continue;
-                var start = AvailabilityCalculator.ToUtc(localStart, catalog.Venue);
-                var booking = Booking.Create(resource.Id, TimeRange.FromStart(start, resource.SlotLength), DemoCustomer, "Demo customer", time.GetUtcNow());
-                if (await bookings.TryAddAsync(booking, cancellationToken)) count++;
-            }
+            // Tomorrow: two booked slots, so the grid is not empty. Today: the first two slots, but only if they have
+            // already started, so staff can try "completed" and "no-show" straight away.
+            count += await SeedAsync(bookings, catalog.Venue, resource, today.AddDays(1), [2, 5], onlyStarted: false, cancellationToken);
+            count += await SeedAsync(bookings, catalog.Venue, resource, today, [0, 1], onlyStarted: true, cancellationToken);
         }
-        LogSeeded(count, tomorrow);
+        LogSeeded(count, today);
+    }
+
+    private async Task<int> SeedAsync(IBookingRepository bookings, Venue venue, Resource resource, DateOnly day, int[] slotOffsets, bool onlyStarted, CancellationToken cancellationToken)
+    {
+        var hours = resource.HoursOn(day.DayOfWeek);
+        if (hours is null) return 0;
+        var count = 0;
+        foreach (var offset in slotOffsets)
+        {
+            var localStart = day.ToDateTime(hours.Open).AddMinutes(resource.SlotMinutes * offset);
+            if (TimeOnly.FromDateTime(localStart.AddMinutes(resource.SlotMinutes)) > hours.Close) continue;
+            var start = AvailabilityCalculator.ToUtc(localStart, venue);
+            if (onlyStarted && start > time.GetUtcNow()) continue;
+            var booking = Booking.Create(resource.Id, TimeRange.FromStart(start, resource.SlotLength), DemoCustomer, "Demo customer", time.GetUtcNow());
+            if (await bookings.TryAddAsync(booking, cancellationToken)) count++;
+        }
+        return count;
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} demo bookings for {Day}")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Seeded {Count} demo bookings for today ({Day}) and tomorrow")]
     private partial void LogSeeded(int count, DateOnly day);
 }

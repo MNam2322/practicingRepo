@@ -51,3 +51,24 @@ GET {{base}}/api/me
 
 ### Sign out
 POST {{base}}/api/account/signout
+
+### --- Staff (Staff or Admin role). To make your account staff in development, add your email to
+### Accounts:Bootstrap:Staff in src/BookingApp.Api/appsettings.Development.json, restart, and sign in again.
+
+### The day schedule: every resource, every booking (any status) with the actions allowed now, and closures
+GET {{base}}/api/staff/schedule?date=2026-10-20
+
+### Mark a booking completed / a no-show (only once it has started). Paste an id from the schedule.
+POST {{base}}/api/staff/bookings/00000000-0000-0000-0000-000000000000/no-show
+
+### Cancel any booking that has not ended, with a reason the customer sees
+POST {{base}}/api/staff/bookings/00000000-0000-0000-0000-000000000000/cancel
+Content-Type: application/json
+
+{ "reason": "Court flooded" }
+
+### Block time for maintenance (refused with 409 bookings_in_the_way if confirmed bookings overlap)
+POST {{base}}/api/staff/closures
+Content-Type: application/json
+
+{ "resourceId": "court-1", "start": "2026-10-20T07:00:00Z", "end": "2026-10-20T08:00:00Z", "reason": "Net repair" }

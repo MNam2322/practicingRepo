@@ -177,6 +177,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/staff/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every resource's bookings (any status) and closures for one venue-local day, with the actions allowed on each booking. */
+        get: operations["GetSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records that a booking took place. Only once it has started. */
+        post: operations["CompleteBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{id}/no-show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records that nobody came. Only once it has started. */
+        post: operations["MarkNoShow"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/bookings/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancels any booking that has not ended, with a reason the customer sees. Frees the slot. */
+        post: operations["StaffCancelBooking"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/staff/closures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Blocks time on a resource (maintenance, an event) so customers cannot book it. */
+        post: operations["BlockTime"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/venue": {
         parameters: {
             query?: never;
@@ -216,6 +301,15 @@ export interface components {
             /** @description Closures touching this day, so the UI can say why slots are closed. */
             closures: components["schemas"]["ClosureResponse"][];
         };
+        /** @description Block time on a resource: start and end are UTC instants, such as slot starts from availability. */
+        BlockTimeRequest: {
+            resourceId: null | string;
+            /** Format: date-time */
+            start: null | string;
+            /** Format: date-time */
+            end: null | string;
+            reason: null | string;
+        };
         BookingResponse: {
             /** Format: uuid */
             id: string;
@@ -234,10 +328,10 @@ export interface components {
             /** Format: date-time */
             cancelledAt: null | string;
             canCancel: boolean;
+            cancellationReason: null | string;
         };
         /**
-         * @description Confirmed → Cancelled, or Confirmed → Completed / NoShow after it ends (staff actions, TASKS.md).
-         *     Library: 4.7 "Example 2: A booking lifecycle as a state machine", 12.6 "State machines for aggregate lifecycles".
+         * @description Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal.
          * @enum {unknown}
          */
         BookingStatus: "confirmed" | "cancelled" | "completed" | "noShow";
@@ -315,6 +409,24 @@ export interface components {
             maxSlotsPerBooking: number;
             hours: components["schemas"]["OpeningHoursResponse"][];
         };
+        ScheduleColumnResponse: {
+            resourceId: string;
+            resourceName: string;
+            /** Format: int32 */
+            slotMinutes: number;
+            /** @description Venue-local "HH:mm", or null when closed all day. */
+            open: null | string;
+            close: null | string;
+            bookings: components["schemas"]["StaffBookingResponse"][];
+            closures: components["schemas"]["ClosureResponse"][];
+        };
+        /** @description The day schedule: one column per resource. */
+        ScheduleResponse: {
+            /** Format: date */
+            date: string;
+            timeZone: string;
+            resources: components["schemas"]["ScheduleColumnResponse"][];
+        };
         SignedInResponse: {
             account: components["schemas"]["AccountResponse"];
             /**
@@ -350,6 +462,32 @@ export interface components {
          * @enum {unknown}
          */
         SlotState: "free" | "booked" | "past" | "closed";
+        /** @description What staff may do to a booking right now (the domain's transition table plus its guards). */
+        StaffActions: {
+            complete: boolean;
+            noShow: boolean;
+            cancel: boolean;
+        };
+        /** @description A booking as staff see it on the schedule. */
+        StaffBookingResponse: {
+            /** Format: uuid */
+            id: string;
+            resourceId: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            localStart: string;
+            localEnd: string;
+            status: components["schemas"]["BookingStatus"];
+            customerName: string;
+            cancellationReason: null | string;
+            actions: components["schemas"]["StaffActions"];
+        };
+        /** @description Cancel a booking as staff. The customer sees the reason. */
+        StaffCancelRequest: {
+            reason: null | string;
+        };
         ValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -781,6 +919,353 @@ export interface operations {
             };
             /** @description resource_not_found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSchedule: {
+        parameters: {
+            query?: {
+                /** @description A venue-local day (yyyy-MM-dd). Leave it out for today at the venue. */
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CompleteBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The booking id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBookingResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description booking_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description invalid_transition, changed_meanwhile */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description not_started */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    MarkNoShow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The booking id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBookingResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description booking_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description invalid_transition, changed_meanwhile */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description not_started */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    StaffCancelBooking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The booking id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffCancelRequest"];
+                "application/*+json": components["schemas"]["StaffCancelRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBookingResponse"];
+                };
+            };
+            /** @description validation_failed (errors.reason) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description booking_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description invalid_transition, changed_meanwhile */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description already_ended, reason_required */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    BlockTime: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BlockTimeRequest"];
+                "application/*+json": components["schemas"]["BlockTimeRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClosureResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description resource_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description bookings_in_the_way */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description end_before_start, reason_required */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

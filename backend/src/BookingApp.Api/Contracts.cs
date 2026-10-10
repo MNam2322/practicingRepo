@@ -73,13 +73,14 @@ public sealed record CreateBookingRequest
 public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
-    DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel)
+    DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason)
 {
     public static BookingResponse From(Booking b, ResourceCatalog catalog, BookingPolicy policy, DateTimeOffset now) => new(
         b.Id, b.ResourceId, catalog.Find(b.ResourceId)?.Name ?? b.ResourceId, b.Time.Start, b.Time.End,
         ClosureResponse.Local(b.Time.Start, catalog.Venue), ClosureResponse.Local(b.Time.End, catalog.Venue),
         b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
-        b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff);
+        b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff,
+        b.CancellationReason);
 }
 
 /// <summary>Create an account. The password needs at least 10 characters; no other rules.</summary>
@@ -122,3 +123,57 @@ public sealed record AccountResponse(Guid Id, string Email, string Name, IReadOn
 
 /// <param name="MovedBookings">Bookings made before signing in (on this browser) that now belong to the account.</param>
 public sealed record SignedInResponse(AccountResponse Account, int MovedBookings);
+
+/// <summary>What staff may do to a booking right now (the domain's transition table plus its guards).</summary>
+public sealed record StaffActions(bool Complete, bool NoShow, bool Cancel);
+
+/// <summary>A booking as staff see it on the schedule.</summary>
+public sealed record StaffBookingResponse(
+    Guid Id, string ResourceId, DateTimeOffset Start, DateTimeOffset End, string LocalStart, string LocalEnd,
+    BookingStatus Status, string CustomerName, string? CancellationReason, StaffActions Actions)
+{
+    public static StaffBookingResponse From(Booking b, Venue venue, DateTimeOffset now) => new(
+        b.Id, b.ResourceId, b.Time.Start, b.Time.End, ClosureResponse.Local(b.Time.Start, venue), ClosureResponse.Local(b.Time.End, venue),
+        b.Status, b.CustomerName, b.CancellationReason,
+        new StaffActions(b.CanStaff(BookingTrigger.Complete, now), b.CanStaff(BookingTrigger.MarkNoShow, now), b.CanStaff(BookingTrigger.Cancel, now)));
+}
+
+/// <param name="Open">Venue-local "HH:mm", or null when closed all day.</param>
+public sealed record ScheduleColumnResponse(string ResourceId, string ResourceName, int SlotMinutes, string? Open, string? Close,
+    IReadOnlyList<StaffBookingResponse> Bookings, IReadOnlyList<ClosureResponse> Closures);
+
+/// <summary>The day schedule: one column per resource.</summary>
+public sealed record ScheduleResponse(DateOnly Date, string TimeZone, IReadOnlyList<ScheduleColumnResponse> Resources)
+{
+    public static ScheduleResponse From(BookingApp.Core.Staff.DaySchedule s, DateTimeOffset now) => new(s.Date, s.Venue.TimeZoneId,
+        [.. s.Columns.Select(c => new ScheduleColumnResponse(c.Resource.Id, c.Resource.Name, c.Resource.SlotMinutes,
+            c.Hours?.Open.ToString("HH:mm"), c.Hours?.Close.ToString("HH:mm"),
+            [.. c.Bookings.Select(b => StaffBookingResponse.From(b, s.Venue, now))],
+            [.. c.Closures.Select(x => ClosureResponse.From(x, s.Venue))]))]);
+}
+
+/// <summary>Cancel a booking as staff. The customer sees the reason.</summary>
+public sealed record StaffCancelRequest
+{
+    [Required(ErrorMessage = "Say why the booking is cancelled.")]
+    [StringLength(Booking.MaxReasonLength, ErrorMessage = "Keep the reason to 200 characters or fewer.")]
+    public string? Reason { get; init; }
+}
+
+/// <summary>Block time on a resource: start and end are UTC instants, such as slot starts from availability.</summary>
+public sealed record BlockTimeRequest
+{
+    [Required(ErrorMessage = "Choose what to block.")]
+    [StringLength(CreateBookingRequest.MaxResourceIdLength)]
+    public string? ResourceId { get; init; }
+
+    [Required(ErrorMessage = "Choose a start time.")]
+    public DateTimeOffset? Start { get; init; }
+
+    [Required(ErrorMessage = "Choose an end time.")]
+    public DateTimeOffset? End { get; init; }
+
+    [Required(ErrorMessage = "Say why the time is blocked.")]
+    [StringLength(200, ErrorMessage = "Keep the reason to 200 characters or fewer.")]
+    public string? Reason { get; init; }
+}

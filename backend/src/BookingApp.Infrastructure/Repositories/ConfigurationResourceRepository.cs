@@ -49,6 +49,15 @@ internal sealed class ConfigurationResourceRepository : IResourceRepository
         }
     }
 
+    public Task<IReadOnlyList<Closure>> AllClosuresAsync(TimeRange window, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            IReadOnlyList<Closure> found = [.. _closures.Where(c => c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)];
+            return Task.FromResult(found);
+        }
+    }
+
     public Task AddClosureAsync(Closure closure, CancellationToken cancellationToken)
     {
         lock (_gate) _closures.Add(closure);

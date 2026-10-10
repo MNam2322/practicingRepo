@@ -1,3 +1,4 @@
+using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -39,12 +40,21 @@ internal sealed partial class DatabaseInitializer(IServiceScopeFactory scopes, I
         await SeedRolesAsync(scope.ServiceProvider);
     }
 
-    /// <summary>Customer, Staff and Admin exist from the start; giving someone Staff or Admin is an admin action.</summary>
+    /// <summary>
+    /// Customer, Staff and Admin exist from the start. Accounts listed under Accounts:Bootstrap get Staff or Admin now
+    /// (and again whenever they sign in).
+    /// </summary>
     private static async Task SeedRolesAsync(IServiceProvider services)
     {
         var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         foreach (var role in Core.Accounts.Roles.All)
             if (!await roles.RoleExistsAsync(role)) await roles.CreateAsync(new IdentityRole<Guid>(role) { Id = Guid.CreateVersion7() });
+
+        var bootstrap = services.GetRequiredService<IOptions<AccountBootstrapOptions>>().Value;
+        var users = services.GetRequiredService<UserManager<AppUser>>();
+        var accounts = services.GetRequiredService<AccountService>();
+        foreach (var email in bootstrap.Staff.Concat(bootstrap.Admin).Distinct(StringComparer.OrdinalIgnoreCase))
+            if (await users.FindByEmailAsync(email) is { } user) await accounts.EnsureBootstrapRolesAsync(user);
     }
 
     /// <summary>

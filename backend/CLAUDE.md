@@ -14,11 +14,12 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Scheduling/Resource.cs       Venue (IANA time zone), Resource, OpeningHours, Closure, ResourceCatalog, IResourceRepository port
   Scheduling/Availability.cs   AvailabilityCalculator: pure, DST-safe slots for a local day (free, booked, past, closed)
   Scheduling/VenueService.cs   service: venue, resources, policy, the venue's today
-  Bookings/Booking.cs          Booking aggregate + BookingStatus + CustomerId
+  Bookings/Booking.cs          Booking aggregate: the lifecycle is a transition table (status, trigger) -> status, + CustomerId
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
   Accounts/Account.cs          Account, Roles (Customer, Staff, Admin)
+  Staff/StaffService.cs        service: day schedule, complete / no-show / staff cancel (through the aggregate), block time
 src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite | Postgres)
   Identity/                    AppUser, AccountService (sign up/in/out over ASP.NET Core Identity; moves anonymous bookings)
   Repositories/                EfBookingRepository, EfResourceRepository (Sqlite, Postgres); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
@@ -27,7 +28,7 @@ src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMe
                                DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
                                Migrations/Sqlite and Migrations/Postgres (generated per provider; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Authorization.cs (auth cookie, policies), Controllers/ (ApiControllerBase,
-                               Venue, Resources, Bookings, Account),
+                               Venue, Resources, Bookings, Account, Staff),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
                                Api.Tests (WebApplicationFactory; booking and concurrency tests run on InMemory and Sqlite)
@@ -45,7 +46,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 
 1. **No two blocking bookings for the same resource overlap.** This must be guaranteed by the booking repository in one atomic step: a lock, a database constraint or a transaction. A "check, then insert" in application code is a race. The in-memory repository does it under a lock; `EfBookingRepository` on SQLite runs the check and the insert in one `BEGIN IMMEDIATE` transaction; on PostgreSQL it does no check at all and the `ex_bookings_no_overlap` exclusion constraint refuses the insert (SQLSTATE 23P01 → `slot_taken`); a database repository must use a constraint or a serialisable transaction. There must be a test that fires many simultaneous requests at one slot and sees exactly one succeed.
 2. **Times are UTC everywhere except at the edges.** Store and compare `DateTimeOffset` in UTC. Venue-local time is used only for opening hours, the slot grid and display. Never use `DateTime.Now`; use `TimeProvider`.
-3. **State changes go through the aggregate.** `Booking` methods enforce the lifecycle. Controllers and services never set fields directly.
+3. **State changes go through the aggregate.** `Booking` methods enforce the lifecycle through its transition table; anything not in the table is refused (`invalid_transition`). Adding a status or trigger means adding rows, and the exhaustive test in `BookingStateMachineTests` covers every pair. Controllers and services never set fields directly.
 4. **Errors are problem details with a stable `code`:**
    - 404 not found
    - 409 conflict, such as `slot_taken`

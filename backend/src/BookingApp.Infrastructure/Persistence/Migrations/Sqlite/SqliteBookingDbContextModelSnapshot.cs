@@ -93,6 +93,11 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("TEXT")
                         .HasColumnName("id");
 
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("cancellation_reason");
+
                     b.Property<long?>("CancelledAt")
                         .HasColumnType("INTEGER")
                         .HasColumnName("cancelled_at");

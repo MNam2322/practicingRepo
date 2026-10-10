@@ -22,4 +22,7 @@ public interface IBookingRepository
     Task<IReadOnlyList<Booking>> BlockingAsync(string resourceId, TimeRange window, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<Booking>> ForCustomerAsync(CustomerId customer, CancellationToken cancellationToken);
+
+    /// <summary>Every booking of every resource, in any status, that overlaps the window, ordered by start (staff schedule).</summary>
+    Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken);
 }

@@ -110,6 +110,7 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         entry.Property(r => r.CancelledAt).IsModified = true;
         entry.Property(r => r.CustomerName).IsModified = true;
         entry.Property(r => r.CustomerId).IsModified = true;
+        entry.Property(r => r.CancellationReason).IsModified = true;
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -135,6 +136,17 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         var end = window.End;
         var rows = await db.Bookings.AsNoTracking()
             .Where(b => b.ResourceId == resourceId && b.Status == BookingStatus.Confirmed && b.StartUtc < end && start < b.EndUtc)
+            .OrderBy(b => b.StartUtc)
+            .ToListAsync(cancellationToken);
+        return [.. rows.Select(r => r.ToDomain())];
+    }
+
+    public async Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken)
+    {
+        var start = window.Start;
+        var end = window.End;
+        var rows = await db.Bookings.AsNoTracking()
+            .Where(b => b.StartUtc < end && start < b.EndUtc)
             .OrderBy(b => b.StartUtc)
             .ToListAsync(cancellationToken);
         return [.. rows.Select(r => r.ToDomain())];

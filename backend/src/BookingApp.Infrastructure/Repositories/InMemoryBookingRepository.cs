@@ -54,6 +54,15 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
         }
     }
 
+    public Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            IReadOnlyList<Booking> found = [.. _bookings.Values.Where(b => b.Time.Overlaps(window)).OrderBy(b => b.Time.Start)];
+            return Task.FromResult(found);
+        }
+    }
+
     public Task<IReadOnlyList<Booking>> ForCustomerAsync(CustomerId customer, CancellationToken cancellationToken)
     {
         lock (_gate)

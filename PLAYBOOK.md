@@ -134,7 +134,7 @@ Needs backend 7.
 - **Check:** book while signed out, then sign up. The message says your bookings moved, and they're in My bookings. Sign out and in again: they're still there.
 
 ### Step 14: Backend 8, staff features
-- [ ] **Prompt:** "Do backend task 8 (staff features)."
+- [x] **Prompt:** "Do backend task 8 (staff features)."
 - **Check:** ask Claude Code to give your account the `Staff` role. Then the day schedule works and "mark no-show" works on a past booking. A customer account gets 403 on these endpoints.
 
 ### Step 15: Frontend 7, staff schedule

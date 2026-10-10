@@ -28,6 +28,14 @@ internal sealed class EfResourceRepository(BookingDbContext db, TimeProvider tim
         return [.. rows.Select(r => r.ToDomain())];
     }
 
+    public async Task<IReadOnlyList<Closure>> AllClosuresAsync(TimeRange window, CancellationToken cancellationToken)
+    {
+        var start = window.Start;
+        var end = window.End;
+        var rows = await db.Closures.AsNoTracking().Where(c => c.StartUtc < end && start < c.EndUtc).OrderBy(c => c.StartUtc).ToListAsync(cancellationToken);
+        return [.. rows.Select(r => r.ToDomain())];
+    }
+
     public async Task AddClosureAsync(Closure closure, CancellationToken cancellationToken)
     {
         db.Closures.Add(new ClosureRow

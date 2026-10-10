@@ -3,6 +3,7 @@ using BookingApp.Core.Accounts;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Common;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 
 namespace BookingApp.Infrastructure.Identity;
 
@@ -14,8 +15,16 @@ public sealed record SignedIn(Account Account, int MovedBookings);
 /// controllers never touch it directly. Signing in issues a new auth cookie (no session fixation) and moves the
 /// caller's anonymous bookings to the account. Library: 10.2 "Credentials", "Staying signed in".
 /// </summary>
-public sealed class AccountService(UserManager<AppUser> users, SignInManager<AppUser> signIn, BookingService bookings)
+public sealed class AccountService(UserManager<AppUser> users, SignInManager<AppUser> signIn, BookingService bookings,
+    IOptions<AccountBootstrapOptions> bootstrap)
 {
+    /// <summary>Grants the roles configured for this email (Accounts:Bootstrap). Run before the auth cookie is issued.</summary>
+    public async Task EnsureBootstrapRolesAsync(AppUser user)
+    {
+        foreach (var role in bootstrap.Value.RolesFor(user.Email))
+            if (!await users.IsInRoleAsync(user, role)) await users.AddToRoleAsync(user, role);
+    }
+
     /// <summary>Signs up and in. On a 400 the second value holds the field errors (password, email) for the response.</summary>
     public async Task<(Result<SignedIn> Result, IReadOnlyDictionary<string, string[]> FieldErrors)> SignUpAsync(
         string email, string password, string name, CustomerId? anonymous, CancellationToken cancellationToken)
@@ -32,6 +41,7 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
             return (new Error(ErrorKind.RuleViolation, "validation_failed", "Some fields are missing or invalid."), fields);
         }
         await users.AddToRoleAsync(user, Roles.Customer);
+        await EnsureBootstrapRolesAsync(user);
         await signIn.SignInAsync(user, isPersistent: true);
         return (Result<SignedIn>.Ok(await SignedInAsync(user, anonymous, cancellationToken)), Empty);
     }
@@ -46,6 +56,7 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
             users.PasswordHasher.HashPassword(TimingDummy, password);
             return InvalidCredentials;
         }
+        await EnsureBootstrapRolesAsync(user);
         var result = await signIn.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: true);
         if (result.IsLockedOut)
             return new Error(ErrorKind.Unauthenticated, "account_locked", "Too many failed attempts. Try again in a few minutes.");
