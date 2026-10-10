@@ -234,7 +234,7 @@ Do this only after you add a GitHub remote. When you do, tell Claude Code to rem
 - **Check:** push, then open the Actions tab on GitHub. The workflow is green.
 
 ### Step 34: Backend 22, architecture guard rails
-- [ ] **Prompt:** "Do backend task 22 (architecture guard rails)."
+- [x] **Prompt:** "Do backend task 22 (architecture guard rails)."
 - **Check:** ask Claude Code to add a reference from Core to EF Core on purpose: the architecture tests fail. Then undo it. Read the ADRs in `docs/adr/`: each one says what was chosen, what else was considered, and why.
 
 ---

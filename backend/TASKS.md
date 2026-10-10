@@ -170,8 +170,8 @@ Read first: 11.4 CI/CD pipelines.
 
 ### 22. Architecture guard rails
 Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and application architecture.
-- [ ] Architecture tests: Core references nothing, controllers never touch a repository or the DbContext, and there are no minimal-API application endpoints.
-- [ ] `docs/adr/` with one decision record per big choice (database, overlap enforcement, identity, payments).
+- [x] Architecture tests: Core references nothing, controllers never touch a repository or the DbContext, and there are no minimal-API application endpoints.
+- [x] `docs/adr/` with one decision record per big choice (database, overlap enforcement, identity, payments).
 
 ## Changelog
 
@@ -197,3 +197,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 18: `tools/BookingApp.Perf` seeds a year (114k bookings, 30 courts) and measures `BookingQueries`; overlap queries bounded by the 24-hour maximum booking length (now a rule); `ix_bookings_resource_start` partial on blocking statuses, new `ix_bookings_start`: availability reads 10 rows instead of 501 (1.25 → 0.06 ms in the database), the staff schedule an index range instead of a 114k-row scan (p50 14.1 → 2.8 ms); a (customer, start) index measured and rejected; k6 race (100 customers, 15 slots): exactly 15 bookings, 1,485 slot_taken, 0 errors; Npgsql pool capped below max_connections. Details: docs/performance.md.
 - Task 19: antiforgery on every controller write (XSRF-TOKEN cookie + X-XSRF-TOKEN header, `GET /api/antiforgery`, new token on sign-in/up/out, 400 `antiforgery_failed`; the signed webhook exempt); security headers (strict CSP and no-store on /api, nosniff, DENY framing, no-referrer, no Server header, HSTS outside Development, 1 MB body limit); rate limits per account or per IP (never per client-sent cookie), a global per-caller limit, 429 problem details with Retry-After, logged; development secrets moved to dotnet user-secrets (`tools/dev-secrets.mjs`).
 - Task 20: one image (root `Dockerfile`): the web app built with Node, the API published with the SDK, run on `aspnet:10.0.12-noble-chiseled-extra` as a non-root user; the API serves `wwwroot` (hashed assets cached for a year, `index.html` no-cache, an `index.html` fallback, unknown `/api` paths still 404 problems); `docker compose up --build` runs it on :8080 with PostgreSQL; secrets and paths from the environment, Data Protection keys and emails on a `/data` volume (sign-ins survive a restart); forwarded headers trusted only from configured proxies; SQL command logging off outside Development.
+- Task 22: `ArchitectureTests` (NetArchTest + Mono.Cecil): Core's project file has no references and its types use only the BCL; Infrastructure never depends on Api; controllers use no storage port, repository, DbContext or EF Core; every `/api` endpoint is a controller action (checked on the running app); no `DateTime.Now`/`UtcNow` in the app (IL scan). Checked: an EF Core reference added to Core fails the test. `docs/adr/` 0001–0005: database, overlap enforcement, identity, payments, layering, each with alternatives and consequences.

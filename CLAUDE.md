@@ -9,6 +9,7 @@ backend/    .NET 10 C# API (the heavy part).           Guide: backend/CLAUDE.md,
 frontend/   React + TypeScript + Vite, a clean usable UI. Guide: frontend/CLAUDE.md, roadmap: frontend/TASKS.md
 library/    A 950,000-word programming library. Read-only knowledge base: how to build this well.
 PLAYBOOK.md The order to do the tasks in, with what the user checks after each one.
+docs/adr/   Architecture decision records: why the big choices were made, and what else was considered.
 ```
 
 ## Build it the way the library says

@@ -62,7 +62,7 @@ docs/performance.md            the measurements, what was changed and why, and h
 openapi/v1.json                the API contract, generated from the controllers; a test fails if it drifts
 ```
 
-Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → Core; Core → nothing.
+Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → Core; Core → nothing. `ArchitectureTests` (Api.Tests) enforce it: Core's project has no references and its types use only the BCL, Infrastructure never uses Api, controllers use no storage port, repository, DbContext or EF Core, every `/api` endpoint is a controller action, and nothing reads `DateTime.Now`/`UtcNow`. Why it is built this way: `../docs/adr/` (one record per big choice; add one when you make a new one).
 
 - **Controllers** (`Api/Controllers/`) bind the request, call one or more **services**, and map the result to HTTP. They never touch a repository or a `DbContext`, and never hold business rules.
 - **Services** (`Core`, e.g. `BookingService`, `VenueService`) hold the use cases. They call the domain and the **repositories** through the ports in Core.
