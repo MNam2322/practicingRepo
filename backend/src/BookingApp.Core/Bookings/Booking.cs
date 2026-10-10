@@ -60,6 +60,12 @@ public sealed class Booking
     };
 
     public const int MaxReasonLength = 200;
+
+    /// <summary>
+    /// No booking is longer than this (BookingPolicy refuses it). Overlap queries rely on it: a booking that overlaps a
+    /// window started less than this before the window, so the search is a bounded range (docs/performance.md).
+    /// </summary>
+    public static readonly TimeSpan MaxLength = TimeSpan.FromHours(24);
     public const int MaxEmailLength = 254;
 
     private readonly List<BookingEvent> _events = [];

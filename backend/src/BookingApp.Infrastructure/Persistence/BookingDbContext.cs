@@ -150,10 +150,15 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         // A resource with bookings cannot be deleted by accident: RESTRICT, the right default (library 7.2).
         booking.HasOne<ResourceRow>().WithMany().HasForeignKey(b => b.ResourceId).OnDelete(DeleteBehavior.Restrict);
 
-        // The availability query: blocking bookings for one resource overlapping a window, ordered by start.
-        booking.HasIndex(b => new { b.ResourceId, b.StartUtc }).HasDatabaseName("ix_bookings_resource_start");
-        // My bookings.
+        // The availability query: blocking bookings for one resource overlapping a window, ordered by start. Partial:
+        // only bookings that block are in it, so a seek on (resource, bounded start range) reads just those
+        // (BookingQueries.Blocking; measured in docs/performance.md).
+        booking.HasIndex(b => new { b.ResourceId, b.StartUtc }).HasDatabaseName("ix_bookings_resource_start")
+            .HasFilter("status IN ('Confirmed', 'Pending')");
+        // My bookings. (A (customer, start) index was measured and bought nothing: docs/performance.md.)
         booking.HasIndex(b => b.CustomerId).HasDatabaseName("ix_bookings_customer");
+        // The staff day schedule: every resource, a bounded range of starts (BookingQueries.InWindow).
+        booking.HasIndex(b => b.StartUtc).HasDatabaseName("ix_bookings_start");
 
         // Deposits. At most one live payment (pending or paid) per booking: two confirms racing cannot both charge, even
         // when one has finished paying before the other inserts (a partial unique index, library 7.2). A booking with a

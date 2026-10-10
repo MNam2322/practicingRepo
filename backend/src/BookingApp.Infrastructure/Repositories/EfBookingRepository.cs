@@ -86,11 +86,7 @@ internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions
             await using var transaction = await BeginWriteTransactionAsync(cancellationToken);
             await db.Database.UseTransactionAsync(transaction, cancellationToken);
             await ExpireDueHoldsAsync(booking.ResourceId, booking.CreatedAt, cancellationToken);
-            var start = booking.Time.Start;
-            var end = booking.Time.End;
-            var clash = await db.Bookings.AnyAsync(b => b.ResourceId == booking.ResourceId
-                && (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)
-                && b.StartUtc < end && start < b.EndUtc, cancellationToken);
+            var clash = await BookingQueries.Blocking(db, booking.ResourceId, booking.Time).AnyAsync(cancellationToken);
             if (clash) return false;
 
             var row = BookingRow.From(booking);
@@ -150,13 +146,7 @@ internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions
 
     public async Task<IReadOnlyList<Booking>> BlockingAsync(string resourceId, TimeRange window, CancellationToken cancellationToken)
     {
-        var start = window.Start;
-        var end = window.End;
-        var rows = await db.Bookings.AsNoTracking()
-            .Where(b => b.ResourceId == resourceId && (b.Status == BookingStatus.Confirmed || b.Status == BookingStatus.Pending)
-                && b.StartUtc < end && start < b.EndUtc)
-            .OrderBy(b => b.StartUtc)
-            .ToListAsync(cancellationToken);
+        var rows = await BookingQueries.Blocking(db, resourceId, window).ToListAsync(cancellationToken);
         return [.. rows.Select(r => r.ToDomain())];
     }
 
@@ -177,21 +167,13 @@ internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions
 
     public async Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken)
     {
-        var start = window.Start;
-        var end = window.End;
-        var rows = await db.Bookings.AsNoTracking()
-            .Where(b => b.StartUtc < end && start < b.EndUtc)
-            .OrderBy(b => b.StartUtc)
-            .ToListAsync(cancellationToken);
+        var rows = await BookingQueries.InWindow(db, window).ToListAsync(cancellationToken);
         return [.. rows.Select(r => r.ToDomain())];
     }
 
     public async Task<IReadOnlyList<Booking>> ForCustomerAsync(CustomerId customer, CancellationToken cancellationToken)
     {
-        var rows = await db.Bookings.AsNoTracking()
-            .Where(b => b.CustomerId == customer.Value)
-            .OrderBy(b => b.StartUtc)
-            .ToListAsync(cancellationToken);
+        var rows = await BookingQueries.ForCustomer(db, customer.Value).ToListAsync(cancellationToken);
         return [.. rows.Select(r => r.ToDomain())];
     }
 

@@ -205,7 +205,7 @@ Needs backend 14 and 15.
 - **Check:** ask Claude Code how to see the traces locally (for example the .NET Aspire dashboard in Docker). A booking shows up as one trace from the HTTP request to the database, and the `slot_taken` counter goes up when you double book.
 
 ### Step 28: Backend 18, performance
-- [ ] **Prompt:** "Do backend task 18 (performance)."
+- [x] **Prompt:** "Do backend task 18 (performance)."
 - **Check:** Claude Code shows before and after timings and query plans. The load test shows exactly one success per slot.
 
 ### Step 29: Backend 19, security

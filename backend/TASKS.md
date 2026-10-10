@@ -150,8 +150,8 @@ Read first: 11.6 Observability.
 
 ### 18. Performance
 Read first: 7.9 Database optimisation casebook, 7.3 Indexes and query plans, 12.4 Scaling and performance.
-- [ ] Seed one year of bookings. Measure the availability and my-bookings queries, read their plans, fix them with the right indexes, and record before and after numbers.
-- [ ] Load test the booking race with k6 or NBomber.
+- [x] Seed one year of bookings. Measure the availability and my-bookings queries, read their plans, fix them with the right indexes, and record before and after numbers.
+- [x] Load test the booking race with k6 or NBomber.
 
 ### 19. Security hardening
 Read first: 10.4 Common web vulnerabilities, 12.5 "Rate limiting".
@@ -194,3 +194,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 15: waitlist (`/api/waitlist`: join a taken time, mine with places in line, leave): `waitlist` table with one waiting entry per customer and time; `WaitlistSweep` tells the first in line when the time is free again (any cause), marking the entry and writing its email to the outbox in one transaction; the next in line is told after 30 minutes if it is still free; outbox messages can carry pre-rendered text and no booking.
 - Task 16: availability's occupancy read is cached per resource-day in HybridCache (`IOccupancyReader` / `CachedOccupancyReader`); the booking repositories bump per resource-day versions after every committed write and the versions are in the cache key, so a read after a booking change is never stale (tests on every provider, plus the slow-reader race); holds carry their expiry; exact checks bypass the cache.
 - Task 17: OpenTelemetry traces (ASP.NET Core, HttpClient, EF Core, and `BookingApp` spans per use case), metrics (ASP.NET Core, runtime, `BookingApp` counters: created, conflicts, confirmed, cancelled, holds expired) and logs, exported over OTLP when configured; Aspire dashboard in docker-compose (`observability` profile); `/health/live` and `/health/ready` (database); tests prove one trace from request to SQL and the counters.
+- Task 18: `tools/BookingApp.Perf` seeds a year (114k bookings, 30 courts) and measures `BookingQueries`; overlap queries bounded by the 24-hour maximum booking length (now a rule); `ix_bookings_resource_start` partial on blocking statuses, new `ix_bookings_start`: availability reads 10 rows instead of 501 (1.25 → 0.06 ms in the database), the staff schedule an index range instead of a 114k-row scan (p50 14.1 → 2.8 ms); a (customer, start) index measured and rejected; k6 race (100 customers, 15 slots): exactly 15 bookings, 1,485 slot_taken, 0 errors; Npgsql pool capped below max_connections. Details: docs/performance.md.

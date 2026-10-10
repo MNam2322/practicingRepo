@@ -23,5 +23,6 @@
     <InternalsVisibleTo Include="BookingApp.Infrastructure.Tests" />
     <InternalsVisibleTo Include="BookingApp.Core.Tests" />
     <InternalsVisibleTo Include="BookingApp.Api.Tests" />
+    <InternalsVisibleTo Include="BookingApp.Perf" />
   </ItemGroup>
 </Project>

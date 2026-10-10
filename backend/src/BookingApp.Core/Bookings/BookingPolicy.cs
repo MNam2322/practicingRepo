@@ -36,6 +36,8 @@ public sealed class BookingPolicy
             return new Error(ErrorKind.RuleViolation, "not_whole_slots", $"Bookings last a whole number of {resource.SlotMinutes}-minute slots.");
         if (slots > resource.MaxSlotsPerBooking)
             return new Error(ErrorKind.RuleViolation, "too_long", $"The longest booking for {resource.Name} is {resource.MaxSlotsPerBooking} slots.");
+        if (time.Duration > Booking.MaxLength)
+            return new Error(ErrorKind.RuleViolation, "too_long", $"A booking lasts at most {Booking.MaxLength.TotalHours:0} hours.");
 
         // Opening hours and the slot grid are defined in venue local time, so check in local time.
         var localStart = TimeZoneInfo.ConvertTime(time.Start, venue.TimeZone);

@@ -67,11 +67,16 @@ public sealed class ObservabilityTestsSqlite() : ObservabilityTests(StorageProvi
             s.ConfigureOpenTelemetryTracerProvider(t => t.AddInMemoryExporter(exported))));
         using var client = traced.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/bookings", BookingBody(10), Ct);
+        // Our own trace id (W3C traceparent), so spans from other tests running at the same time are told apart:
+        // activity sources are process-wide.
+        var traceId = ActivityTraceId.CreateRandom();
+        using var request0 = new HttpRequestMessage(HttpMethod.Post, "/api/bookings") { Content = JsonContent.Create(BookingBody(10)) };
+        request0.Headers.Add("traceparent", $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01");
+        var response = await client.SendAsync(request0, Ct);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         traced.Services.GetRequiredService<TracerProvider>().ForceFlush();
         // A copy: the background jobs keep exporting their own spans while the test reads.
-        var spans = exported.ToArray().ToList();
+        var spans = exported.ToArray().Where(s => s.TraceId == traceId).ToList();
 
         var request = Assert.Single(spans, s => s.Kind == ActivityKind.Server && s.DisplayName == "POST api/bookings");
         var book = Assert.Single(spans, s => s.Source.Name == Core.Common.Telemetry.Name && s.DisplayName == "book");

@@ -234,8 +234,12 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("ix_bookings_customer");
 
+                    b.HasIndex("StartUtc")
+                        .HasDatabaseName("ix_bookings_start");
+
                     b.HasIndex("ResourceId", "StartUtc")
-                        .HasDatabaseName("ix_bookings_resource_start");
+                        .HasDatabaseName("ix_bookings_resource_start")
+                        .HasFilter("status IN ('Confirmed', 'Pending')");
 
                     b.HasIndex("Status", "HoldExpiresAt")
                         .HasDatabaseName("ix_bookings_status_hold_expires");

@@ -4,6 +4,9 @@
     <Project Path="src/BookingApp.Core/BookingApp.Core.csproj" />
     <Project Path="src/BookingApp.Infrastructure/BookingApp.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/BookingApp.Perf/BookingApp.Perf.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/BookingApp.Api.Tests/BookingApp.Api.Tests.csproj" />
     <Project Path="tests/BookingApp.Core.Tests/BookingApp.Core.Tests.csproj" />
