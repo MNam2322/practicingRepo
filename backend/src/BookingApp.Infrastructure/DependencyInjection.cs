@@ -4,6 +4,7 @@ using BookingApp.Core.Common;
 using BookingApp.Core.Notifications;
 using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
+using BookingApp.Core.Waitlist;
 using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Notifications;
 using BookingApp.Infrastructure.Payments;
@@ -49,6 +50,7 @@ public static class DependencyInjection
                 services.AddSingleton<InMemoryOutbox>();
                 services.AddSingleton<INotificationOutbox>(sp => sp.GetRequiredService<InMemoryOutbox>());
                 services.AddSingleton<IBookingRepository>(sp => new InMemoryBookingRepository(sp.GetRequiredService<InMemoryOutbox>()));
+                services.AddSingleton<IWaitlistRepository, InMemoryWaitlistRepository>();
                 services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
                 services.AddSingleton<IPaymentRepository, InMemoryPaymentRepository>();
                 // Accounts only; one in-memory database per app instance.
@@ -154,6 +156,12 @@ public static class DependencyInjection
         services.AddSingleton<FileEmailSender>();
         services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<FileEmailSender>());
         services.AddHostedService<NotificationRelay>();
+
+        services.AddOptions<WaitlistOptions>().Bind(configuration.GetSection(WaitlistOptions.Section))
+            .Validate(o => o.SweepSeconds > 0 && o.OfferMinutes > 0, "Waitlist:SweepSeconds and Waitlist:OfferMinutes must be positive.")
+            .ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<WaitlistOptions>>().Value);
+        services.AddHostedService<WaitlistSweep>();
     }
 
     /// <summary>The EF Core repositories over whichever database was chosen; they depend only on the shared BookingDbContext.</summary>
@@ -166,6 +174,7 @@ public static class DependencyInjection
         services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
         services.AddScoped<IPaymentRepository, EfPaymentRepository>();
         services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
+        services.AddScoped<IWaitlistRepository, EfWaitlistRepository>();
         // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
         services.AddHostedService<DatabaseInitializer>();
         // After the initializer, so its first run finds the table.

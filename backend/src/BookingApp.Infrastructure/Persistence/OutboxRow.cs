@@ -9,7 +9,7 @@ internal sealed class OutboxRow
 
     public Guid Id { get; set; }
     public NotificationKind Kind { get; set; }
-    public Guid BookingId { get; set; }
+    public Guid? BookingId { get; set; }
     public string To { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset DueAt { get; set; }
@@ -19,6 +19,9 @@ internal sealed class OutboxRow
     public DeliveryOutcome? Outcome { get; set; }
     public DateTimeOffset? DoneAt { get; set; }
     public string? LastError { get; set; }
+    /// <summary>Pre-rendered emails (waitlist) carry their text; the others are rendered from the booking when sent.</summary>
+    public string? Subject { get; set; }
+    public string? Body { get; set; }
 
     public static OutboxRow From(OutboxMessage m) => new()
     {
@@ -29,9 +32,11 @@ internal sealed class OutboxRow
         CreatedAt = m.CreatedAt,
         DueAt = m.DueAt,
         Attempts = m.Attempts,
+        Subject = m.Subject,
+        Body = m.Body,
     };
 
-    public OutboxMessage ToMessage() => new(Id, Kind, BookingId, To, CreatedAt, DueAt) { Attempts = Attempts };
+    public OutboxMessage ToMessage() => new(Id, Kind, BookingId, To, CreatedAt, DueAt) { Attempts = Attempts, Subject = Subject, Body = Body };
 
     public OutboxEntry ToEntry() => new(ToMessage(), Outcome, DoneAt, LastError);
 }

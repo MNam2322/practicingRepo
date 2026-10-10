@@ -532,6 +532,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/waitlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Joins the waitlist for a taken time. When it frees up, the first in line is emailed.
+         * @description The time must be one that could be booked, but is taken now (409 slot_free if it is free: book it). Emails go to
+         *     "email", or the signed-in account's address. When the time frees up, the first person in line is told (first come,
+         *     first served); if it is still free 30 minutes later, the next person is told too.
+         */
+        post: operations["JoinWaitlist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/waitlist/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current customer's waitlist entries for times still to come, with their places in line. */
+        get: operations["GetMyWaitlist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/waitlist/{id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Leaves the waitlist for a time. */
+        post: operations["LeaveWaitlist"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -728,6 +784,20 @@ export interface components {
          * @enum {unknown}
          */
         DepositStatus: "due" | "pending" | "paid" | "failed" | "refunded";
+        /** @description Join the waitlist for a taken time: the same resource, start and length as a booking would have. */
+        JoinWaitlistRequest: {
+            resourceId: null | string;
+            /**
+             * Format: date-time
+             * @description The UTC start of the taken slot, exactly as returned by the availability endpoint.
+             */
+            start: null | string;
+            /** Format: int32 */
+            slots?: null | number;
+            name: null | string;
+            /** @description Where to say the time is free. Required, unless signed in (then the account's address is used). */
+            email?: null | string;
+        };
         /** @description An amount in major units (100000 VND, 12.50 USD). Format it for display with the currency. */
         MoneyResponse: {
             /** Format: double */
@@ -949,6 +1019,31 @@ export interface components {
             policy: components["schemas"]["PolicyResponse"];
             deposit: null | components["schemas"]["MoneyResponse"];
         };
+        WaitlistEntryResponse: {
+            /** Format: uuid */
+            id: string;
+            resourceId: string;
+            resourceName: string;
+            /** Format: date-time */
+            start: string;
+            /** Format: date-time */
+            end: string;
+            localStart: string;
+            localEnd: string;
+            status: components["schemas"]["WaitlistStatus"];
+            /**
+             * Format: int32
+             * @description Place in line: 1 is next. 0 once no longer waiting (told, left or past).
+             */
+            position: number;
+            email: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            notifiedAt: null | string;
+        };
+        /** @enum {unknown} */
+        WaitlistStatus: "waiting" | "notified" | "left" | "expired";
         /** @description What the webhook endpoint answers: the event id, and whether it changed anything. */
         WebhookAck: {
             eventId: string;
@@ -2683,6 +2778,151 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VenueResponse"];
+                };
+            };
+        };
+    };
+    JoinWaitlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancelled when the client goes away. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinWaitlistRequest"];
+                "application/*+json": components["schemas"]["JoinWaitlistRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitlistEntryResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description resource_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description slot_free, already_waiting, already_yours */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description email_required, name_required, too_soon, too_far_ahead, outside_opening_hours, not_on_slot_grid, too_long, resource_closed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetMyWaitlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitlistEntryResponse"][];
+                };
+            };
+        };
+    };
+    LeaveWaitlist: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The waitlist entry id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WaitlistEntryResponse"];
+                };
+            };
+            /** @description waitlist_entry_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description changed_meanwhile */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

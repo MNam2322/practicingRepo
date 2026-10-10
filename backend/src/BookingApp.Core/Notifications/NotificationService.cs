@@ -40,16 +40,25 @@ public sealed class NotificationService(
         var sent = 0;
         foreach (var message in due)
         {
-            var booking = await bookings.FindAsync(message.BookingId, cancellationToken);
-            // A reminder is only true while the booking still stands.
-            if (booking is null || (message.Kind == NotificationKind.Reminder && booking.StatusAt(now) != BookingStatus.Confirmed))
+            EmailMessage email;
+            if (message is { Subject: { } subject, Body: { } body })
             {
-                await outbox.MarkDoneAsync(message.Id, DeliveryOutcome.Skipped, now, cancellationToken);
-                continue;
+                email = new EmailMessage(message.Id, message.To, subject, body, message.DueAt);
+            }
+            else
+            {
+                var booking = message.BookingId is { } id ? await bookings.FindAsync(id, cancellationToken) : null;
+                // A reminder is only true while the booking still stands.
+                if (booking is null || (message.Kind == NotificationKind.Reminder && booking.StatusAt(now) != BookingStatus.Confirmed))
+                {
+                    await outbox.MarkDoneAsync(message.Id, DeliveryOutcome.Skipped, now, cancellationToken);
+                    continue;
+                }
+                email = EmailTemplates.Render(message, booking, catalog, options.AppUrl);
             }
             try
             {
-                await sender.SendAsync(EmailTemplates.Render(message, booking, catalog, options.AppUrl), cancellationToken);
+                await sender.SendAsync(email, cancellationToken);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {

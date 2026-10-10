@@ -2,7 +2,7 @@ using BookingApp.Core.Bookings;
 
 namespace BookingApp.Core.Notifications;
 
-public enum NotificationKind { BookingConfirmed, BookingCancelled, Reminder }
+public enum NotificationKind { BookingConfirmed, BookingCancelled, Reminder, WaitlistSlotFree }
 
 /// <summary>
 /// An email that must go out, stored in the same transaction as the booking change that caused it, so the change and
@@ -10,11 +10,17 @@ public enum NotificationKind { BookingConfirmed, BookingCancelled, Reminder }
 /// "Example 1: Confirmation emails lost on restart"). <see cref="Id"/> is also the email's message id on every attempt,
 /// which lets the sender drop a repeat (library 14.2 "The outbox relay").
 /// </summary>
+/// <param name="BookingId">The booking it is about; null for a waitlist email (the time is free, there is no booking).</param>
 /// <param name="DueAt">Not sent before this: now for confirmations and cancellations, 24 hours ahead for reminders.</param>
-public sealed record OutboxMessage(Guid Id, NotificationKind Kind, Guid BookingId, string To, DateTimeOffset CreatedAt, DateTimeOffset DueAt)
+public sealed record OutboxMessage(Guid Id, NotificationKind Kind, Guid? BookingId, string To, DateTimeOffset CreatedAt, DateTimeOffset DueAt)
 {
     /// <summary>Failed sends so far.</summary>
     public int Attempts { get; init; }
+
+    /// <summary>Written when the message was created (waitlist emails); null: rendered from the booking when sent.</summary>
+    public string? Subject { get; init; }
+
+    public string? Body { get; init; }
 }
 
 /// <summary>Which emails a booking event means. Pure: the repositories call it while saving the booking.</summary>

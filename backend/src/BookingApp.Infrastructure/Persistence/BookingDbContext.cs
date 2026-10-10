@@ -26,6 +26,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
     public DbSet<PaymentEventRow> PaymentEvents => Set<PaymentEventRow>();
     public DbSet<OutboxRow> Outbox => Set<OutboxRow>();
+    public DbSet<WaitlistRow> Waitlist => Set<WaitlistRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -185,7 +186,8 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         var outbox = model.Entity<OutboxRow>();
         outbox.ToTable("notification_outbox", t =>
         {
-            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder')");
+            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder', 'WaitlistSlotFree')");
+            t.HasCheckConstraint("ck_outbox_about", "booking_id IS NOT NULL OR (subject IS NOT NULL AND body IS NOT NULL)");
             t.HasCheckConstraint("ck_outbox_attempts", "attempts >= 0");
         });
         outbox.HasKey(o => o.Id);
@@ -200,10 +202,36 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         outbox.Property(o => o.Outcome).HasColumnName("outcome").HasConversion<string>().HasMaxLength(16);
         outbox.Property(o => o.DoneAt).HasColumnName("done_at");
         outbox.Property(o => o.LastError).HasColumnName("last_error").HasMaxLength(OutboxRow.MaxErrorLength);
+        outbox.Property(o => o.Subject).HasColumnName("subject").HasMaxLength(200);
+        outbox.Property(o => o.Body).HasColumnName("body");
         outbox.HasOne<BookingRow>().WithMany().HasForeignKey(o => o.BookingId).OnDelete(DeleteBehavior.Restrict);
         // The relay's query: messages not done yet, by due time.
         outbox.HasIndex(o => o.DueAt, "ix_outbox_pending").HasFilter("outcome IS NULL");
         outbox.HasIndex(o => o.BookingId, "ix_outbox_booking");
+
+        // Waiting lists. A customer waits for a time once (partial unique index); the place in line is created_at.
+        var waitlist = model.Entity<WaitlistRow>();
+        waitlist.ToTable("waitlist", t =>
+        {
+            t.HasCheckConstraint("ck_waitlist_end_after_start", "end_utc > start_utc");
+            t.HasCheckConstraint("ck_waitlist_status", "status IN ('Waiting', 'Notified', 'Left', 'Expired')");
+        });
+        waitlist.HasKey(w => w.Id);
+        waitlist.Property(w => w.Id).HasColumnName("id").ValueGeneratedNever();
+        waitlist.Property(w => w.ResourceId).HasColumnName("resource_id").HasMaxLength(64).IsRequired();
+        waitlist.Property(w => w.StartUtc).HasColumnName("start_utc");
+        waitlist.Property(w => w.EndUtc).HasColumnName("end_utc");
+        waitlist.Property(w => w.CustomerId).HasColumnName("customer_id");
+        waitlist.Property(w => w.CustomerName).HasColumnName("customer_name").HasMaxLength(80).IsRequired();
+        waitlist.Property(w => w.Email).HasColumnName("email").HasMaxLength(Booking.MaxEmailLength).IsRequired();
+        waitlist.Property(w => w.CreatedAt).HasColumnName("created_at");
+        waitlist.Property(w => w.Status).HasColumnName("status").HasConversion<string>().HasMaxLength(16);
+        waitlist.Property(w => w.NotifiedAt).HasColumnName("notified_at");
+        waitlist.Property(w => w.Version).HasColumnName("version").IsConcurrencyToken();
+        waitlist.HasOne<ResourceRow>().WithMany().HasForeignKey(w => w.ResourceId).OnDelete(DeleteBehavior.Cascade);
+        waitlist.HasIndex(w => new { w.ResourceId, w.StartUtc, w.EndUtc, w.CustomerId }, "ux_waitlist_one_wait").IsUnique().HasFilter("status = 'Waiting'");
+        waitlist.HasIndex(w => new { w.Status, w.StartUtc }, "ix_waitlist_open");
+        waitlist.HasIndex(w => w.CustomerId, "ix_waitlist_customer");
 
         var paymentEvent = model.Entity<PaymentEventRow>();
         paymentEvent.ToTable("payment_events");
@@ -246,7 +274,9 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
             closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
             model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt),
             model.Entity<PaymentRow>().Property(p => p.CreatedAt), model.Entity<PaymentEventRow>().Property(e => e.ReceivedAt),
-            model.Entity<OutboxRow>().Property(o => o.CreatedAt), model.Entity<OutboxRow>().Property(o => o.DueAt));
+            model.Entity<OutboxRow>().Property(o => o.CreatedAt), model.Entity<OutboxRow>().Property(o => o.DueAt),
+            model.Entity<WaitlistRow>().Property(w => w.StartUtc), model.Entity<WaitlistRow>().Property(w => w.EndUtc),
+            model.Entity<WaitlistRow>().Property(w => w.CreatedAt));
         var nullableTicks = new ValueConverter<DateTimeOffset?, long?>(
             v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null);
         booking.Property(b => b.CancelledAt).HasConversion(nullableTicks);
@@ -255,6 +285,7 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         model.Entity<PaymentRow>().Property(p => p.RefundedAt).HasConversion(nullableTicks);
         model.Entity<OutboxRow>().Property(o => o.RetryAt).HasConversion(nullableTicks);
         model.Entity<OutboxRow>().Property(o => o.DoneAt).HasConversion(nullableTicks);
+        model.Entity<WaitlistRow>().Property(w => w.NotifiedAt).HasConversion(nullableTicks);
     }
 
     private static void UtcTicks(params PropertyBuilder<DateTimeOffset>[] properties)

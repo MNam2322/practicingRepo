@@ -135,7 +135,7 @@ Read first: 12.3 "Outbox + inbox patterns", 8.7 "Example 1: Confirmation emails 
 **Unblocks frontend 10.**
 
 ### 15. Waitlist
-- [ ] Join a waitlist for a taken slot. When it frees up, notify the first person in line through the outbox.
+- [x] Join a waitlist for a taken slot. When it frees up, notify the first person in line through the outbox.
 
 ## Phase 5: Quality
 
@@ -191,3 +191,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 12: deposits through an `IPaymentGateway` port and a fake provider (deterministic test tokens, idempotent per payment id): confirming a hold charges `Payments:Deposit` (402 `payment_declined` keeps the hold, 503 `payment_unavailable` retries the same payment); one live payment per booking (partial unique index); refunds whenever the cancellation rules allow a cancel (customer before the cut-off, staff) or a paid hold lapses, retried by `RefundService`; `POST /api/payments/webhook` verifies an HMAC over the raw body (5-minute window) and records each event id once with its change; `tools/payment-webhook.mjs` sends signed events.
 - Task 13: notifications through an outbox: the booking aggregate records Confirmed/Cancelled events and the repositories write `notification_outbox` rows (confirmation, reminder 24 h before, cancellation with the staff reason) in the same save; `NotificationRelay` sends due rows through `IEmailSender` with backoff and dead-lettering, skips reminders for bookings no longer confirmed; `FileEmailSender` writes `.eml` files named by message id (a repeat after a crash is dropped); bookings take an optional `email` (signed-in customers default to their account address).
 - Task 14: weekly series (`/api/series`, 2–12 weeks, idempotent): each date is booked on its own at the same venue-local time (DST-safe expansion) and reported as held or failed with its code; `bookings.series_id`; confirm (pay each date) and cancel (refund each date the rules allow) report per date; one date can still be cancelled alone; a series counts once toward the upcoming-bookings limit.
+- Task 15: waitlist (`/api/waitlist`: join a taken time, mine with places in line, leave): `waitlist` table with one waiting entry per customer and time; `WaitlistSweep` tells the first in line when the time is free again (any cause), marking the entry and writing its email to the outbox in one transaction; the next in line is told after 30 minutes if it is still free; outbox messages can carry pre-rendered text and no booking.

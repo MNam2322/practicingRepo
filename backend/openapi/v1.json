@@ -2283,6 +2283,201 @@
           }
         }
       }
+    },
+    "/api/waitlist": {
+      "post": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "Joins the waitlist for a taken time. When it frees up, the first in line is emailed.",
+        "description": "The time must be one that could be booked, but is taken now (409 slot_free if it is free: book it). Emails go to\n\"email\", or the signed-in account's address. When the time frees up, the first person in line is told (first come,\nfirst served); if it is still free 30 minutes later, the next person is told too.",
+        "operationId": "JoinWaitlist",
+        "requestBody": {
+          "description": "Cancelled when the client goes away.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinWaitlistRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinWaitlistRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "resource_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "slot_free, already_waiting, already_yours",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "email_required, name_required, too_soon, too_far_ahead, outside_opening_hours, not_on_slot_grid, too_long, resource_closed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/waitlist/mine": {
+      "get": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "The current customer's waitlist entries for times still to come, with their places in line.",
+        "operationId": "GetMyWaitlist",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WaitlistEntryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/waitlist/{id}/leave": {
+      "post": {
+        "tags": [
+          "Waitlist"
+        ],
+        "summary": "Leaves the waitlist for a time.",
+        "operationId": "LeaveWaitlist",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The waitlist entry id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistEntryResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "waitlist_entry_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "changed_meanwhile",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2918,6 +3113,59 @@
           "refunded"
         ],
         "description": "Where a booking's deposit is."
+      },
+      "JoinWaitlistRequest": {
+        "required": [
+          "resourceId",
+          "start",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The UTC start of the taken slot, exactly as returned by the availability endpoint.",
+            "format": "date-time"
+          },
+          "slots": {
+            "maximum": 24,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where to say the time is free. Required, unless signed in (then the account's address is used)."
+          }
+        },
+        "description": "Join the waitlist for a taken time: the same resource, start and length as a booking would have."
       },
       "MoneyResponse": {
         "required": [
@@ -3746,6 +3994,79 @@
           }
         }
       },
+      "WaitlistEntryResponse": {
+        "required": [
+          "id",
+          "resourceId",
+          "resourceName",
+          "start",
+          "end",
+          "localStart",
+          "localEnd",
+          "status",
+          "position",
+          "email",
+          "createdAt",
+          "notifiedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "resourceName": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "localStart": {
+            "type": "string"
+          },
+          "localEnd": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WaitlistStatus"
+          },
+          "position": {
+            "type": "integer",
+            "description": "Place in line: 1 is next. 0 once no longer waiting (told, left or past).",
+            "format": "int32"
+          },
+          "email": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "notifiedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "WaitlistStatus": {
+        "enum": [
+          "waiting",
+          "notified",
+          "left",
+          "expired"
+        ]
+      },
       "WebhookAck": {
         "required": [
           "eventId",
@@ -3797,6 +4118,9 @@
     },
     {
       "name": "Venue"
+    },
+    {
+      "name": "Waitlist"
     }
   ]
 }

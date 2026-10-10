@@ -186,7 +186,7 @@ Needs backend 11 and 12.
 - **Check:** book a weekly series where one date is already taken. The result lists that date as failed and books the rest.
 
 ### Step 24: Backend 15, waitlist
-- [ ] **Prompt:** "Do backend task 15 (waitlist)."
+- [x] **Prompt:** "Do backend task 15 (waitlist)."
 - **Check:** with two customers, the second joins the waitlist for a booked slot. The first cancels, and an email for the second appears in the email folder.
 
 ### Step 25: Frontend 10, recurring and waitlist

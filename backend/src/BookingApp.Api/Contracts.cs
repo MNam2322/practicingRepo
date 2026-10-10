@@ -109,6 +109,44 @@ public sealed record SeriesChangeResponse(Guid BookingId, bool Ok, string? Code,
 
 public sealed record SeriesChangesResponse(int Succeeded, int Failed, IReadOnlyList<SeriesChangeResponse> Results);
 
+/// <summary>Join the waitlist for a taken time: the same resource, start and length as a booking would have.</summary>
+public sealed record JoinWaitlistRequest
+{
+    [Required(ErrorMessage = "Choose what to wait for.")]
+    [StringLength(CreateBookingRequest.MaxResourceIdLength, ErrorMessage = "That resource id is too long.")]
+    public string? ResourceId { get; init; }
+
+    /// <summary>The UTC start of the taken slot, exactly as returned by the availability endpoint.</summary>
+    [Required(ErrorMessage = "Choose a start time.")]
+    public DateTimeOffset? Start { get; init; }
+
+    [Range(1, CreateBookingRequest.MaxSlots, ErrorMessage = "Wait for between 1 and 24 slots.")]
+    public int? Slots { get; init; }
+
+    [Required(ErrorMessage = "Enter the name for the booking.")]
+    [StringLength(CreateBookingRequest.MaxNameLength, ErrorMessage = "Keep the name to 80 characters or fewer.")]
+    public string? Name { get; init; }
+
+    /// <summary>Where to say the time is free. Required, unless signed in (then the account's address is used).</summary>
+    [EmailAddress(ErrorMessage = "Enter an email address such as name@example.com.")]
+    [StringLength(Booking.MaxEmailLength, ErrorMessage = "That email address is too long.")]
+    public string? Email { get; init; }
+}
+
+/// <param name="Position">Place in line: 1 is next. 0 once no longer waiting (told, left or past).</param>
+public sealed record WaitlistEntryResponse(Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
+    string LocalStart, string LocalEnd, BookingApp.Core.Waitlist.WaitlistStatus Status, int Position, string Email, DateTimeOffset CreatedAt,
+    DateTimeOffset? NotifiedAt)
+{
+    public static WaitlistEntryResponse From(BookingApp.Core.Waitlist.WaitlistPlace place, ResourceCatalog catalog)
+    {
+        var e = place.Entry;
+        return new(e.Id, e.ResourceId, catalog.Find(e.ResourceId)?.Name ?? e.ResourceId, e.Time.Start, e.Time.End,
+            ClosureResponse.Local(e.Time.Start, catalog.Venue), ClosureResponse.Local(e.Time.End, catalog.Venue),
+            e.Status, place.Position, e.Email, e.CreatedAt, e.NotifiedAt);
+    }
+}
+
 /// <summary>What the webhook endpoint answers: the event id, and whether it changed anything.</summary>
 public sealed record WebhookAck(string EventId, WebhookOutcome Outcome);
 

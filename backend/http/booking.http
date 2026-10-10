@@ -63,6 +63,20 @@ Content-Type: application/json
 ### Cancel every date still on (refunds as for one booking; dates past the cut-off stay booked). One date: cancel that booking.
 POST {{base}}/api/series/{{series.response.body.seriesId}}/cancel
 
+### --- Waitlist: join the line for a taken time (409 slot_free if it is free). When it frees up, the first in line is
+### emailed (within Waitlist:SweepSeconds); if still free 30 minutes later, the next is told too.
+# @name wait
+POST {{base}}/api/waitlist
+Content-Type: application/json
+
+{ "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "name": "Nam", "email": "nam@example.com" }
+
+### My places in line
+GET {{base}}/api/waitlist/mine
+
+### Leave the line
+POST {{base}}/api/waitlist/{{wait.response.body.id}}/leave
+
 ### My bookings
 GET {{base}}/api/bookings/mine
 

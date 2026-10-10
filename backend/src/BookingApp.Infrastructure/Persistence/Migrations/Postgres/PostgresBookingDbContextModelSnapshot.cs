@@ -376,7 +376,11 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .HasColumnType("integer")
                         .HasColumnName("attempts");
 
-                    b.Property<Guid>("BookingId")
+                    b.Property<string>("Body")
+                        .HasColumnType("text")
+                        .HasColumnName("body");
+
+                    b.Property<Guid?>("BookingId")
                         .HasColumnType("uuid")
                         .HasColumnName("booking_id");
 
@@ -412,6 +416,11 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("retry_at");
 
+                    b.Property<string>("Subject")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("subject");
+
                     b.Property<string>("To")
                         .IsRequired()
                         .HasMaxLength(254)
@@ -427,9 +436,11 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
 
                     b.ToTable("notification_outbox", null, t =>
                         {
+                            t.HasCheckConstraint("ck_outbox_about", "booking_id IS NOT NULL OR (subject IS NOT NULL AND body IS NOT NULL)");
+
                             t.HasCheckConstraint("ck_outbox_attempts", "attempts >= 0");
 
-                            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder')");
+                            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder', 'WaitlistSlotFree')");
                         });
                 });
 
@@ -635,6 +646,79 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         });
                 });
 
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.WaitlistRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("customer_name");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTimeOffset>("EndUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("end_utc");
+
+                    b.Property<DateTimeOffset?>("NotifiedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("notified_at");
+
+                    b.Property<string>("ResourceId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("resource_id");
+
+                    b.Property<DateTimeOffset>("StartUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CustomerId" }, "ix_waitlist_customer");
+
+                    b.HasIndex(new[] { "Status", "StartUtc" }, "ix_waitlist_open");
+
+                    b.HasIndex(new[] { "ResourceId", "StartUtc", "EndUtc", "CustomerId" }, "ux_waitlist_one_wait")
+                        .IsUnique()
+                        .HasFilter("status = 'Waiting'");
+
+                    b.ToTable("waitlist", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_waitlist_end_after_start", "end_utc > start_utc");
+
+                            t.HasCheckConstraint("ck_waitlist_status", "status IN ('Waiting', 'Notified', 'Left', 'Expired')");
+                        });
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -796,8 +880,7 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                     b.HasOne("BookingApp.Infrastructure.Persistence.BookingRow", null)
                         .WithMany()
                         .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.PaymentRow", b =>
@@ -806,6 +889,15 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .WithMany()
                         .HasForeignKey("BookingId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.WaitlistRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.ResourceRow", null)
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
