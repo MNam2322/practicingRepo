@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Persistence;
 using Microsoft.Data.Sqlite;
@@ -103,6 +104,8 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
     /// <summary>
     /// Saves the booking's changed state if nobody else saved it since it was read: the version it was read with is
     /// checked in the UPDATE's WHERE clause (EF Core concurrency token). Zero rows changed means someone won; return false.
+    /// The notifications its events call for go into the outbox in the same SaveChanges, so they commit with the change
+    /// or not at all (library 12.3 "Outbox + inbox patterns").
     /// </summary>
     public async Task<bool> UpdateAsync(Booking booking, CancellationToken cancellationToken)
     {
@@ -115,6 +118,7 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         entry.Property(r => r.CustomerName).IsModified = true;
         entry.Property(r => r.CustomerId).IsModified = true;
         entry.Property(r => r.CancellationReason).IsModified = true;
+        db.Outbox.AddRange(NotificationPlan.For(booking).Select(OutboxRow.From));
         try
         {
             await db.SaveChangesAsync(cancellationToken);

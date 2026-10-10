@@ -124,13 +124,19 @@ public sealed record CreateBookingRequest
     [Required(ErrorMessage = "Enter the name for the booking.")]
     [StringLength(MaxNameLength, ErrorMessage = "Keep the name to 80 characters or fewer.")]
     public string? Name { get; init; }
+
+    /// <summary>Where the confirmation, a reminder the day before and any cancellation are emailed. Optional; signed-in
+    /// customers get their account's address when this is left out.</summary>
+    [EmailAddress(ErrorMessage = "Enter an email address such as name@example.com, or leave it empty.")]
+    [StringLength(Booking.MaxEmailLength, ErrorMessage = "That email address is too long.")]
+    public string? Email { get; init; }
 }
 
 public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
     DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason,
-    DateTimeOffset? HoldExpiresAt, bool CanConfirm, DepositResponse? Deposit)
+    DateTimeOffset? HoldExpiresAt, bool CanConfirm, DepositResponse? Deposit, string? Email)
 {
     /// <param name="now">The moment the answers (canCancel, canConfirm) are worked out for.</param>
     /// <param name="payment">The booking's current payment (DepositService.Current), if any.</param>
@@ -145,7 +151,7 @@ public sealed record BookingResponse(
             b.CustomerName, b.CreatedAt, b.CancelledAt,
             // A live hold can always be released; a confirmed booking until the cut-off.
             liveHold || (b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff),
-            b.CancellationReason, b.HoldExpiresAt, liveHold, DepositResponse.For(b, payment, deposit, now));
+            b.CancellationReason, b.HoldExpiresAt, liveHold, DepositResponse.For(b, payment, deposit, now), b.ContactEmail);
     }
 }
 

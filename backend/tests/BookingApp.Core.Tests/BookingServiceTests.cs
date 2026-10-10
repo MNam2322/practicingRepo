@@ -27,7 +27,7 @@ public sealed class BookingServiceTests
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private Task<Result<Booking>> Book(CustomerId who, int hour, int slots = 1, string resource = "court-1") =>
-        _service.BookAsync(who, "Alice", resource, At(Tomorrow, hour), slots, Ct);
+        _service.BookAsync(who, "Alice", null, resource, At(Tomorrow, hour), slots, Ct);
 
     [Fact]
     public async Task Booking_a_free_slot_succeeds_and_shows_as_booked()
@@ -84,7 +84,7 @@ public sealed class BookingServiceTests
     [Fact]
     public async Task A_blank_name_is_required()
     {
-        var result = await _service.BookAsync(Alice, "  ", "court-1", At(Tomorrow, 10), 1, Ct);
+        var result = await _service.BookAsync(Alice, "  ", null, "court-1", At(Tomorrow, 10), 1, Ct);
         Assert.Equal("name_required", result.Error?.Code);
     }
 
@@ -97,7 +97,7 @@ public sealed class BookingServiceTests
     [Fact]
     public async Task Policy_rules_are_applied()
     {
-        Assert.Equal("too_soon", (await _service.BookAsync(Alice, "Alice", "court-1", Now.AddMinutes(5), 1, Ct)).Error?.Code);
+        Assert.Equal("too_soon", (await _service.BookAsync(Alice, "Alice", null, "court-1", Now.AddMinutes(5), 1, Ct)).Error?.Code);
         Assert.Equal("too_long", (await Book(Alice, 10, slots: 3)).Error?.Code);
     }
 

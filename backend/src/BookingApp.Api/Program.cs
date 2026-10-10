@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddBookingInfrastructure(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<BookingApp.Core.Payments.DepositService>();
+builder.Services.AddScoped<BookingApp.Core.Notifications.NotificationService>();
 builder.Services.AddScoped<VenueService>();
 builder.Services.AddScoped<BookingApp.Core.Staff.StaffService>();
 builder.Services.AddScoped<BookingApp.Core.Admin.AdminService>();

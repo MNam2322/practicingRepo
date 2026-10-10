@@ -164,6 +164,11 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         .HasColumnType("INTEGER")
                         .HasColumnName("cancelled_at");
 
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(254)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("contact_email");
+
                     b.Property<long>("CreatedAt")
                         .HasColumnType("INTEGER")
                         .HasColumnName("created_at");
@@ -338,6 +343,73 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                             t.HasCheckConstraint("ck_opening_hours_close_after_open", "close_time > open_time");
 
                             t.HasCheckConstraint("ck_opening_hours_day", "day_of_week BETWEEN 0 AND 6");
+                        });
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.OutboxRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("attempts");
+
+                    b.Property<Guid>("BookingId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("booking_id");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("DoneAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("done_at");
+
+                    b.Property<long>("DueAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("due_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(16)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("outcome");
+
+                    b.Property<long?>("RetryAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("retry_at");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("to_address");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "BookingId" }, "ix_outbox_booking");
+
+                    b.HasIndex(new[] { "DueAt" }, "ix_outbox_pending")
+                        .HasFilter("outcome IS NULL");
+
+                    b.ToTable("notification_outbox", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_outbox_attempts", "attempts >= 0");
+
+                            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder')");
                         });
                 });
 
@@ -692,6 +764,15 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Sqlite
                         .WithMany("Hours")
                         .HasForeignKey("ResourceId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.OutboxRow", b =>
+                {
+                    b.HasOne("BookingApp.Infrastructure.Persistence.BookingRow", null)
+                        .WithMany()
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

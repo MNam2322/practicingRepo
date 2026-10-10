@@ -2182,7 +2182,8 @@
           "cancellationReason",
           "holdExpiresAt",
           "canConfirm",
-          "deposit"
+          "deposit",
+          "email"
         ],
         "type": "object",
         "properties": {
@@ -2254,6 +2255,12 @@
               {
                 "$ref": "#/components/schemas/DepositResponse"
               }
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
@@ -2369,6 +2376,15 @@
               "string"
             ],
             "description": "The name the booking is under."
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Where the confirmation, a reminder the day before and any cancellation are emailed. Optional; signed-in\n    customers get their account's address when this is left out."
           }
         },
         "description": "A booking request. The attributes check its shape at the boundary (400 with field errors); whether the booking is\nallowed is a business rule checked in Core (409/422 with a code). Library: 8.5 \"Three layers of validation\"."

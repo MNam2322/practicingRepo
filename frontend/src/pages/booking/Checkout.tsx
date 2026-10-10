@@ -29,7 +29,7 @@ export function Checkout({ booking: b, venue, now, confirm }: {
     <Card as="section" className="details checkout" aria-label="Pay and confirm">
       <p><strong>{formatDay(b.localStart.slice(0, 10), 'long')}, {b.localStart.slice(11)}–{b.localEnd.slice(11)}</strong>
         {' '}<span className="muted small">({venue.timeZone.replaceAll('_', ' ')} time)</span></p>
-      <p className="muted">Under {b.customerName}</p>
+      <p className="muted">Under {b.customerName}{b.email && <>; the confirmation goes to {b.email}</>}</p>
 
       {b.holdExpiresAt && <HoldCountdown createdAt={b.createdAt} expiresAt={b.holdExpiresAt} now={now} />}
 

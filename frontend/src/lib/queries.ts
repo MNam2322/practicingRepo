@@ -116,8 +116,8 @@ export function useBook() {
   const qc = useQueryClient();
   return useMutation({
     // Holds the slot: the answer is a "pending" booking with holdExpiresAt. The booking page then takes the payment.
-    mutationFn: (v: { resourceId: string; start: string; slots: number; name: string; day: string; idempotencyKey: string }) =>
-      api.book(v.resourceId, v.start, v.slots, v.name, v.idempotencyKey),
+    mutationFn: (v: { resourceId: string; start: string; slots: number; name: string; email: string | null; day: string; idempotencyKey: string }) =>
+      api.book(v.resourceId, v.start, v.slots, v.name, v.email, v.idempotencyKey),
     onSuccess: (booking) => {
       qc.setQueryData(keys.booking(booking.id), booking);
       void qc.invalidateQueries({ queryKey: keys.bookings });

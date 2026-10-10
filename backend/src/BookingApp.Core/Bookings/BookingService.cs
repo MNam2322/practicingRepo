@@ -24,7 +24,9 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         return Result<DayAvailability>.Ok(new DayAvailability(catalog.Venue, slots, closures));
     }
 
-    public async Task<Result<Booking>> BookAsync(CustomerId customer, string customerName, string resourceId, DateTimeOffset start, int slots, CancellationToken cancellationToken)
+    /// <param name="contactEmail">Where confirmations and reminders go; null for none.</param>
+    public async Task<Result<Booking>> BookAsync(CustomerId customer, string customerName, string? contactEmail, string resourceId, DateTimeOffset start, int slots,
+        CancellationToken cancellationToken)
     {
         var catalog = await resources.GetCatalogAsync(cancellationToken);
         var resource = catalog.Find(resourceId);
@@ -46,7 +48,7 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
             return new Error(ErrorKind.RuleViolation, "too_many_bookings", $"You can hold up to {policy.MaxActiveBookingsPerCustomer} upcoming bookings.");
 
         // A hold: it blocks the slot until the customer confirms, releases it, or it expires.
-        var booking = Booking.CreateHold(resource.Id, range, customer, customerName, now, holds.HoldFor);
+        var booking = Booking.CreateHold(resource.Id, range, customer, customerName, now, holds.HoldFor, contactEmail);
         return await bookings.TryAddAsync(booking, cancellationToken)
             ? Result<Booking>.Ok(booking)
             : new Error(ErrorKind.Conflict, "slot_taken", "Someone has just booked that time. Pick another slot.");

@@ -1,4 +1,5 @@
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
 
 namespace BookingApp.Infrastructure.Repositories;
@@ -9,7 +10,8 @@ namespace BookingApp.Infrastructure.Repositories;
 /// cannot both succeed. A database repository must give the same guarantee with a constraint or a transaction,
 /// not with a check-then-insert in application code (TASKS.md, task 4).
 /// </summary>
-internal sealed class InMemoryBookingRepository : IBookingRepository
+/// <param name="outbox">Where notifications go, in the same step as the change; null drops them (tests that do not care).</param>
+internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null) : IBookingRepository
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, Booking> _bookings = [];
@@ -34,6 +36,7 @@ internal sealed class InMemoryBookingRepository : IBookingRepository
             // In memory the stored object is the same instance, so there is no stale copy to detect.
             // A database repository compares the version it loaded with the one in the row.
             if (!_bookings.ContainsKey(booking.Id)) return Task.FromResult(false);
+            outbox?.Add(NotificationPlan.For(booking));
             booking.MarkSaved();
             return Task.FromResult(true);
         }

@@ -45,6 +45,14 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
 
     public StorageProvider Provider => provider;
 
+    /// <summary>Where this app's emails go (.eml files): a fresh temp folder per app.</summary>
+    public string EmailFolder { get; } = Path.Combine(Path.GetTempPath(), $"booking-emails-{Guid.NewGuid():N}");
+
+    /// <summary>The emails sent so far, oldest first.</summary>
+    public IReadOnlyList<string> Emails() => Directory.Exists(EmailFolder)
+        ? [.. Directory.GetFiles(EmailFolder, "*.eml").Order().Select(File.ReadAllText)]
+        : [];
+
     /// <summary>The SQLite file for this app: a fresh temp file unless a test passes one to share between two apps.</summary>
     public string DatabaseFile { get; } = databaseFile ?? Path.Combine(Path.GetTempPath(), $"booking-test-{Guid.NewGuid():N}.db");
 
@@ -56,6 +64,7 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         builder.UseSetting("ConnectionStrings:Sqlite", $"Data Source={DatabaseFile}");
         if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
         builder.UseSetting("Payments:Fake:WebhookSecret", WebhookSecret);
+        builder.UseSetting("Email:Folder", EmailFolder);
         builder.ConfigureLogging(logging => logging.AddProvider(new ErrorCollector(ServerErrors)));
         builder.ConfigureTestServices(services =>
         {
@@ -143,17 +152,17 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
     protected static object BookingBody(int hour, int slots = 1, string resourceId = "court-1", string name = "Nam", DateOnly? day = null) =>
         new { resourceId, start = ApiFactory.At(day ?? ApiFactory.Tomorrow, hour), slots, name };
 
-    protected Task<HttpResponseMessage> Book(int hour, int slots = 1, string resourceId = "court-1", HttpClient? client = null) =>
-        (client ?? Client).PostAsJsonAsync("/api/bookings", BookingBody(hour, slots, resourceId), Ct);
+    protected Task<HttpResponseMessage> Book(int hour, int slots = 1, string resourceId = "court-1", HttpClient? client = null, string? email = null) =>
+        (client ?? Client).PostAsJsonAsync("/api/bookings", new { resourceId, start = ApiFactory.At(ApiFactory.Tomorrow, hour), slots, name = "Nam", email }, Ct);
 
     /// <summary>Holds a slot and confirms it, as the booking page does: a confirmed booking.</summary>
-    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1") =>
-        await ConfirmOk(await HoldOk(hour, slots, client, resourceId), client);
+    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1", string? email = null) =>
+        await ConfirmOk(await HoldOk(hour, slots, client, resourceId, email), client);
 
     /// <summary>Holds a slot without confirming it.</summary>
-    protected async Task<BookingResponse> HoldOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1")
+    protected async Task<BookingResponse> HoldOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1", string? email = null)
     {
-        var response = await Book(hour, slots, resourceId, client);
+        var response = await Book(hour, slots, resourceId, client, email);
         Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }
@@ -185,6 +194,7 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
         if (Factory is null) return;
         await Factory.DisposeAsync();
         if (Factory.Provider == StorageProvider.Sqlite) ApiFactory.DeleteDatabase(Factory.DatabaseFile);
+        if (Directory.Exists(Factory.EmailFolder)) Directory.Delete(Factory.EmailFolder, recursive: true);
         PostgresTestServer.Release(_postgres);
         GC.SuppressFinalize(this);
     }

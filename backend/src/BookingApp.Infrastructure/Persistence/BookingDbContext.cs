@@ -25,6 +25,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
     public DbSet<IdempotencyRow> IdempotencyKeys => Set<IdempotencyRow>();
     public DbSet<PaymentRow> Payments => Set<PaymentRow>();
     public DbSet<PaymentEventRow> PaymentEvents => Set<PaymentEventRow>();
+    public DbSet<OutboxRow> Outbox => Set<OutboxRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -139,6 +140,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         booking.Property(b => b.CancelledAt).HasColumnName("cancelled_at");
         booking.Property(b => b.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(Booking.MaxReasonLength);
         booking.Property(b => b.HoldExpiresAt).HasColumnName("hold_expires_at");
+        booking.Property(b => b.ContactEmail).HasColumnName("contact_email").HasMaxLength(Booking.MaxEmailLength);
         // The expiry job's query: holds still Pending, by expiry time.
         booking.HasIndex(b => new { b.Status, b.HoldExpiresAt }).HasDatabaseName("ix_bookings_status_hold_expires");
         booking.Property(b => b.Version).HasColumnName("version").IsConcurrencyToken();
@@ -176,6 +178,30 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         payment.HasIndex(p => p.BookingId, "ux_payments_one_live").IsUnique().HasFilter("status IN ('Pending', 'Paid')");
         // The refund job: paid deposits.
         payment.HasIndex(p => p.Status).HasDatabaseName("ix_payments_status");
+
+        // The notification outbox: written in the same SaveChanges as the booking change that caused it (library 12.3).
+        var outbox = model.Entity<OutboxRow>();
+        outbox.ToTable("notification_outbox", t =>
+        {
+            t.HasCheckConstraint("ck_outbox_kind", "kind IN ('BookingConfirmed', 'BookingCancelled', 'Reminder')");
+            t.HasCheckConstraint("ck_outbox_attempts", "attempts >= 0");
+        });
+        outbox.HasKey(o => o.Id);
+        outbox.Property(o => o.Id).HasColumnName("id").ValueGeneratedNever();
+        outbox.Property(o => o.Kind).HasColumnName("kind").HasConversion<string>().HasMaxLength(32);
+        outbox.Property(o => o.BookingId).HasColumnName("booking_id");
+        outbox.Property(o => o.To).HasColumnName("to_address").HasMaxLength(Booking.MaxEmailLength).IsRequired();
+        outbox.Property(o => o.CreatedAt).HasColumnName("created_at");
+        outbox.Property(o => o.DueAt).HasColumnName("due_at");
+        outbox.Property(o => o.Attempts).HasColumnName("attempts");
+        outbox.Property(o => o.RetryAt).HasColumnName("retry_at");
+        outbox.Property(o => o.Outcome).HasColumnName("outcome").HasConversion<string>().HasMaxLength(16);
+        outbox.Property(o => o.DoneAt).HasColumnName("done_at");
+        outbox.Property(o => o.LastError).HasColumnName("last_error").HasMaxLength(OutboxRow.MaxErrorLength);
+        outbox.HasOne<BookingRow>().WithMany().HasForeignKey(o => o.BookingId).OnDelete(DeleteBehavior.Restrict);
+        // The relay's query: messages not done yet, by due time.
+        outbox.HasIndex(o => o.DueAt, "ix_outbox_pending").HasFilter("outcome IS NULL");
+        outbox.HasIndex(o => o.BookingId, "ix_outbox_booking");
 
         var paymentEvent = model.Entity<PaymentEventRow>();
         paymentEvent.ToTable("payment_events");
@@ -217,13 +243,16 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
             closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
             model.Entity<AuditRow>().Property(a => a.OccurredAt), model.Entity<IdempotencyRow>().Property(i => i.ClaimedAt),
-            model.Entity<PaymentRow>().Property(p => p.CreatedAt), model.Entity<PaymentEventRow>().Property(e => e.ReceivedAt));
+            model.Entity<PaymentRow>().Property(p => p.CreatedAt), model.Entity<PaymentEventRow>().Property(e => e.ReceivedAt),
+            model.Entity<OutboxRow>().Property(o => o.CreatedAt), model.Entity<OutboxRow>().Property(o => o.DueAt));
         var nullableTicks = new ValueConverter<DateTimeOffset?, long?>(
             v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null);
         booking.Property(b => b.CancelledAt).HasConversion(nullableTicks);
         booking.Property(b => b.HoldExpiresAt).HasConversion(nullableTicks);
         model.Entity<PaymentRow>().Property(p => p.PaidAt).HasConversion(nullableTicks);
         model.Entity<PaymentRow>().Property(p => p.RefundedAt).HasConversion(nullableTicks);
+        model.Entity<OutboxRow>().Property(o => o.RetryAt).HasConversion(nullableTicks);
+        model.Entity<OutboxRow>().Property(o => o.DoneAt).HasConversion(nullableTicks);
     }
 
     private static void UtcTicks(params PropertyBuilder<DateTimeOffset>[] properties)

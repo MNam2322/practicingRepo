@@ -43,7 +43,8 @@ public sealed class BookingsController(BookingService bookings, DepositService d
     {
         // [ApiController] has already answered 400 if the shape was wrong, so the required fields are present here.
         _ = idempotencyKey;   // handled by [Idempotent]; declared here so it is documented in the contract
-        var result = await bookings.BookAsync(customer.Id, request.Name!, request.ResourceId!, request.Start!.Value, request.Slots ?? 1, ct);
+        var email = string.IsNullOrWhiteSpace(request.Email) ? customer.AccountEmail : request.Email;
+        var result = await bookings.BookAsync(customer.Id, request.Name!, email, request.ResourceId!, request.Start!.Value, request.Slots ?? 1, ct);
         if (!result.IsSuccess) return Failure(result.Error!);
         var body = await ToResponseAsync(result.Value!, ct);
         return Created($"/api/bookings/{body.Id}", body);

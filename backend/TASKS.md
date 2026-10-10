@@ -126,8 +126,8 @@ Read first: 4.9 the Adapter case, 8.9 "Example 2: Receiving a payment webhook sa
 
 ### 13. Notifications with an outbox
 Read first: 12.3 "Outbox + inbox patterns", 8.7 "Example 1: Confirmation emails lost on restart", 4.3 "Example 2: Scoped services inside a background worker".
-- [ ] Booking confirmed, booking cancelled, and a reminder 24 hours before. Write them to an outbox table in the same transaction as the change.
-- [ ] A worker sends them through an `IEmailSender`. A fake sender writes `.eml` files to a folder.
+- [x] Booking confirmed, booking cancelled, and a reminder 24 hours before. Write them to an outbox table in the same transaction as the change.
+- [x] A worker sends them through an `IEmailSender`. A fake sender writes `.eml` files to a folder.
 
 ### 14. Recurring bookings
 - [ ] "Every Tuesday 18:00 for 8 weeks" creates a series. Report which dates failed (taken, closed) rather than failing everything. Cancel one occurrence or the whole series.
@@ -189,3 +189,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 10: `Idempotency-Key` on `POST /api/bookings`: atomic per-caller claim in `idempotency_keys`, response stored before it is sent and replayed with `Idempotency-Replayed: true`; 422 for a reused key with another body, 409 while in progress; hourly cleanup of keys older than 24 h; the frontend sends one key per booking attempt.
 - Task 11: holds — booking makes a `Pending` hold (Holds:Minutes, default 10) that blocks the slot until `POST /api/bookings/{id}/confirm` (idempotent; 409 `hold_expired`) or release; expired holds stop blocking at once (lazy check on read, conditional UPDATE before each insert) and `HoldExpiryService` sweeps them to `Expired`; the PostgreSQL exclusion constraint now covers `Pending` too; the frontend holds and confirms in one go until frontend task 9.
 - Task 12: deposits through an `IPaymentGateway` port and a fake provider (deterministic test tokens, idempotent per payment id): confirming a hold charges `Payments:Deposit` (402 `payment_declined` keeps the hold, 503 `payment_unavailable` retries the same payment); one live payment per booking (partial unique index); refunds whenever the cancellation rules allow a cancel (customer before the cut-off, staff) or a paid hold lapses, retried by `RefundService`; `POST /api/payments/webhook` verifies an HMAC over the raw body (5-minute window) and records each event id once with its change; `tools/payment-webhook.mjs` sends signed events.
+- Task 13: notifications through an outbox: the booking aggregate records Confirmed/Cancelled events and the repositories write `notification_outbox` rows (confirmation, reminder 24 h before, cancellation with the staff reason) in the same save; `NotificationRelay` sends due rows through `IEmailSender` with backoff and dead-lettering, skips reminders for bookings no longer confirmed; `FileEmailSender` writes `.eml` files named by message id (a repeat after a crash is dropped); bookings take an optional `email` (signed-in customers default to their account address).

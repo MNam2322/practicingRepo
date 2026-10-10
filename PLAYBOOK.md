@@ -178,7 +178,7 @@ Needs backend 11 and 12.
 - **Check:** choose a slot and watch the countdown. Pay, and see the confirmation. Try again but let it expire: the message explains what happened.
 
 ### Step 22: Backend 13, notifications
-- [ ] **Prompt:** "Do backend task 13 (notifications with an outbox)."
+- [x] **Prompt:** "Do backend task 13 (notifications with an outbox)."
 - **Check:** book and cancel, then open the email folder the fake sender writes to. Both `.eml` files are there. Stop the API mid-send and restart it: no email is lost or sent twice.
 
 ### Step 23: Backend 14, recurring bookings

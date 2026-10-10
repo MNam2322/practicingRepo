@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ApiError, formatDay, formatMoney, type Resource, type Venue } from '../../lib/api';
-import { describeError, useAvailability, useBook, useMe } from '../../lib/queries';
+import { describeError, fieldError, useAvailability, useBook, useMe } from '../../lib/queries';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
@@ -9,8 +9,9 @@ import { SlotsSkeleton } from '../../components/Skeleton';
 import { SLOT_LABEL, closureTimes } from './slots';
 
 const NAME_KEY = 'bk-name';
-const readName = () => { try { return localStorage.getItem(NAME_KEY) ?? ''; } catch { return ''; } };
-const saveName = (n: string) => { try { localStorage.setItem(NAME_KEY, n); } catch { /* storage unavailable */ } };
+const EMAIL_KEY = 'bk-email';
+const read = (key: string) => { try { return localStorage.getItem(key) ?? ''; } catch { return ''; } };
+const save = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } };
 
 /** One day's slots and the booking panel. Keyed by resource, day and `initialAt` in App.tsx, so state starts clean. */
 export function DayView({ venue, resource, day, initialAt }: { venue: Venue; resource: Resource; day: string; initialAt?: string }) {
@@ -20,13 +21,15 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
   const [selected, setSelected] = useState<string | null>(initialAt ?? null);   // UTC start of the chosen slot
   const [length, setLength] = useState(1);
   const me = useMe();
-  const [typedName, setName] = useState(readName);
+  const [typedName, setName] = useState(() => read(NAME_KEY));
   // The remembered name wins; a signed-in person without one gets their account name suggested.
   const name = typedName || (me.data?.name ?? '');
+  // Optional. Left empty, a signed-in person is emailed at their account address (the API fills it in).
+  const [email, setEmail] = useState(() => read(EMAIL_KEY));
   // One key per booking attempt: pressing "Book it" again after a lost response repeats the same attempt, and the API
   // returns the first answer instead of booking twice. A new choice of time, length or name is a new attempt.
   const [attemptKey, setAttemptKey] = useState(() => crypto.randomUUID());
-  const [message, setMessage] = useState<{ text: string; traceId?: string | null } | null>(null);
+  const [message, setMessage] = useState<{ text: string; traceId?: string | null; emailError?: string | null } | null>(null);
 
   const busy = bookMutation.isPending;
   const slots = availability.data?.slots ?? [];
@@ -48,13 +51,16 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
     if (index < 0 || !name.trim()) return;
     setMessage(null);
     try {
-      const hold = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day, idempotencyKey: attemptKey });
-      saveName(name.trim());
+      const hold = await bookMutation.mutateAsync({
+        resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), email: email.trim() || null, day, idempotencyKey: attemptKey,
+      });
+      save(NAME_KEY, name.trim());
+      save(EMAIL_KEY, email.trim());
       // The time is held: pay and confirm on the booking page (a link, so a reload keeps the checkout).
       location.hash = `#/b/${hold.id}`;
     } catch (e) {
       const text = e instanceof Error ? e.message : String(e);
-      setMessage({ text, traceId: e instanceof ApiError ? e.traceId : null });
+      setMessage({ text, traceId: e instanceof ApiError ? e.traceId : null, emailError: e instanceof ApiError ? fieldError(e, 'email') : null });
       if (e instanceof ApiError && e.code === 'slot_taken') setSelected(null);
     }
   }
@@ -113,6 +119,10 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
             )}
             <Field label="Name for the booking">
               <input value={name} onChange={(e) => { setName(e.target.value); setAttemptKey(crypto.randomUUID()); }} required maxLength={80} autoComplete="name" />
+            </Field>
+            <Field label="Email (optional)" error={message?.emailError}
+              hint={me.data ? `For the confirmation and a reminder. Leave it empty to use ${me.data.email}.` : 'For the confirmation and a reminder the day before.'}>
+              <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setAttemptKey(crypto.randomUUID()); }} maxLength={254} autoComplete="email" />
             </Field>
             <Button type="submit" disabled={busy || !name.trim()}>{busy ? 'Holding…' : venue.deposit ? 'Continue to payment' : 'Continue'}</Button>
             <p className="muted small">

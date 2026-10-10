@@ -28,7 +28,7 @@ public sealed class DepositServiceTests
     private DepositService Deposits(decimal deposit = 100_000) =>
         new(_bookings, new InMemoryPaymentRepository(_bookings), _gateway, _bookingService, new PaymentOptions { Deposit = deposit }, _time);
 
-    private async Task<Booking> Hold() => (await _bookingService.BookAsync(Alice, "Alice", "court-1", At(Tomorrow, 10), 1, Ct)).Value!;
+    private async Task<Booking> Hold() => (await _bookingService.BookAsync(Alice, "Alice", null, "court-1", At(Tomorrow, 10), 1, Ct)).Value!;
 
     [Fact]
     public async Task With_deposits_off_confirming_needs_no_payment()

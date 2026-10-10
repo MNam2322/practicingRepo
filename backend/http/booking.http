@@ -24,7 +24,11 @@ GET {{base}}/api/resources/court-1/availability?date=2026-10-20
 POST {{base}}/api/bookings
 Content-Type: application/json
 
-{ "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "slots": 1, "name": "Nam" }
+{ "resourceId": "court-1", "start": "2026-10-20T01:00:00Z", "slots": 1, "name": "Nam", "email": "nam@example.com" }
+
+### "email" (optional; signed-in customers default to their account address) gets the confirmation, a reminder 24 hours
+### before and any cancellation, as .eml files in src/BookingApp.Api/.data/emails (Email:Folder). In Development each send
+### takes 2 seconds (Email:DelaySeconds), so you can stop the API in the middle of one: on restart it is sent, once.
 
 ### Pay the deposit and confirm the hold above before it expires (409 hold_expired after). Confirming twice is harmless.
 ### Fake provider tokens: tok_visa (approved), tok_declined / tok_insufficient_funds / tok_expired_card (402, the hold

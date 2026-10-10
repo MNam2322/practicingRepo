@@ -9,6 +9,12 @@ public enum BookingStatus { Confirmed, Cancelled, Completed, NoShow, Pending, Ex
 /// <summary>What can happen to a booking.</summary>
 public enum BookingTrigger { Cancel, Complete, MarkNoShow, Confirm, Expire }
 
+/// <summary>Something that happened to a booking that the customer is told about (BookingApp.Core.Notifications).</summary>
+public enum BookingEventKind { Confirmed, Cancelled }
+
+/// <param name="At">When it happened.</param>
+public sealed record BookingEvent(BookingEventKind Kind, DateTimeOffset At);
+
 /// <summary>Identifies a customer: a signed-in account's id, or an anonymous browser cookie's.</summary>
 public readonly record struct CustomerId(Guid Value)
 {
@@ -54,9 +60,13 @@ public sealed class Booking
     };
 
     public const int MaxReasonLength = 200;
+    public const int MaxEmailLength = 254;
+
+    private readonly List<BookingEvent> _events = [];
 
     private Booking(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName, BookingStatus status,
-        DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason, DateTimeOffset? holdExpiresAt)
+        DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason, DateTimeOffset? holdExpiresAt,
+        string? contactEmail)
     {
         Id = id;
         ResourceId = resourceId;
@@ -69,6 +79,7 @@ public sealed class Booking
         Version = version;
         CancellationReason = cancellationReason;
         HoldExpiresAt = holdExpiresAt;
+        ContactEmail = contactEmail;
     }
 
     public Guid Id { get; }
@@ -85,6 +96,15 @@ public sealed class Booking
 
     /// <summary>When a hold (Pending) stops counting. Null for bookings that were never a hold.</summary>
     public DateTimeOffset? HoldExpiresAt { get; }
+
+    /// <summary>Where confirmations, reminders and cancellations go. Null: the customer is not emailed.</summary>
+    public string? ContactEmail { get; }
+
+    /// <summary>
+    /// What happened since the booking was loaded, for the repository to turn into notifications in the same save
+    /// (the outbox, library 12.3). Cleared once saved.
+    /// </summary>
+    public IReadOnlyList<BookingEvent> Events => _events;
 
     /// <summary>Incremented by the repository on every save. Used for optimistic concurrency.</summary>
     public int Version { get; private set; }
@@ -113,17 +133,19 @@ public sealed class Booking
 
     /// <summary>A confirmed booking straight away (staff and demo data; customers start with a hold).</summary>
     public static Booking Create(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now) =>
-        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null, null);
+        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null, null, null);
 
     /// <summary>A hold: it blocks the slot for <paramref name="holdFor"/>, until it is confirmed or released.</summary>
-    public static Booking CreateHold(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now, TimeSpan holdFor) =>
-        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Pending, now, null, 0, null, now + holdFor);
+    public static Booking CreateHold(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now, TimeSpan holdFor,
+        string? contactEmail = null) =>
+        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Pending, now, null, 0, null, now + holdFor,
+            string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim());
 
     /// <summary>For repositories rebuilding a booking they saved. Not for creating new bookings.</summary>
     public static Booking Restore(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName,
         BookingStatus status, DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason = null,
-        DateTimeOffset? holdExpiresAt = null) =>
-        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason, holdExpiresAt);
+        DateTimeOffset? holdExpiresAt = null, string? contactEmail = null) =>
+        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason, holdExpiresAt, contactEmail);
 
     /// <summary>
     /// The customer confirms their hold before it expires. Confirming a booking that is already confirmed changes nothing
@@ -196,8 +218,12 @@ public sealed class Booking
     /// </summary>
     public void TransferTo(CustomerId newOwner) => Customer = newOwner;
 
-    /// <summary>Called by a repository after a successful save.</summary>
-    public void MarkSaved() => Version++;
+    /// <summary>Called by a repository after a successful save: the version moves on and the events are dealt with.</summary>
+    public void MarkSaved()
+    {
+        Version++;
+        _events.Clear();
+    }
 
     public static readonly Error HoldExpired =
         new(ErrorKind.Conflict, "hold_expired", "This hold has expired and the time was released. Choose a time again.");
@@ -215,6 +241,8 @@ public sealed class Booking
             return new Error(ErrorKind.Conflict, "invalid_transition", $"A booking that is {Describe(Status)} cannot be {Describe(trigger)}.");
         Status = next;
         if (next == BookingStatus.Cancelled) CancelledAt = now;
+        if (next is BookingStatus.Confirmed or BookingStatus.Cancelled)
+            _events.Add(new BookingEvent(next == BookingStatus.Confirmed ? BookingEventKind.Confirmed : BookingEventKind.Cancelled, now));
         return Result<Booking>.Ok(this);
     }
 

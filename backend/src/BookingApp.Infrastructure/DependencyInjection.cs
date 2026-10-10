@@ -1,9 +1,11 @@
 using BookingApp.Core.Admin;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Common;
+using BookingApp.Core.Notifications;
 using BookingApp.Core.Payments;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Identity;
+using BookingApp.Infrastructure.Notifications;
 using BookingApp.Infrastructure.Payments;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Infrastructure.Repositories;
@@ -44,7 +46,9 @@ public static class DependencyInjection
                 services.AddSingleton<ConfigurationResourceRepository>();
                 services.AddSingleton<IResourceRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<IVenueAdminRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
-                services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
+                services.AddSingleton<InMemoryOutbox>();
+                services.AddSingleton<INotificationOutbox>(sp => sp.GetRequiredService<InMemoryOutbox>());
+                services.AddSingleton<IBookingRepository>(sp => new InMemoryBookingRepository(sp.GetRequiredService<InMemoryOutbox>()));
                 services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
                 services.AddSingleton<IPaymentRepository, InMemoryPaymentRepository>();
                 // Accounts only; one in-memory database per app instance.
@@ -77,6 +81,7 @@ public static class DependencyInjection
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<HoldOptions>>().Value);
         services.AddHostedService<HoldExpiryService>();
         AddPayments(services, configuration);
+        AddNotifications(services, configuration, contentRoot);
         services.AddOptions<AccountBootstrapOptions>().Bind(configuration.GetSection(AccountBootstrapOptions.Section));
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;
@@ -131,6 +136,26 @@ public static class DependencyInjection
         services.AddHostedService<RefundService>();
     }
 
+    /// <summary>
+    /// Emails through the notification outbox: the relay sends what is due through the file sender (.eml files in
+    /// Email:Folder, relative to the API's folder).
+    /// </summary>
+    private static void AddNotifications(IServiceCollection services, IConfiguration configuration, string contentRoot)
+    {
+        services.AddOptions<NotificationOptions>().Bind(configuration.GetSection(NotificationOptions.Section))
+            .Validate(o => o.PollSeconds > 0 && o.MaxAttempts > 0, "Notifications:PollSeconds and Notifications:MaxAttempts must be positive.")
+            .Validate(o => Uri.TryCreate(o.AppUrl, UriKind.Absolute, out _), "Notifications:AppUrl must be an absolute URL.")
+            .ValidateOnStart();
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<NotificationOptions>>().Value);
+        services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.Section))
+            .PostConfigure(o => o.Folder = Path.GetFullPath(Path.Combine(contentRoot, o.Folder)))
+            .Validate(o => o.DelaySeconds >= 0, "Email:DelaySeconds must not be negative.")
+            .ValidateOnStart();
+        services.AddSingleton<FileEmailSender>();
+        services.AddSingleton<IEmailSender>(sp => sp.GetRequiredService<FileEmailSender>());
+        services.AddHostedService<NotificationRelay>();
+    }
+
     /// <summary>The EF Core repositories over whichever database was chosen; they depend only on the shared BookingDbContext.</summary>
     private static void AddEfRepositories<TContext>(IServiceCollection services) where TContext : BookingDbContext
     {
@@ -140,6 +165,7 @@ public static class DependencyInjection
         services.AddScoped<IVenueAdminRepository, EfVenueAdminRepository>();
         services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
         services.AddScoped<IPaymentRepository, EfPaymentRepository>();
+        services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
         // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
         services.AddHostedService<DatabaseInitializer>();
         // After the initializer, so its first run finds the table.

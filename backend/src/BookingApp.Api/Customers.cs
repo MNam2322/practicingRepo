@@ -11,14 +11,15 @@ namespace BookingApp.Api;
 /// cookie, issued on first use, so people can book without an account; signing in moves those bookings to the
 /// account. Controller actions take it as a parameter and <see cref="CurrentCustomerBinder"/> fills it in.
 /// </summary>
+/// <param name="AccountEmail">The signed-in account's email; null when anonymous.</param>
 [CurrentCustomerBinder.FromCookie]
-public sealed record CurrentCustomer(CustomerId Id)
+public sealed record CurrentCustomer(CustomerId Id, string? AccountEmail = null)
 {
     public const string CookieName = "bk-customer";
 
     public static CurrentCustomer FromRequest(HttpContext context)
     {
-        if (AccountId(context) is { } account) return new CurrentCustomer(account);
+        if (AccountId(context) is { } account) return new CurrentCustomer(account, context.User.FindFirstValue(ClaimTypes.Email));
         if (AnonymousId(context) is { } existing) return new CurrentCustomer(existing);
 
         var id = CustomerId.New();

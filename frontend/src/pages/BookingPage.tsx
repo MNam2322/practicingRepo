@@ -75,6 +75,7 @@ export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
           <dt>Time</dt><dd>{time} <span className="muted small">({venue.timeZone.replaceAll('_', ' ')} time)</span></dd>
           <dt>Status</dt><dd><span className={`status ${b.status}`}>{STATUS_LABEL[b.status]}</span></dd>
           <dt>Name</dt><dd>{b.customerName}</dd>
+          {b.email && <><dt>Emails to</dt><dd>{b.email}</dd></>}
           {b.deposit && <><dt>Deposit</dt><dd>{formatMoney(b.deposit)} · {DEPOSIT_LABEL[b.deposit.status]}</dd></>}
           <dt>Booked</dt><dd>{new Date(b.createdAt).toLocaleString()}</dd>
           {b.cancelledAt && <><dt>Cancelled</dt><dd>{new Date(b.cancelledAt).toLocaleString()}</dd></>}

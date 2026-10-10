@@ -116,10 +116,10 @@ export const api = {
    * Books a slot. `idempotencyKey` identifies this booking attempt: send the same key when retrying the same booking
    * and the API returns the first answer instead of booking twice.
    */
-  book: (resourceId: string, start: string, slots: number, name: string, idempotencyKey?: string) =>
+  book: (resourceId: string, start: string, slots: number, name: string, email: string | null, idempotencyKey?: string) =>
     request<Booking>('/api/bookings', {
       method: 'POST',
-      body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest),
+      body: JSON.stringify({ resourceId, start, slots, name, email } satisfies CreateBookingRequest),
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
     }),
   /**

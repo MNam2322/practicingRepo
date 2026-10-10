@@ -538,6 +538,7 @@ export interface components {
             holdExpiresAt: null | string;
             canConfirm: boolean;
             deposit: null | components["schemas"]["DepositResponse"];
+            email: null | string;
         };
         /**
          * @description Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal.
@@ -584,6 +585,11 @@ export interface components {
             slots?: null | number;
             /** @description The name the booking is under. */
             name: null | string;
+            /**
+             * @description Where the confirmation, a reminder the day before and any cancellation are emailed. Optional; signed-in
+             *         customers get their account's address when this is left out.
+             */
+            email?: null | string;
         };
         /** @description A new resource. The id becomes part of URLs and cannot change later. */
         CreateResourceRequest: {
