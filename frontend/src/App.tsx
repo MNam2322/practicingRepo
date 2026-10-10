@@ -1,9 +1,8 @@
 import { Layout } from './components/Layout';
 import { ErrorNotice } from './components/Notice';
 import { CardsSkeleton } from './components/Skeleton';
-import { api } from './lib/api';
+import { describeError, useBasics } from './lib/queries';
 import { useRoute } from './lib/router';
-import { useApi } from './lib/useApi';
 import { Home } from './pages/Home';
 import { BookingPage } from './pages/BookingPage';
 import { MyBookings } from './pages/MyBookings';
@@ -11,16 +10,16 @@ import { ResourcePage } from './pages/ResourcePage';
 
 export default function App() {
   const route = useRoute();
-  const [basics, reload] = useApi('basics', () => Promise.all([api.venue(), api.resources()]));
-  const venue = basics.status === 'ready' ? basics.data[0] : null;
-  const resources = basics.status === 'ready' ? basics.data[1] : [];
+  const basics = useBasics();
+  const venue = basics.data?.[0] ?? null;
+  const resources = basics.data?.[1] ?? [];
 
   let page;
-  if (basics.status === 'loading') page = <CardsSkeleton />;
-  else if (basics.status === 'error') page = (
+  if (basics.isPending) page = <CardsSkeleton />;
+  else if (basics.isError) page = (
     <>
       <h1>Can't reach the booking service</h1>
-      <ErrorNotice message={basics.error} traceId={basics.traceId} retry={reload} />
+      <ErrorNotice {...describeError(basics.error)} retry={() => void basics.refetch()} />
       <p className="muted">Start the backend first: <code>dotnet run --project backend/src/BookingApp.Api</code></p>
     </>
   );

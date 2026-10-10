@@ -1,9 +1,8 @@
-import { addDays, api, formatDay, type Availability, type Resource, type Slot } from '../../lib/api';
+import { addDays, formatDay, type Availability, type Resource, type Slot } from '../../lib/api';
+import { describeError, useAvailabilities } from '../../lib/queries';
 import { resourceHref } from '../../lib/router';
-import { useApi } from '../../lib/useApi';
 import { ErrorNotice } from '../../components/Notice';
 import { Skeleton } from '../../components/Skeleton';
-import { AVAILABILITY_REFRESH } from './refresh';
 import { SLOT_LABEL } from './slots';
 
 /**
@@ -12,15 +11,14 @@ import { SLOT_LABEL } from './slots';
  */
 export function WeekView({ resource, start, lastDay }: { resource: Resource; start: string; lastDay: string }) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i)).filter((d) => d <= lastDay);
-  const [week, reload] = useApi(`${resource.id}:week:${start}:${days.length}`,
-    () => Promise.all(days.map((d) => api.availability(resource.id, d))), AVAILABILITY_REFRESH);
+  const week = useAvailabilities(resource.id, days);
 
-  if (week.status === 'loading') return (
+  if (week.error && !week.data) return <ErrorNotice {...describeError(week.error)} retry={week.refetch} />;
+  if (!week.data) return (
     <div role="status" aria-label="Loading the week…" aria-busy="true" className="week-skeleton">
       {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="line wide" />)}
     </div>
   );
-  if (week.status === 'error') return <ErrorNotice message={week.error} traceId={week.traceId} retry={reload} />;
 
   // Rows are every start time that occurs on any of the days (opening hours differ by weekday).
   const byDay = new Map<string, Map<string, Slot>>(week.data.map((a: Availability) => [a.date, new Map(a.slots.map((s) => [s.localStart, s]))]));

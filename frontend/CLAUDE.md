@@ -8,7 +8,8 @@ The goal is a **clean, fast, usable UI**, not a showpiece. The backend does the 
 
 ```
 src/lib/api.ts          the only place that calls fetch; types mirror backend Contracts.cs; ApiError has status + code
-src/lib/useApi.ts       tiny load/reload hook with refresh-every and refresh-on-focus (replaced by TanStack Query in task 4)
+src/lib/queries.ts      TanStack Query: query keys, hooks (useBasics, useAvailability(ies), useMyBookings, useBooking),
+                        mutations (useBook, useCancelBooking: optimistic) and what each one invalidates
 src/lib/router.ts       hash routes: #/  #/r/:id[/:date][/week][?at=start]  #/mine   (add routes here; view and selection live in the URL)
 src/components/Layout.tsx  top bar and page frame
 src/components/Button.tsx, Card.tsx, Field.tsx, Notice.tsx (Notice, ErrorNotice), Skeleton.tsx (Slots/Bookings/Cards skeletons)
@@ -26,7 +27,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 
 - **Times:** show `localStart` and `localEnd` from the API (venue time). Send `start` back exactly as the API gave it. Never compute slot times in the browser. "Today" is the venue's today, from `venueToday()`.
 - **Errors:** switch on `ApiError.code` (`slot_taken`, `too_late_to_cancel`, …), not on message text. After `slot_taken`, refresh the slots. Friendly wording for each code lives only in `src/lib/errors.ts`; add new codes there. Show `ApiError.traceId` as a reference (ErrorNotice does).
-- **State:** server data comes from the API. localStorage is only for small UI preferences, such as the remembered name.
+- **State:** server data comes from the API through the hooks in `src/lib/queries.ts`; never fetch in a component or an effect. Every write is a mutation that invalidates exactly the query keys it affects. localStorage is only for small UI preferences, such as the remembered name.
 - **Style:**
   - plain CSS in `src/index.css`
   - colour tokens only, never hard-coded colours

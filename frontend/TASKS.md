@@ -32,7 +32,7 @@ Read first: 9.4 Components and state, 9.5 React today.
 
 ### 4. Data fetching with TanStack Query
 Read first: 9.7 Talking to the backend, 8.6 Caching.
-- [ ] Replace `useApi` with TanStack Query.
+- [x] Replace `useApi` with TanStack Query.
   - Availability: `staleTime` of 30 s.
   - Book and cancel: mutations that invalidate availability for that resource and day, and My bookings.
   - Cancel: an optimistic update.
@@ -82,3 +82,4 @@ Needs backend 20.
 - Task 1: Button, Card, Field, Notice and Skeleton components; skeletons for resources, slots and bookings; toasts after booking and cancelling (polite live region, reduced-motion aware).
 - Task 2: slot legend; Day/Week toggle with a 7-day × times week view (URL state, free cells open the day with the slot chosen); availability refreshes every 60 s and on focus; a chosen slot taken meanwhile is unselected with a notice.
 - Task 3: booking details page `#/b/:id` (status, cancel, Add to calendar `.ics` in UTC); linked from the success notice, the toast and My bookings; one friendly message per error code in `lib/errors.ts`, with the trace id shown as a reference.
+- Task 4: TanStack Query replaces useApi: keyed queries (availability fresh 30 s, refetched every 60 s and on focus), book/cancel mutations invalidate that day and My bookings, optimistic cancel with rollback and toasts; 4xx never retried.

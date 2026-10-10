@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { api, formatDay, type Booking, type Venue } from '../lib/api';
+import { formatDay, type Booking, type Venue } from '../lib/api';
 import { downloadIcs } from '../lib/calendar';
-import { useApi } from '../lib/useApi';
+import { describeError, useBooking } from '../lib/queries';
 import { Button } from '../components/Button';
 import { CancelBooking } from '../components/CancelBooking';
 import { Card } from '../components/Card';
@@ -14,16 +14,16 @@ const STATUS_LABEL: Record<Booking['status'], string> = {
 
 /** One booking: when and where, its status, cancel (if the API allows it) and an .ics download. */
 export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
-  const [booking, reload] = useApi(`booking:${id}`, () => api.booking(id));
+  const booking = useBooking(id);
   const [now] = useState(() => Date.now());
 
-  if (booking.status === 'loading') return <><title>Booking</title><h1>Booking</h1><BookingsSkeleton rows={1} /></>;
-  if (booking.status === 'error') return (
+  if (booking.isPending) return <><title>Booking</title><h1>Booking</h1><BookingsSkeleton rows={1} /></>;
+  if (booking.isError) return (
     <>
       <title>Booking</title>
       <p className="crumb"><a href="#/mine">My bookings</a></p>
       <h1>Booking</h1>
-      <ErrorNotice message={booking.error} traceId={booking.traceId} retry={reload} />
+      <ErrorNotice {...describeError(booking.error)} retry={() => void booking.refetch()} />
     </>
   );
 
@@ -50,7 +50,7 @@ export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
         </dl>
         <div className="actions">
           {upcoming && <Button onClick={() => downloadIcs(b, venue.name)}>Add to calendar</Button>}
-          <CancelBooking booking={b} label={`${day}, ${time}`} onCancelled={reload} />
+          <CancelBooking booking={b} />
         </div>
         {b.status === 'confirmed' && !b.canCancel && upcoming && (
           <p className="muted small">It is too late to cancel online: the cut-off is {venue.policy.cancellationCutoffHours} hours before the start.</p>

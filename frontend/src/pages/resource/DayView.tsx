@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { api, ApiError, formatDay, type Booking, type Resource, type Venue } from '../../lib/api';
-import { useApi } from '../../lib/useApi';
+import { ApiError, formatDay, type Booking, type Resource, type Venue } from '../../lib/api';
+import { describeError, useAvailability, useBook } from '../../lib/queries';
 import { useToast } from '../../lib/toast';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
 import { ErrorNotice, Notice } from '../../components/Notice';
 import { SlotsSkeleton } from '../../components/Skeleton';
-import { AVAILABILITY_REFRESH } from './refresh';
 import { SLOT_LABEL, closureTimes } from './slots';
 
 const NAME_KEY = 'bk-name';
@@ -17,15 +16,16 @@ const saveName = (n: string) => { try { localStorage.setItem(NAME_KEY, n); } cat
 /** One day's slots and the booking panel. Keyed by resource, day and `initialAt` in App.tsx, so state starts clean. */
 export function DayView({ venue, resource, day, initialAt }: { venue: Venue; resource: Resource; day: string; initialAt?: string }) {
   const toast = useToast();
-  const [availability, reload] = useApi(`${resource.id}:${day}`, () => api.availability(resource.id, day), AVAILABILITY_REFRESH);
+  const availability = useAvailability(resource.id, day);
+  const bookMutation = useBook();
 
   const [selected, setSelected] = useState<string | null>(initialAt ?? null);   // UTC start of the chosen slot
   const [length, setLength] = useState(1);
   const [name, setName] = useState(readName);
-  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking; traceId?: string | null } | null>(null);
 
-  const slots = availability.status === 'ready' ? availability.data.slots : [];
+  const busy = bookMutation.isPending;
+  const slots = availability.data?.slots ?? [];
   const found = slots.findIndex((s) => s.start === selected);
   // The chosen slot can be taken by someone else between refreshes. That is derived from fresh data, not stored:
   // the selection simply stops counting, and the panel says why (library 9.4 "Store less, compute more").
@@ -42,9 +42,9 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
 
   async function book() {
     if (index < 0 || !name.trim()) return;
-    setBusy(true); setMessage(null);
+    setMessage(null);
     try {
-      const booking = await api.book(resource.id, slots[index].start, chosenLength, name.trim());
+      const booking = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day });
       saveName(name.trim());
       setMessage({ kind: 'ok', text: 'Booked.', booking });
       setSelected(null);
@@ -56,9 +56,6 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
       const text = e instanceof Error ? e.message : String(e);
       setMessage({ kind: 'error', text, traceId: e instanceof ApiError ? e.traceId : null });
       if (e instanceof ApiError && e.code === 'slot_taken') setSelected(null);
-    } finally {
-      setBusy(false);
-      reload();
     }
   }
 
@@ -66,15 +63,15 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
     <div className="layout-2">
       <section aria-label={`Times on ${formatDay(day, 'long')}`}>
         <h2 className="section-title">{formatDay(day, 'long')}</h2>
-        {availability.status === 'loading' && <SlotsSkeleton />}
-        {availability.status === 'error' && <ErrorNotice message={availability.error} traceId={availability.traceId} retry={reload} />}
-        {availability.status === 'ready' && availability.data.closures.map((c) => (
+        {availability.isPending && <SlotsSkeleton />}
+        {availability.isError && !availability.data && <ErrorNotice {...describeError(availability.error)} retry={() => void availability.refetch()} />}
+        {availability.data?.closures.map((c) => (
           <Notice key={c.id} kind="info">
             <p><strong>Closed {closureTimes(c, day)}</strong>: {c.reason}</p>
           </Notice>
         ))}
-        {availability.status === 'ready' && slots.length === 0 && <p className="muted">Closed on this day.</p>}
-        {availability.status === 'ready' && slots.length > 0 && (
+        {availability.data && slots.length === 0 && <p className="muted">Closed on this day.</p>}
+        {slots.length > 0 && (
           <div className="slots">
             {slots.map((s, i) => {
               const inSelection = index >= 0 && i >= index && i < index + chosenLength;

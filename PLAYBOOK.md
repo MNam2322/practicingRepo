@@ -105,7 +105,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 - **Check:** ask Claude Code to add a closure for one court tomorrow. That day shows no free slots for that court in the UI, and booking it through `booking.http` is refused with a clear code.
 
 ### Step 9: Frontend 4, TanStack Query
-- [ ] **Prompt:** "Do frontend task 4 (TanStack Query)."
+- [x] **Prompt:** "Do frontend task 4 (TanStack Query)."
 - **Check:** booking and cancelling still work, and My bookings updates without a page reload. Cancel feels instant.
 
 ### Step 10: Frontend 5, generated API types

@@ -73,6 +73,11 @@ export const api = {
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
 };
 
+/** "Wednesday, October 14, 11:00–12:00" from the API's venue-local times. */
+export function bookingWhen(b: Booking): string {
+  return `${formatDay(b.localStart.slice(0, 10), 'long')}, ${b.localStart.slice(11)}–${b.localEnd.slice(11)}`;
+}
+
 /** Today's date (yyyy-MM-dd) in the venue's time zone, not the browser's. */
 export function venueToday(timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
