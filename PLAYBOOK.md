@@ -191,7 +191,7 @@ Needs backend 11 and 12.
 
 ### Step 25: Frontend 10, recurring and waitlist
 Needs backend 14 and 15.
-- [ ] **Prompt:** "Do frontend task 10 (recurring bookings and waitlist)."
+- [x] **Prompt:** "Do frontend task 10 (recurring bookings and waitlist)."
 - **Check:** "Repeat weekly" shows which dates failed. "Join waitlist" appears on booked slots and confirms you joined.
 
 ## Phase 5: Quality

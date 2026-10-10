@@ -45,11 +45,7 @@ export function Checkout({ booking: b, venue, now, confirm }: {
           <>
             <p>A deposit of <strong>{formatMoney(deposit)}</strong> confirms the booking. It is refunded if you cancel at least{' '}
               {venue.policy.cancellationCutoffHours} hours before the start, or if the club cancels.</p>
-            <Field label="Test card" hint="This is a test payment step: no real card and no real money. Choose how the payment should go.">
-              <select value={card} onChange={(e) => { setCard(e.target.value); confirm.reset(); }} disabled={busy}>
-                {TEST_CARDS.map((c) => <option key={c.token} value={c.token}>{c.label}</option>)}
-              </select>
-            </Field>
+            <TestCardField value={card} onChange={(token) => { setCard(token); confirm.reset(); }} disabled={busy} />
           </>
         ) : <p>Confirm to book this time.</p>}
         <div className="actions">
@@ -60,5 +56,16 @@ export function Checkout({ booking: b, venue, now, confirm }: {
         </div>
       </form>
     </Card>
+  );
+}
+
+/** The fake provider's card choice: a real provider's card form would hand back a token instead. */
+export function TestCardField({ value, onChange, disabled }: { value: string; onChange: (token: string) => void; disabled?: boolean }) {
+  return (
+    <Field label="Test card" hint="This is a test payment step: no real card and no real money. Choose how the payment should go.">
+      <select value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+        {TEST_CARDS.map((c) => <option key={c.token} value={c.token}>{c.label}</option>)}
+      </select>
+    </Field>
   );
 }

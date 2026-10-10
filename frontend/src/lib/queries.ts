@@ -1,7 +1,7 @@
 // Server state through TanStack Query: every read has a key, every write invalidates exactly the keys it affects.
 // Library: 9.7 "Server state libraries", 8.6 "Invalidation" and "Optimistic updates".
 import { focusManager, MutationCache, QueryCache, QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, bookingWhen, serverNow, type Account, type Availability, type Booking, type StaffBooking } from './api';
+import { api, ApiError, bookingWhen, serverNow, type Account, type Availability, type Booking, type StaffBooking, type WaitlistEntry } from './api';
 import { signInHref } from './router';
 import { useToast } from './toast';
 
@@ -12,6 +12,10 @@ export const keys = {
   bookings: ['bookings'] as const,
   mine: ['bookings', 'mine'] as const,
   booking: (id: string) => ['bookings', 'one', id] as const,
+  series: (id: string) => ['bookings', 'series', id] as const,
+  /** The answer to creating a series (which dates failed): kept so the series page can show it. Not refetched. */
+  seriesCreated: (id: string) => ['series-created', id] as const,
+  waitlist: ['waitlist'] as const,
   me: ['me'] as const,
   schedule: (date: string) => ['schedule', date] as const,
   adminClosures: (from: string, to: string) => ['admin', 'closures', from, to] as const,
@@ -124,6 +128,65 @@ export function useBook() {
     },
     // Whatever happened (booked, or slot_taken), that day's slots are worth reloading.
     onSettled: (_booking, _error, v) => qc.invalidateQueries({ queryKey: keys.availability(v.resourceId, v.day) }),
+  });
+}
+
+/** A weekly series' bookings. Like one booking, an overdue hold is asked about again until the API says. */
+export function useSeries(id: string) {
+  return useQuery({
+    queryKey: keys.series(id),
+    queryFn: () => api.series(id),
+    refetchInterval: (query) => (query.state.data?.some(holdOverdue) ? 2000 : false),
+  });
+}
+
+/** Holds a weekly series. The answer (which dates failed) is kept for the series page. */
+export function useCreateSeries() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { resourceId: string; start: string; slots: number; weeks: number; name: string; email: string | null; day: string; idempotencyKey: string }) =>
+      api.createSeries({ resourceId: v.resourceId, start: v.start, slots: v.slots, weeks: v.weeks, name: v.name, email: v.email }, v.idempotencyKey),
+    onSuccess: (series) => {
+      qc.setQueryData(keys.seriesCreated(series.seriesId), series);
+      void qc.invalidateQueries({ queryKey: keys.bookings });
+      void qc.invalidateQueries({ queryKey: keys.availabilityAll });
+    },
+  });
+}
+
+/** Pays for and confirms (or cancels) every remaining date of a series; the answer says how each date went. */
+export function useSeriesChange() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; action: 'confirm' | 'cancel'; paymentToken?: string }) =>
+      v.action === 'confirm' ? api.confirmSeries(v.id, v.paymentToken ?? '') : api.cancelSeries(v.id),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: keys.bookings });
+      void qc.invalidateQueries({ queryKey: keys.availabilityAll });
+    },
+  });
+}
+
+export function useMyWaitlist() {
+  return useQuery({ queryKey: keys.waitlist, queryFn: api.myWaitlist });
+}
+
+export function useJoinWaitlist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.joinWaitlist,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.waitlist }),
+  });
+}
+
+export function useLeaveWaitlist() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (e: WaitlistEntry) => api.leaveWaitlist(e.id),
+    onSuccess: (e) => toast({ text: `Left the waitlist for ${e.resourceName}, ${e.localStart.slice(11)}.` }),
+    onError: (error) => toast({ kind: 'error', text: `Could not leave the waitlist: ${describeError(error).message}` }),
+    onSettled: () => void qc.invalidateQueries({ queryKey: keys.waitlist }),
   });
 }
 

@@ -1,4 +1,4 @@
-import type { BookingStatus, Deposit } from './api';
+import type { BookingStatus, Deposit, WaitlistEntry } from './api';
 
 /** How each booking status reads on screen, everywhere (My bookings, the booking page, the staff schedule). */
 export const STATUS_LABEL: Record<BookingStatus, string> = {
@@ -23,3 +23,18 @@ export const TEST_CARDS: { token: string; label: string }[] = [
   { token: 'tok_unavailable', label: 'Provider down (nothing charged)' },
   { token: 'tok_timeout', label: 'Provider times out (charged, answer lost)' },
 ];
+
+/** Why one date of a weekly series could not be held, in a few words (the API's code). */
+export const DATE_FAILURE: Record<string, string> = {
+  slot_taken: 'already booked',
+  resource_closed: 'closed that day',
+  outside_opening_hours: 'outside opening hours',
+  too_far_ahead: 'too far ahead to book yet',
+  too_soon: 'too soon',
+  too_many_bookings: 'over your booking limit',
+  time_does_not_exist: 'the clocks change at that time',
+};
+
+export const WAITLIST_LABEL: Record<WaitlistEntry['status'], string> = {
+  waiting: 'Waiting', notified: 'Told it is free', left: 'Left', expired: 'Passed',
+};

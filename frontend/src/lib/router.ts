@@ -6,6 +6,7 @@
 //   #/r/court-1/2026-10-20/week          the week starting on that day
 //   #/mine                               my bookings
 //   #/b/<id>                             one booking
+//   #/s/<id>                             a weekly series: its dates, paying for them, cancelling them
 //   #/staff  #/staff/2026-10-20             staff day schedule (staff only; the API checks)
 //   #/admin  #/admin/<resources|closures|rules|audit>   venue set-up (admins only; the API checks)
 //   #/signin?next=<route>  #/signup?next=<route>   then back to <route> (an in-app route only)
@@ -21,6 +22,7 @@ export type Route =
   | { name: 'resource'; id: string; date?: string; view: ResourceView; at?: string }
   | { name: 'mine' }
   | { name: 'booking'; id: string }
+  | { name: 'series'; id: string }
   | { name: 'signin' | 'signup'; next: string }
   | { name: 'staff'; date?: string }
   | { name: 'admin'; section: AdminSection }
@@ -39,6 +41,8 @@ export function parseHash(hash: string): Route {
   if (admin) return { name: 'admin', section: (admin[1] ?? 'resources') as AdminSection };
   const b = path.match(/^\/b\/([0-9a-f-]{36})$/i);
   if (b) return { name: 'booking', id: b[1] };
+  const s = path.match(/^\/s\/([0-9a-f-]{36})$/i);
+  if (s) return { name: 'series', id: s[1] };
   const m = path.match(/^\/r\/([\w-]+)(?:\/(\d{4}-\d{2}-\d{2}))?(\/week)?$/);
   if (m) {
     const at = new URLSearchParams(rawQuery).get('at') ?? undefined;

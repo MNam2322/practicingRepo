@@ -92,6 +92,7 @@ export function BookingPage({ id, venue }: { id: string; venue: Venue }) {
           <p className="muted small">Cancel up to {venue.policy.cancellationCutoffHours} hours before the start and the deposit is refunded.</p>
         )}
       </Card>
+      {b.seriesId && <p>Part of a weekly booking: <a href={`#/s/${b.seriesId}`}>see all dates</a>.</p>}
       <p><a href={again}>See {b.resourceName} on {day}</a></p>
     </>
   );

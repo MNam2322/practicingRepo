@@ -26,6 +26,15 @@ export type Booking = Schemas['BookingResponse'];
 export type Deposit = Schemas['DepositResponse'];
 export type Money = Schemas['MoneyResponse'];
 type ConfirmBookingRequest = Schemas['ConfirmBookingRequest'];
+/** A weekly series request's outcome: every date held or failed (with a code). */
+export type Series = Schemas['SeriesResponse'];
+export type SeriesDate = Schemas['SeriesDateResponse'];
+/** What confirming or cancelling a series did, date by date. */
+export type SeriesChanges = Schemas['SeriesChangesResponse'];
+type CreateSeriesRequest = Schemas['CreateSeriesRequest'];
+/** A place on a waitlist; position 1 is next, 0 once no longer waiting. */
+export type WaitlistEntry = Schemas['WaitlistEntryResponse'];
+type JoinWaitlistRequest = Schemas['JoinWaitlistRequest'];
 /** The signed-in account. roles: Customer, and Staff or Admin where granted. */
 export type Account = Schemas['AccountResponse'];
 /** movedBookings: anonymous bookings from this browser that now belong to the account. */
@@ -132,6 +141,21 @@ export const api = {
       body: JSON.stringify({ paymentToken } satisfies ConfirmBookingRequest),
     }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
+  /** Holds the same time every week; each date is held or fails on its own. Retry with the same key: booked once. */
+  createSeries: (v: { resourceId: string; start: string; slots: number; weeks: number; name: string; email: string | null }, idempotencyKey: string) =>
+    request<Series>('/api/series', {
+      method: 'POST',
+      body: JSON.stringify(v satisfies CreateSeriesRequest),
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }),
+  series: (id: string) => request<Booking[]>(`/api/series/${encodeURIComponent(id)}`),
+  confirmSeries: (id: string, paymentToken: string) =>
+    request<SeriesChanges>(`/api/series/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({ paymentToken } satisfies ConfirmBookingRequest) }),
+  cancelSeries: (id: string) => request<SeriesChanges>(`/api/series/${encodeURIComponent(id)}/cancel`, { method: 'POST' }),
+  joinWaitlist: (v: { resourceId: string; start: string; slots: number; name: string; email: string | null }) =>
+    request<WaitlistEntry>('/api/waitlist', { method: 'POST', body: JSON.stringify(v satisfies JoinWaitlistRequest) }),
+  myWaitlist: () => request<WaitlistEntry[]>('/api/waitlist/mine'),
+  leaveWaitlist: (id: string) => request<WaitlistEntry>(`/api/waitlist/${encodeURIComponent(id)}/leave`, { method: 'POST' }),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   /** The signed-in account, or null when nobody is signed in (the API answers 401). */
   me: () => request<Account>('/api/me').catch((e: unknown) => {

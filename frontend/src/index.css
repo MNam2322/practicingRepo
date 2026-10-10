@@ -64,6 +64,8 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .slot small { font-weight: 500; font-size: 0.75rem; color: var(--muted); }
 .slot.free:hover { border-color: var(--brand); }
 .slot.booked, .slot.past { background: var(--booked); color: var(--muted); cursor: not-allowed; }
+.slot.booked { cursor: pointer; }   /* chosen to join its waitlist */
+.slot.booked:hover { border-color: var(--muted); }
 .slot.past { opacity: 0.55; }
 .slot.booked span { text-decoration: line-through; }
 .slot.closed { background: repeating-linear-gradient(135deg, var(--booked) 0 6px, var(--line) 6px 9px); color: var(--muted); cursor: not-allowed; }
@@ -175,6 +177,11 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .details dd { margin: 0; }
 .details .actions { flex-wrap: wrap; align-items: flex-start; }
 .checkout form { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+label.check { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; cursor: pointer; }
+label.check input { width: 1.1rem; height: 1.1rem; accent-color: var(--brand); }
+.series-failed { margin: 0.25rem 0 0; padding-left: 1.2rem; }
+.series-dates { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.4rem; }
+.waitlist .position { font-weight: 600; }
 .checkout p { margin: 0 0 0.4rem; }
 .countdown { margin: 0.9rem 0; padding: 0.75rem 0.9rem; border-radius: 10px; background: var(--brand-soft); }
 .countdown p { margin: 0 0 0.5rem; }

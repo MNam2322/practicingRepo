@@ -16,7 +16,10 @@ src/components/Layout.tsx  top bar and page frame
 src/components/Button.tsx, Card.tsx, Field.tsx, Notice.tsx (Notice, ErrorNotice), Skeleton.tsx (Slots/Bookings/Cards skeletons)
 src/components/Toaster.tsx + src/lib/toast.ts   toasts: <Toaster> in main.tsx, useToast() anywhere
 src/pages/Home.tsx      resources
-src/pages/ResourcePage.tsx  header, Day/Week toggle, legend; resource/DayView.tsx (slot grid, booking panel), resource/WeekView.tsx (7 days × times)
+src/pages/ResourcePage.tsx  header, Day/Week toggle, legend; resource/DayView.tsx (slot grid; panel: book once or "Repeat weekly",
+                            or join the waitlist for a booked slot), resource/WeekView.tsx (7 days × times)
+src/pages/SeriesPage.tsx    #/s/:id a weekly series: which dates failed (from the create answer), pay for the held dates, cancel the rest
+src/pages/MyBookings.tsx    also lists waitlist places (position, leave)
 src/pages/MyBookings.tsx    upcoming and past, cancel with confirm, rows link to the details page
 src/pages/SignInPage.tsx    #/signin and #/signup (?next= an in-app route only: router.safeNext)
 src/components/AccountMenu.tsx  top-bar Sign in link or account menu (useMe, sign out)

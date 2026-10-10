@@ -63,8 +63,8 @@ Needs backend 11 and 12.
 
 ### 10. Recurring bookings and waitlist
 Needs backend 14 and 15.
-- [ ] Add a "Repeat weekly" option with a result summary listing the dates that failed.
-- [ ] Add a "Join waitlist" button on booked slots.
+- [x] Add a "Repeat weekly" option with a result summary listing the dates that failed.
+- [x] Add a "Join waitlist" button on booked slots.
 
 ### 11. Tests and accessibility
 Read first: 4.6 Testing.
@@ -91,3 +91,4 @@ Needs backend 20.
 - Backend 12 follow-up: confirming pays the deposit with the fake provider's approved test token (`tok_visa`) until task 9 adds the payment step; `Deposit`/`Money` types; messages for the payment codes.
 - Task 9: booking makes a hold and opens the payment step at `#/b/:id`: countdown on the API's clock (from the Date header) with polite announcements, the deposit, a test-card picker for every fake-provider outcome, pay and confirm (402 shows why, 503 offers a safe retry), release; when the hold runs out the page asks the API and explains it (released, charged or not, refunded); live holds in My bookings with "Pay and confirm"; a new page starts at the top.
 - Backend 13 follow-up: an optional Email field when booking (remembered; signed-in customers default to their account address, the API's field error shows next to it); the booking and checkout show where emails go.
+- Task 10: "Repeat weekly" (2–12 weeks) in the booking panel creates a series and opens `#/s/:id`: which dates could not be held and why, one countdown and one payment for the held dates, per-date results, cancel the remaining dates; booked slots can be chosen to join their waitlist (place in line, email), and My bookings lists waitlist places with Leave.
