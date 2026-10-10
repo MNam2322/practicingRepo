@@ -125,7 +125,7 @@ You need Docker Desktop installed and running for this step.
 ## Phase 3: Accounts, staff and admin
 
 ### Step 12: Backend 7, accounts
-- [ ] **Prompt:** "Do backend task 7 (accounts)."
+- [x] **Prompt:** "Do backend task 7 (accounts)."
 - **Check:** in `booking.http`, sign up, sign in, and call `GET /api/me`. A booking made before signing in now belongs to the account.
 
 ### Step 13: Frontend 6, sign in

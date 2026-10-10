@@ -80,9 +80,9 @@ Read first: 7.3 "Specialised index types", 7.9 "Atomic conditional update", 7.8 
 
 ### 7. Accounts
 Read first: 10.2 Authentication and authorization, 10.2 "Authorization policies that scale".
-- [ ] Add ASP.NET Core Identity with cookie auth, and roles `Customer`, `Staff` and `Admin`.
-- [ ] Add an `AccountController` with sign up, sign in, sign out and `GET /api/me`, using `UserManager` and `SignInManager`. Do not use `MapIdentityApi` (it is minimal APIs).
-- [ ] On sign-in, anonymous cookie bookings move to the account.
+- [x] Add ASP.NET Core Identity with cookie auth, and roles `Customer`, `Staff` and `Admin`.
+- [x] Add an `AccountController` with sign up, sign in, sign out and `GET /api/me`, using `UserManager` and `SignInManager`. Do not use `MapIdentityApi` (it is minimal APIs).
+- [x] On sign-in, anonymous cookie bookings move to the account.
 
 **Unblocks frontend 6.**
 
@@ -183,3 +183,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 4: EF Core with SQLite: `BookingDbContext` (bookings table, (resource, start) and customer indexes, `version` concurrency token, UTC ticks on SQLite), migrations applied at start-up, `EfBookingRepository` with `BEGIN IMMEDIATE` for the atomic insert; `Storage:Provider` InMemory | Sqlite; API booking/concurrency tests run on both.
 - Task 5: venue, resources, opening hours and closures in the database (FKs, CHECKs), seeded from the Venue settings on first run; closures (per resource or venue-wide) make slots `closed` and bookings 422 `resource_closed`; the migration upgrades databases that already hold bookings.
 - Task 6: PostgreSQL 17 (`docker-compose.yml`, `http-postgres` profile) with a generated `tstzrange` period and `EXCLUDE USING gist (resource_id WITH =, period WITH &&) WHERE status = Confirmed`; 23P01 → `slot_taken`, no app-side check; per-provider contexts and migrations; Testcontainers tests on PostgreSQL (raw-SQL proof that the database blocks overlaps).
+- Task 7: ASP.NET Core Identity (cookie `bk-auth`, roles Customer/Staff/Admin, capability policies, deny-by-default filter); `AccountController` sign up/in/out and `GET /api/me`; anonymous bookings move to the account through the aggregate; lockout and per-IP sign-in rate limit. PostgreSQL inserts now lock the resource row first (no exclusion-check deadlocks) inside a retrying execution strategy.

@@ -1,11 +1,13 @@
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace BookingApp.Api.Controllers;
 
 /// <summary>The current customer's bookings. The customer is identified by the bk-customer cookie, issued on first call.</summary>
+[AllowAnonymous]
 [Route("api/bookings")]
 public sealed class BookingsController(BookingService bookings, VenueService venue, TimeProvider time) : ApiControllerBase
 {

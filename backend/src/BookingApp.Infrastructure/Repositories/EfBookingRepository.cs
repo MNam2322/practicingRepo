@@ -30,25 +30,40 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
     public Task<bool> TryAddAsync(Booking booking, CancellationToken cancellationToken) =>
         db.Database.IsNpgsql() ? InsertGuardedByConstraintAsync(booking, cancellationToken) : CheckAndInsertUnderLockAsync(booking, cancellationToken);
 
+    /// <summary>
+    /// PostgreSQL: the exclusion constraint decides. Inserts for the same resource first take a lock on that resource's
+    /// row, so they queue rather than deadlock: two overlapping inserts that race on the constraint otherwise wait on
+    /// each other and PostgreSQL kills one (40P01). Library 7.4: "a multi-row invariant: serialisable, or a lock on a
+    /// designated parent row". The lock only orders the inserts; without the constraint they would all succeed.
+    /// The whole attempt runs inside the retrying execution strategy, as a transaction must (library 7.7).
+    /// </summary>
     private async Task<bool> InsertGuardedByConstraintAsync(Booking booking, CancellationToken cancellationToken)
     {
-        var row = BookingRow.From(booking);
-        row.Version = booking.Version + 1;
-        db.Bookings.Add(row);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            booking.MarkSaved();
-            return true;
-        }
-        catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
-        {
-            return false;
-        }
-        finally
+        var saved = await db.Database.CreateExecutionStrategy().ExecuteAsync(async ct =>
         {
             db.ChangeTracker.Clear();
-        }
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlAsync($"SELECT 1 FROM resources WHERE id = {booking.ResourceId} FOR NO KEY UPDATE", ct);
+            var row = BookingRow.From(booking);
+            row.Version = booking.Version + 1;
+            db.Bookings.Add(row);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+                return true;
+            }
+            catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.ExclusionViolation })
+            {
+                return false;
+            }
+            finally
+            {
+                db.ChangeTracker.Clear();
+            }
+        }, cancellationToken);
+        if (saved) booking.MarkSaved();
+        return saved;
     }
 
     private async Task<bool> CheckAndInsertUnderLockAsync(Booking booking, CancellationToken cancellationToken)
@@ -94,6 +109,7 @@ internal sealed class EfBookingRepository(BookingDbContext db) : IBookingReposit
         entry.Property(r => r.Status).IsModified = true;
         entry.Property(r => r.CancelledAt).IsModified = true;
         entry.Property(r => r.CustomerName).IsModified = true;
+        entry.Property(r => r.CustomerId).IsModified = true;
         try
         {
             await db.SaveChangesAsync(cancellationToken);

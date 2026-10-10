@@ -48,7 +48,7 @@ public sealed class Booking
     public Guid Id { get; }
     public string ResourceId { get; }
     public TimeRange Time { get; }
-    public CustomerId Customer { get; }
+    public CustomerId Customer { get; private set; }
     public string CustomerName { get; }
     public BookingStatus Status { get; private set; }
     public DateTimeOffset CreatedAt { get; }
@@ -81,6 +81,12 @@ public sealed class Booking
         CancelledAt = now;
         return Result<Booking>.Ok(this);
     }
+
+    /// <summary>
+    /// Moves the booking to another customer: when someone who booked anonymously signs in, their bookings follow them
+    /// to their account. Only the anonymous owner's bookings are ever moved (BookingService.ClaimAsync).
+    /// </summary>
+    public void TransferTo(CustomerId newOwner) => Customer = newOwner;
 
     /// <summary>Called by a repository after a successful save.</summary>
     public void MarkSaved() => Version++;

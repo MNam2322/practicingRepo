@@ -3,7 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Tests.Shared;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
@@ -45,6 +47,9 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Time);
+            // The auth cookie's expiry is read by the HTTP client on the real clock, so the cookie scheme keeps real
+            // time; the domain (slots, cut-offs, lockout) runs on the fake clock.
+            services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, o => o.TimeProvider = TimeProvider.System);
         });
     }
 

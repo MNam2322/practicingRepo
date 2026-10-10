@@ -18,13 +18,16 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Bookings/BookingPolicy.cs    rules as settings (lead time, days ahead, cutoff, max active) + Check()
   Bookings/BookingService.cs   service: the booking use cases
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
+  Accounts/Account.cs          Account, Roles (Customer, Staff, Admin)
 src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite | Postgres)
+  Identity/                    AppUser, AccountService (sign up/in/out over ASP.NET Core Identity; moves anonymous bookings)
   Repositories/                EfBookingRepository, EfResourceRepository (Sqlite, Postgres); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
   Persistence/                 BookingDbContext (shared model: tables, keys, FKs, CHECKs) with SqliteBookingDbContext and
                                PostgresBookingDbContext (tstzrange period + EXCLUDE constraint), BookingRow/ResourceRows, StorageOptions,
                                DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
                                Migrations/Sqlite and Migrations/Postgres (generated per provider; read every one before committing)
-src/BookingApp.Api             HTTP: Program.cs (pipeline), Controllers/ (ApiControllerBase, Venue, Resources, Bookings),
+src/BookingApp.Api             HTTP: Program.cs (pipeline), Authorization.cs (auth cookie, policies), Controllers/ (ApiControllerBase,
+                               Venue, Resources, Bookings, Account),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
                                Api.Tests (WebApplicationFactory; booking and concurrency tests run on InMemory and Sqlite)
@@ -57,6 +60,7 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - **Never use minimal APIs for application endpoints.** Every application route is an action on an `[ApiController]` controller that derives from `ApiControllerBase`, mapped with `MapControllers()`. Only operational routes (`/health`, the `/` info route) stay in `Program.cs`.
 - Actions return `ActionResult<T>` (or `Task<ActionResult<T>>`), use attribute routes (`[Route]`, `[HttpGet]`, …), and put rate limits on writes with `[EnableRateLimiting]`.
 - Request bodies are records with init properties and DataAnnotations (`[Required]`, `[StringLength]`, `[Range]`) for shape only; `[ApiController]` answers 400 before the action runs. Business rules stay in Core (409/422 with a code). Library: 8.5.
+- **Authorization:** every controller action needs a signed-in user (a global `[Authorize]` filter) unless it says `[AllowAnonymous]`. Staff and admin actions use a capability policy, `[Authorize(Policy = Policies.ViewSchedule)]` or `Policies.ManageVenue`; roles map to policies only in `Authorization.cs`. Never check roles in code. `CurrentCustomer` is the account id when signed in, else the anonymous cookie id.
 - Every action has `[EndpointName]`, an XML `<summary>`, and `[ProducesResponseType]` for its success (`Json`) and each error (`ProblemJson`, with the codes in `Description`).
 - New use cases go in a service in Core; new storage goes behind a repository interface in Core with its implementation in `Infrastructure/Repositories/`. Name them `XxxService`, `IXxxRepository`, `XxxRepository`.
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.

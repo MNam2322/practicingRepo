@@ -66,6 +66,22 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         return Result<Booking>.Ok(booking);
     }
 
+    /// <summary>
+    /// Moves every booking made under an anonymous customer id to a signed-in account, one booking at a time through
+    /// the aggregate. Returns how many moved. A booking changed meanwhile is left where it is rather than overwritten.
+    /// </summary>
+    public async Task<int> ClaimAsync(CustomerId anonymous, CustomerId account, CancellationToken cancellationToken)
+    {
+        if (anonymous == account) return 0;
+        var moved = 0;
+        foreach (var booking in await bookings.ForCustomerAsync(anonymous, cancellationToken))
+        {
+            booking.TransferTo(account);
+            if (await bookings.UpdateAsync(booking, cancellationToken)) moved++;
+        }
+        return moved;
+    }
+
     public Task<IReadOnlyList<Booking>> MineAsync(CustomerId customer, CancellationToken cancellationToken) =>
         bookings.ForCustomerAsync(customer, cancellationToken);
 

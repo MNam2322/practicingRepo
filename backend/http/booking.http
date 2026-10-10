@@ -31,3 +31,23 @@ GET {{base}}/api/bookings/00000000-0000-0000-0000-000000000000
 
 ### Cancel (paste an id)
 POST {{base}}/api/bookings/00000000-0000-0000-0000-000000000000/cancel
+
+### --- Accounts. The session is the HttpOnly "bk-auth" cookie; REST Client keeps cookies between requests. ---
+
+### Sign up (signs in too). Bookings made before on this client move to the account: see "movedBookings".
+POST {{base}}/api/account/signup
+Content-Type: application/json
+
+{ "email": "nam@example.com", "password": "correct horse battery", "name": "Nam" }
+
+### Sign in
+POST {{base}}/api/account/signin
+Content-Type: application/json
+
+{ "email": "nam@example.com", "password": "correct horse battery" }
+
+### Who am I (401 unauthenticated when signed out)
+GET {{base}}/api/me
+
+### Sign out
+POST {{base}}/api/account/signout

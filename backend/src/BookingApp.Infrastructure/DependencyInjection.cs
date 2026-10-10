@@ -1,7 +1,9 @@
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -35,6 +37,11 @@ public static class DependencyInjection
             case StorageProvider.InMemory:
                 services.AddSingleton<IResourceRepository, ConfigurationResourceRepository>();
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
+                // Accounts only; one in-memory database per app instance.
+                var name = $"accounts-{Guid.NewGuid():N}";
+                services.AddDbContext<InMemoryBookingDbContext>(o => o.UseInMemoryDatabase(name));
+                services.AddScoped<BookingDbContext>(sp => sp.GetRequiredService<InMemoryBookingDbContext>());
+                services.AddHostedService<DatabaseInitializer>();
                 break;
             case StorageProvider.Sqlite:
                 var sqlite = SqliteConnectionString(configuration.GetConnectionString(ConnectionStrings.Sqlite), contentRoot);
@@ -44,15 +51,45 @@ public static class DependencyInjection
             case StorageProvider.Postgres:
                 var postgres = configuration.GetConnectionString(ConnectionStrings.Postgres)
                     ?? throw new InvalidOperationException("Storage:Provider is Postgres but ConnectionStrings:Postgres is not set.");
-                services.AddDbContext<PostgresBookingDbContext>(o => o.UseNpgsql(postgres));
+                // Overlapping inserts racing on the exclusion constraint can deadlock (SQLSTATE 40P01); PostgreSQL rolls
+                // one back. The retrying execution strategy runs it again, and it then succeeds or gets 23P01 (slot_taken).
+                // Library 7.7 "Concurrency and transactions": an execution strategy retries whole operations.
+                services.AddDbContext<PostgresBookingDbContext>(o => o.UseNpgsql(postgres, npgsql => npgsql.EnableRetryOnFailure(maxRetryCount: 5)));
                 AddEfRepositories<PostgresBookingDbContext>(services);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown Storage:Provider '{storage.Provider}'.");
         }
 
+        AddAccounts(services);
         if (configuration.GetValue("Seed:DemoBookings", false)) services.AddHostedService<DemoSeeder>();
         return services;
+    }
+
+    /// <summary>
+    /// ASP.NET Core Identity over the booking database. Passwords: at least 10 characters and no forced character
+    /// classes (length beats complexity rules); five wrong passwords lock the account for five minutes.
+    /// The auth cookie itself is configured by the Api (it is an HTTP concern).
+    /// </summary>
+    private static void AddAccounts(IServiceCollection services)
+    {
+        services.AddIdentityCore<AppUser>(o =>
+            {
+                o.User.RequireUniqueEmail = true;
+                o.Password.RequiredLength = 10;
+                o.Password.RequireDigit = false;
+                o.Password.RequireLowercase = false;
+                o.Password.RequireUppercase = false;
+                o.Password.RequireNonAlphanumeric = false;
+                o.Password.RequiredUniqueChars = 4;
+                o.Lockout.MaxFailedAccessAttempts = 5;
+                o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<BookingDbContext>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders();
+        services.AddScoped<AccountService>();
     }
 
     /// <summary>The EF Core repositories over whichever database was chosen; they depend only on the shared BookingDbContext.</summary>

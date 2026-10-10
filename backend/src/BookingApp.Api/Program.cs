@@ -6,6 +6,7 @@ using BookingApp.Api.Controllers;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,8 @@ builder.Services.AddControllers(o =>
         // Request shapes are checked with explicit attributes on the request records (Contracts.cs), not implied by
         // nullability; business rules are checked in Core and answered with 422 and a code.
         o.SuppressImplicitRequiredAttributeForNonNullableReferenceTypes = true;
+        // Deny by default: every controller action needs a signed-in user unless it is [AllowAnonymous].
+        o.Filters.Add(new AuthorizeFilter());
     })
     .AddJsonOptions(o =>
     {
@@ -37,14 +40,19 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 builder.Services.AddProblemDetails();
 builder.Services.AddBookingOpenApi();
 builder.Services.AddExceptionHandler<BadRequestHandler>();
+builder.Services.AddBookingAuth();
 builder.Services.AddHealthChecks();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // Writes are limited per customer cookie (or IP when there is none): 20 a minute is plenty for a person.
+    // Writes are limited per account, else per customer cookie, else per IP: 20 a minute is plenty for a person.
     o.AddPolicy(BookingsController.WritesPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
-        http.Request.Cookies[CurrentCustomer.CookieName] ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        CurrentCustomer.AccountId(http)?.ToString() ?? http.Request.Cookies[CurrentCustomer.CookieName] ?? http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Sign-up and sign-in are limited per IP against password guessing (lockout also stops it per account).
+    o.AddPolicy(AccountController.SignInPolicy, http => RateLimitPartition.GetFixedWindowLimiter(
+        http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 // The React app calls the API through the Vite proxy in development, so CORS only matters when it is
 // served from another origin. Origins come from configuration ("Cors:AllowedOrigins").
@@ -57,6 +65,8 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 
 // Operational routes only; application endpoints are controllers (Controllers/).

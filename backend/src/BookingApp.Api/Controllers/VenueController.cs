@@ -1,8 +1,10 @@
 using BookingApp.Core.Scheduling;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BookingApp.Api.Controllers;
 
+[AllowAnonymous]
 [Route("api/venue")]
 public sealed class VenueController(VenueService venue) : ApiControllerBase
 {

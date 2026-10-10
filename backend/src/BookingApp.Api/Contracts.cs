@@ -81,3 +81,44 @@ public sealed record BookingResponse(
         b.Status, b.CustomerName, b.CreatedAt, b.CancelledAt,
         b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff);
 }
+
+/// <summary>Create an account. The password needs at least 10 characters; no other rules.</summary>
+public sealed record SignUpRequest
+{
+    /// <summary>The email to sign in with.</summary>
+    [Required(ErrorMessage = "Enter your email.")]
+    [EmailAddress(ErrorMessage = "Enter a valid email address.")]
+    [StringLength(254, ErrorMessage = "That email is too long.")]
+    public string? Email { get; init; }
+
+    /// <summary>At least 10 characters.</summary>
+    [Required(ErrorMessage = "Choose a password.")]
+    [StringLength(128, MinimumLength = 10, ErrorMessage = "Use at least 10 characters.")]
+    public string? Password { get; init; }
+
+    /// <summary>Your name, shown in the account menu and suggested for bookings.</summary>
+    [Required(ErrorMessage = "Enter your name.")]
+    [StringLength(CreateBookingRequest.MaxNameLength, ErrorMessage = "Keep the name to 80 characters or fewer.")]
+    public string? Name { get; init; }
+}
+
+public sealed record SignInRequest
+{
+    [Required(ErrorMessage = "Enter your email.")]
+    [StringLength(254)]
+    public string? Email { get; init; }
+
+    [Required(ErrorMessage = "Enter your password.")]
+    [StringLength(128)]
+    public string? Password { get; init; }
+}
+
+/// <summary>The signed-in account.</summary>
+/// <param name="Roles">Customer, and Staff or Admin where granted.</param>
+public sealed record AccountResponse(Guid Id, string Email, string Name, IReadOnlyList<string> Roles)
+{
+    public static AccountResponse From(BookingApp.Core.Accounts.Account a) => new(a.Id, a.Email, a.Name, a.Roles);
+}
+
+/// <param name="MovedBookings">Bookings made before signing in (on this browser) that now belong to the account.</param>
+public sealed record SignedInResponse(AccountResponse Account, int MovedBookings);

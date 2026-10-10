@@ -6,6 +6,203 @@
     "version": "v1"
   },
   "paths": {
+    "/api/account/signup": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Creates an account and signs in. Bookings made on this browser before move to the new account.",
+        "operationId": "SignUp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed (errors.email, errors.password, errors.name)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "email_taken",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/signin": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Signs in. Bookings made on this browser while signed out move to the account.",
+        "operationId": "SignIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "invalid_credentials, account_locked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/signout": {
+      "post": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "Signs out: the auth cookie is removed and this browser is anonymous again.",
+        "operationId": "SignOut",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Account"
+        ],
+        "summary": "The signed-in account. 401 unauthenticated when nobody is signed in.",
+        "operationId": "GetMe",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthenticated",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/bookings": {
       "post": {
         "tags": [
@@ -372,6 +569,35 @@
   },
   "components": {
     "schemas": {
+      "AccountResponse": {
+        "required": [
+          "id",
+          "email",
+          "name",
+          "roles"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Customer, and Staff or Admin where granted."
+          }
+        },
+        "description": "The signed-in account."
+      },
       "AvailabilityResponse": {
         "required": [
           "resourceId",
@@ -714,6 +940,86 @@
           }
         }
       },
+      "SignedInResponse": {
+        "required": [
+          "account",
+          "movedBookings"
+        ],
+        "type": "object",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountResponse"
+          },
+          "movedBookings": {
+            "type": "integer",
+            "description": "Bookings made before signing in (on this browser) that now belong to the account.",
+            "format": "int32"
+          }
+        }
+      },
+      "SignInRequest": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SignUpRequest": {
+        "required": [
+          "email",
+          "password",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The email to sign in with."
+          },
+          "password": {
+            "maxLength": 128,
+            "minLength": 10,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "At least 10 characters."
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Your name, shown in the account menu and suggested for bookings."
+          }
+        },
+        "description": "Create an account. The password needs at least 10 characters; no other rules."
+      },
       "SlotResponse": {
         "required": [
           "start",
@@ -823,6 +1129,9 @@
     }
   },
   "tags": [
+    {
+      "name": "Account"
+    },
     {
       "name": "Bookings"
     },

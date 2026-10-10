@@ -11,6 +11,8 @@ public enum ErrorKind
     Conflict,
     /// <summary>The caller may not do this to this booking (403).</summary>
     Forbidden,
+    /// <summary>The caller is not signed in, or their credentials are wrong (401).</summary>
+    Unauthenticated,
 }
 
 /// <param name="Code">Stable, machine-readable code such as "slot_taken". Clients switch on this.</param>

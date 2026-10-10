@@ -4,6 +4,74 @@
  */
 
 export interface paths {
+    "/api/account/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Creates an account and signs in. Bookings made on this browser before move to the new account. */
+        post: operations["SignUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/signin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signs in. Bookings made on this browser while signed out move to the account. */
+        post: operations["SignIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/account/signout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signs out: the auth cookie is removed and this browser is anonymous again. */
+        post: operations["SignOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in account. 401 unauthenticated when nobody is signed in. */
+        get: operations["GetMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/bookings": {
         parameters: {
             query?: never;
@@ -130,6 +198,15 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description The signed-in account. */
+        AccountResponse: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            name: string;
+            /** @description Customer, and Staff or Admin where granted. */
+            roles: string[];
+        };
         AvailabilityResponse: {
             resourceId: string;
             /** Format: date */
@@ -238,6 +315,27 @@ export interface components {
             maxSlotsPerBooking: number;
             hours: components["schemas"]["OpeningHoursResponse"][];
         };
+        SignedInResponse: {
+            account: components["schemas"]["AccountResponse"];
+            /**
+             * Format: int32
+             * @description Bookings made before signing in (on this browser) that now belong to the account.
+             */
+            movedBookings: number;
+        };
+        SignInRequest: {
+            email: null | string;
+            password: null | string;
+        };
+        /** @description Create an account. The password needs at least 10 characters; no other rules. */
+        SignUpRequest: {
+            /** @description The email to sign in with. */
+            email: null | string;
+            /** @description At least 10 characters. */
+            password: null | string;
+            /** @description Your name, shown in the account menu and suggested for bookings. */
+            name: null | string;
+        };
         SlotResponse: {
             /** Format: date-time */
             start: string;
@@ -279,6 +377,161 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    SignUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignUpRequest"];
+                "application/*+json": components["schemas"]["SignUpRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedInResponse"];
+                };
+            };
+            /** @description validation_failed (errors.email, errors.password, errors.name) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description email_taken */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SignIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignInRequest"];
+                "application/*+json": components["schemas"]["SignInRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignedInResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description invalid_credentials, account_locked */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SignOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GetMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountResponse"];
+                };
+            };
+            /** @description unauthenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     CreateBooking: {
         parameters: {
             query?: never;

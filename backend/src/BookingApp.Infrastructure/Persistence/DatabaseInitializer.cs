@@ -1,4 +1,5 @@
 using BookingApp.Infrastructure.Repositories;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,6 +21,13 @@ internal sealed partial class DatabaseInitializer(IServiceScopeFactory scopes, I
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<BookingDbContext>();
+        if (db.Database.IsInMemory())
+        {
+            // InMemory provider: accounts only, no migrations; venue and resources come from configuration.
+            await db.Database.EnsureCreatedAsync(cancellationToken);
+            await SeedRolesAsync(scope.ServiceProvider);
+            return;
+        }
         if (options.Value.MigrateOnStartup)
         {
             var pending = (await db.Database.GetPendingMigrationsAsync(cancellationToken)).ToList();
@@ -28,6 +36,15 @@ internal sealed partial class DatabaseInitializer(IServiceScopeFactory scopes, I
             LogMigrated(pending.Count, string.Join(", ", pending));
         }
         await SeedVenueAsync(db, cancellationToken);
+        await SeedRolesAsync(scope.ServiceProvider);
+    }
+
+    /// <summary>Customer, Staff and Admin exist from the start; giving someone Staff or Admin is an admin action.</summary>
+    private static async Task SeedRolesAsync(IServiceProvider services)
+    {
+        var roles = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        foreach (var role in Core.Accounts.Roles.All)
+            if (!await roles.RoleExistsAsync(role)) await roles.CreateAsync(new IdentityRole<Guid>(role) { Id = Guid.CreateVersion7() });
     }
 
     /// <summary>

@@ -24,6 +24,7 @@ public abstract class ApiControllerBase : ControllerBase
             ErrorKind.NotFound => StatusCodes.Status404NotFound,
             ErrorKind.Conflict => StatusCodes.Status409Conflict,
             ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
             _ => StatusCodes.Status422UnprocessableEntity,
         };
         var problem = ProblemDetailsFactory.CreateProblemDetails(HttpContext, statusCode: status, title: error.Message);

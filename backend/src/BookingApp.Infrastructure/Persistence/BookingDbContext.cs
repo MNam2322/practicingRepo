@@ -1,5 +1,8 @@
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
+using BookingApp.Infrastructure.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -11,7 +14,7 @@ namespace BookingApp.Infrastructure.Persistence;
 /// Rules every writer must obey are constraints here, not just checks in code (library 7.2 "Constraints: the integrity
 /// the application cannot enforce"): keys, foreign keys, CHECKs and NOT NULL.
 /// </summary>
-internal abstract class BookingDbContext(DbContextOptions options) : DbContext(options)
+internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<BookingRow> Bookings => Set<BookingRow>();
     public DbSet<VenueRow> Venue => Set<VenueRow>();
@@ -20,6 +23,10 @@ internal abstract class BookingDbContext(DbContextOptions options) : DbContext(o
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        // ASP.NET Core Identity's tables (AspNetUsers, AspNetRoles, ...) live in the same database.
+        base.OnModelCreating(model);
+        model.Entity<AppUser>().Property(u => u.DisplayName).HasMaxLength(AppUser.MaxNameLength).IsRequired();
+
         var venue = model.Entity<VenueRow>();
         venue.ToTable("venue", t => t.HasCheckConstraint("ck_venue_single_row", "id = 1"));
         venue.HasKey(v => v.Id);
@@ -95,6 +102,18 @@ internal abstract class BookingDbContext(DbContextOptions options) : DbContext(o
 
     /// <summary>What differs per database: column types, extensions and the constraints only one engine has.</summary>
     protected abstract void ConfigureProvider(ModelBuilder model);
+}
+
+/// <summary>
+/// The InMemory storage provider keeps bookings and resources in the lock-based in-memory repositories; this context
+/// (EF Core's in-memory database) only holds accounts, so sign-in works there too. No migrations: created on start.
+/// </summary>
+internal sealed class InMemoryBookingDbContext(DbContextOptions<InMemoryBookingDbContext> options) : BookingDbContext(options)
+{
+    protected override void ConfigureProvider(ModelBuilder model)
+    {
+        // The in-memory database cannot store the computed range or enforce CHECKs; nothing provider-specific is needed.
+    }
 }
 
 /// <summary>SQLite: a file, no date type. Migrations in Migrations/Sqlite.</summary>
