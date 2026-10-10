@@ -174,7 +174,7 @@ Needs backend 9.
 
 ### Step 21: Frontend 9, holds and payment step
 Needs backend 11 and 12.
-- [ ] **Prompt:** "Do frontend task 9 (holds and payment step)."
+- [x] **Prompt:** "Do frontend task 9 (holds and payment step)."
 - **Check:** choose a slot and watch the countdown. Pay, and see the confirmation. Try again but let it expire: the message explains what happened.
 
 ### Step 22: Backend 13, notifications

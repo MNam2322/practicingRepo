@@ -1,7 +1,7 @@
 // Server state through TanStack Query: every read has a key, every write invalidates exactly the keys it affects.
 // Library: 9.7 "Server state libraries", 8.6 "Invalidation" and "Optimistic updates".
 import { focusManager, MutationCache, QueryCache, QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, bookingWhen, type Account, type Availability, type Booking, type StaffBooking } from './api';
+import { api, ApiError, bookingWhen, serverNow, type Account, type Availability, type Booking, type StaffBooking } from './api';
 import { signInHref } from './router';
 import { useToast } from './toast';
 
@@ -96,8 +96,17 @@ export function useMyBookings() {
   return useQuery({ queryKey: keys.mine, queryFn: api.mine });
 }
 
+/** A hold past its time on the API's clock, which the API has not reported as expired yet. */
+const holdOverdue = (b: Booking) => b.status === 'pending' && b.holdExpiresAt != null && Date.parse(b.holdExpiresAt) <= serverNow();
+
 export function useBooking(id: string) {
-  return useQuery({ queryKey: keys.booking(id), queryFn: () => api.booking(id) });
+  return useQuery({
+    queryKey: keys.booking(id),
+    queryFn: () => api.booking(id),
+    // When a hold runs out on our clock, ask again every two seconds until the API says what happened: the API
+    // decides that a hold has expired, the browser only counts down.
+    refetchInterval: (query) => (query.state.data && holdOverdue(query.state.data) ? 2000 : false),
+  });
 }
 
 /** The venue-local day a booking is on, as the availability key uses it. */
@@ -106,18 +115,35 @@ const dayOf = (b: Booking) => b.localStart.slice(0, 10);
 export function useBook() {
   const qc = useQueryClient();
   return useMutation({
-    // Booking holds the slot, then pays the deposit with the fake provider's approved test card and confirms.
-    // Frontend task 9 replaces this with a real payment step and a countdown.
-    mutationFn: async (v: { resourceId: string; start: string; slots: number; name: string; day: string; idempotencyKey: string }) => {
-      const hold = await api.book(v.resourceId, v.start, v.slots, v.name, v.idempotencyKey);
-      return hold.canConfirm ? api.confirm(hold.id, 'tok_visa') : hold;
-    },
+    // Holds the slot: the answer is a "pending" booking with holdExpiresAt. The booking page then takes the payment.
+    mutationFn: (v: { resourceId: string; start: string; slots: number; name: string; day: string; idempotencyKey: string }) =>
+      api.book(v.resourceId, v.start, v.slots, v.name, v.idempotencyKey),
     onSuccess: (booking) => {
       qc.setQueryData(keys.booking(booking.id), booking);
       void qc.invalidateQueries({ queryKey: keys.bookings });
     },
     // Whatever happened (booked, or slot_taken), that day's slots are worth reloading.
     onSettled: (_booking, _error, v) => qc.invalidateQueries({ queryKey: keys.availability(v.resourceId, v.day) }),
+  });
+}
+
+/**
+ * Pays the deposit and confirms a hold. Safe to press again after an error: the API reuses the same payment, so a retry
+ * cannot charge twice. Whatever the answer (paid, declined, expired), the booking and that day's slots are reloaded.
+ */
+export function useConfirm() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (v: { booking: Booking; paymentToken: string }) => api.confirm(v.booking.id, v.paymentToken),
+    onSuccess: (b) => {
+      qc.setQueryData(keys.booking(b.id), b);
+      toast({ text: `Booked ${b.resourceName}, ${bookingWhen(b)}.`, link: { href: `#/b/${b.id}`, label: 'Details' } });
+    },
+    onSettled: (_b, _error, v) => {
+      void qc.invalidateQueries({ queryKey: keys.bookings });
+      void qc.invalidateQueries({ queryKey: keys.availability(v.booking.resourceId, dayOf(v.booking)) });
+    },
   });
 }
 

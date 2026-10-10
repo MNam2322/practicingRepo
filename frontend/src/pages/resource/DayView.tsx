@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { ApiError, formatDay, type Booking, type Resource, type Venue } from '../../lib/api';
+import { ApiError, formatDay, formatMoney, type Resource, type Venue } from '../../lib/api';
 import { describeError, useAvailability, useBook, useMe } from '../../lib/queries';
-import { useToast } from '../../lib/toast';
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
 import { Field } from '../../components/Field';
@@ -15,7 +14,6 @@ const saveName = (n: string) => { try { localStorage.setItem(NAME_KEY, n); } cat
 
 /** One day's slots and the booking panel. Keyed by resource, day and `initialAt` in App.tsx, so state starts clean. */
 export function DayView({ venue, resource, day, initialAt }: { venue: Venue; resource: Resource; day: string; initialAt?: string }) {
-  const toast = useToast();
   const availability = useAvailability(resource.id, day);
   const bookMutation = useBook();
 
@@ -28,7 +26,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
   // One key per booking attempt: pressing "Book it" again after a lost response repeats the same attempt, and the API
   // returns the first answer instead of booking twice. A new choice of time, length or name is a new attempt.
   const [attemptKey, setAttemptKey] = useState(() => crypto.randomUUID());
-  const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string; booking?: Booking; traceId?: string | null } | null>(null);
+  const [message, setMessage] = useState<{ text: string; traceId?: string | null } | null>(null);
 
   const busy = bookMutation.isPending;
   const slots = availability.data?.slots ?? [];
@@ -50,18 +48,13 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
     if (index < 0 || !name.trim()) return;
     setMessage(null);
     try {
-      const booking = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day, idempotencyKey: attemptKey });
-      setAttemptKey(crypto.randomUUID());
+      const hold = await bookMutation.mutateAsync({ resourceId: resource.id, start: slots[index].start, slots: chosenLength, name: name.trim(), day, idempotencyKey: attemptKey });
       saveName(name.trim());
-      setMessage({ kind: 'ok', text: 'Booked.', booking });
-      setSelected(null);
-      toast({
-        text: `Booked ${booking.resourceName}, ${booking.localStart.slice(11)}–${booking.localEnd.slice(11)}.`,
-        link: { href: `#/b/${booking.id}`, label: 'Details' },
-      });
+      // The time is held: pay and confirm on the booking page (a link, so a reload keeps the checkout).
+      location.hash = `#/b/${hold.id}`;
     } catch (e) {
       const text = e instanceof Error ? e.message : String(e);
-      setMessage({ kind: 'error', text, traceId: e instanceof ApiError ? e.traceId : null });
+      setMessage({ text, traceId: e instanceof ApiError ? e.traceId : null });
       if (e instanceof ApiError && e.code === 'slot_taken') setSelected(null);
     }
   }
@@ -97,14 +90,7 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
       </section>
 
       <Card as="aside" className="panel" aria-live="polite">
-        {message?.kind === 'ok' && message.booking && (
-          <Notice kind="ok">
-            <p><strong>Booked.</strong> {message.booking.resourceName}, {formatDay(message.booking.localStart.slice(0, 10), 'long')},{' '}
-              {message.booking.localStart.slice(11)}–{message.booking.localEnd.slice(11)}.</p>
-            <p><a href={`#/b/${message.booking.id}`}>Booking details and calendar</a> · <a href="#/mine">My bookings</a></p>
-          </Notice>
-        )}
-        {message?.kind === 'error' && <ErrorNotice message={message.text} traceId={message.traceId} />}
+        {message && <ErrorNotice message={message.text} traceId={message.traceId} />}
         {taken && (
           <Notice kind="info">
             <p><strong>{slots[found].localStart} has just been taken.</strong> Someone else booked it. Pick another time.</p>
@@ -128,8 +114,11 @@ export function DayView({ venue, resource, day, initialAt }: { venue: Venue; res
             <Field label="Name for the booking">
               <input value={name} onChange={(e) => { setName(e.target.value); setAttemptKey(crypto.randomUUID()); }} required maxLength={80} autoComplete="name" />
             </Field>
-            <Button type="submit" disabled={busy || !name.trim()}>{busy ? 'Booking…' : 'Book it'}</Button>
-            <p className="muted small">Free cancellation up to {venue.policy.cancellationCutoffHours} hours before the start.</p>
+            <Button type="submit" disabled={busy || !name.trim()}>{busy ? 'Holding…' : venue.deposit ? 'Continue to payment' : 'Continue'}</Button>
+            <p className="muted small">
+              {venue.deposit && <>We hold the time for you while you pay the {formatMoney(venue.deposit)} deposit. </>}
+              Free cancellation up to {venue.policy.cancellationCutoffHours} hours before the start.
+            </p>
           </form>
         )}
       </Card>

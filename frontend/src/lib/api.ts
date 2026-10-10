@@ -66,6 +66,26 @@ export class ApiError extends Error {
   }
 }
 
+// The API's clock, estimated from each response's Date header. The browser's own clock can be minutes off, and a hold
+// expires on the server's clock (library 0.2 "Time: three clocks, none of them trustworthy"). The header has whole
+// seconds and Kestrel refreshes it once a second, so it lags real time by 0.3 to 1.2 s (measured); 750 ms centres it.
+let clockOffset = 0;
+
+/** Milliseconds since the epoch on the API's clock (as near as the Date header tells). Use it for countdowns. */
+export function serverNow(): number {
+  return Date.now() + clockOffset;
+}
+
+function learnClock(res: Response) {
+  const date = Date.parse(res.headers.get('Date') ?? '');
+  if (!Number.isNaN(date)) clockOffset = date + 750 - Date.now();
+}
+
+/** An amount for display in the browser's language: 100000 VND reads "₫100,000" or "100.000 ₫". */
+export function formatMoney(m: { amount: number; currency: string }): string {
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: m.currency }).format(m.amount);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -77,6 +97,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError(0, messageFor('network', 'Network error'), 'network');
   }
+  learnClock(res);
   if (!res.ok) {
     const p = await res.json().catch(() => null) as Problem | null;
     const code = res.status === 429 ? 'rate_limited' : p?.code ?? null;

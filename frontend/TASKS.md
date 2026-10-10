@@ -59,7 +59,7 @@ Needs backend 9.
 
 ### 9. Holds and payment step
 Needs backend 11 and 12.
-- [ ] Choosing a slot creates a hold. Show a 10-minute countdown and a fake payment step, then confirmation. When the hold expires, explain what happened clearly.
+- [x] Choosing a slot creates a hold. Show a 10-minute countdown and a fake payment step, then confirmation. When the hold expires, explain what happened clearly.
 
 ### 10. Recurring bookings and waitlist
 Needs backend 14 and 15.
@@ -89,3 +89,4 @@ Needs backend 20.
 - Task 8: admin pages at `#/admin/…`: courts and rooms (add, edit, weekly hours, delete), whole-day closures incl. holidays, booking rules, read-only audit log; every form shows the API's field errors next to the fields; Admin link for admins only.
 - Backend 11 follow-up: booking holds the slot and confirms it in one go (`api.confirm`); `pending`/`expired` labels, `hold_expired` message; expired holds hidden on the staff timeline. The countdown and payment step are task 9.
 - Backend 12 follow-up: confirming pays the deposit with the fake provider's approved test token (`tok_visa`) until task 9 adds the payment step; `Deposit`/`Money` types; messages for the payment codes.
+- Task 9: booking makes a hold and opens the payment step at `#/b/:id`: countdown on the API's clock (from the Date header) with polite announcements, the deposit, a test-card picker for every fake-provider outcome, pay and confirm (402 shows why, 503 offers a safe retry), release; when the hold runs out the page asks the API and explains it (released, charged or not, refunded); live holds in My bookings with "Pay and confirm"; a new page starts at the top.

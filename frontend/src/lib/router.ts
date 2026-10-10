@@ -67,7 +67,15 @@ export function resourceHref(id: string, date?: string, view: ResourceView = 'da
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseHash(location.hash));
   useEffect(() => {
-    const on = () => setRoute(parseHash(location.hash));
+    let shown = parseHash(location.hash).name;
+    const on = () => {
+      const next = parseHash(location.hash);
+      // A different page starts at the top, as a new page would; another day or selection on the same page keeps
+      // its place.
+      if (next.name !== shown) window.scrollTo(0, 0);
+      shown = next.name;
+      setRoute(next);
+    };
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);

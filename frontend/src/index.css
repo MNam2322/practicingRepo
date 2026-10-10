@@ -174,6 +174,17 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .details dt { color: var(--muted); }
 .details dd { margin: 0; }
 .details .actions { flex-wrap: wrap; align-items: flex-start; }
+.checkout form { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.75rem; }
+.checkout p { margin: 0 0 0.4rem; }
+.countdown { margin: 0.9rem 0; padding: 0.75rem 0.9rem; border-radius: 10px; background: var(--brand-soft); }
+.countdown p { margin: 0 0 0.5rem; }
+.countdown-time { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 0.35rem; }
+.countdown-bar { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
+.countdown-bar > div { height: 100%; background: var(--brand); transition: width 1s linear; }
+.countdown.urgent { background: var(--danger-soft); }
+.countdown.urgent .countdown-time { color: var(--danger); }
+.countdown.urgent .countdown-bar > div { background: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .countdown-bar > div { transition: none; } }
 .booking-link { color: var(--ink); }
 .booking-link:hover { color: var(--brand); }
 .cancel-booking { display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start; }
@@ -181,6 +192,7 @@ code { background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 4px; 
 .status.noShow { color: var(--danger); }
 .status.pending { color: var(--brand); }
 .status.expired { color: var(--muted); }
+a.btn { display: inline-block; text-decoration: none; }
 .tl-booking.pending { border-style: dashed; }
 .trace code { font-size: 0.8em; word-break: break-all; }
 

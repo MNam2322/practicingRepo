@@ -21,10 +21,14 @@ src/pages/MyBookings.tsx    upcoming and past, cancel with confirm, rows link to
 src/pages/SignInPage.tsx    #/signin and #/signup (?next= an in-app route only: router.safeNext)
 src/components/AccountMenu.tsx  top-bar Sign in link or account menu (useMe, sign out)
 src/pages/StaffPage.tsx     #/staff[/date]: day timeline (resources × time), booking panel driven by the API's actions, block time
-src/lib/labels.ts       STATUS_LABEL: how booking statuses read everywhere
+src/lib/labels.ts       STATUS_LABEL, DEPOSIT_LABEL: how statuses read everywhere; TEST_CARDS: the fake provider's tokens
 src/pages/admin/        #/admin/<resources|closures|rules|audit>: AdminPage (tabs), ResourcesAdmin (add/edit/hours/delete),
                         ClosuresAdmin (whole-day closures, holidays), RulesAdmin (booking rules), AuditAdmin (read-only log)
-src/pages/BookingPage.tsx   #/b/:id details, status, cancel, Add to calendar (src/lib/calendar.ts builds the .ics from UTC instants)
+src/pages/BookingPage.tsx   #/b/:id: a hold shows the payment step (booking/Checkout.tsx: countdown, deposit, test card, pay,
+                            release); a hold that ran out explains what happened; otherwise details, deposit, cancel, Add to
+                            calendar (src/lib/calendar.ts builds the .ics from UTC instants)
+src/components/HoldCountdown.tsx  time left on a hold (role="timer", polite announcements at 5 min, 1 min, time up)
+src/lib/useServerNow.ts     the API's clock (serverNow() in api.ts, from the Date header), ticking while a hold is shown
 src/lib/errors.ts       ERROR_MESSAGES: one friendly message per API error code
 src/pages/resource/slots.ts  SLOT_LABEL (free, booked, past, closed) and closure time formatting
 src/index.css           all styles; colour tokens on :root, dark mode below
@@ -32,6 +36,7 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 
 ## Rules
 
+- **Holds and payment:** booking makes a hold and goes to `#/b/:id`, where the customer pays the deposit (`useConfirm`). Countdowns run on `serverNow()` (the browser clock may be off), and the API decides when a hold has expired: at zero the page asks again (`useBooking` polls an overdue hold) and shows what the API says. Payment errors come from the API (`payment_declined` shows its title, which says why); after `payment_unavailable`, retrying is safe.
 - **Times:** show `localStart` and `localEnd` from the API (venue time). Send `start` back exactly as the API gave it. Never compute slot times in the browser. "Today" is the venue's today, from `venueToday()`.
 - **Errors:** switch on `ApiError.code` (`slot_taken`, `too_late_to_cancel`, …), not on message text. After `slot_taken`, refresh the slots. Friendly wording for each code lives only in `src/lib/errors.ts`; add new codes there. Show `ApiError.traceId` as a reference (ErrorNotice does).
 - **Forms:** keep the browser's checks light (they are a convenience); show the API's field errors with `fieldError(error, "jsonName")` on each `Field`, and anything else with `formError(error)` above the form. Admin writes go through `useAdminChange`, which reloads everything a change can affect.
