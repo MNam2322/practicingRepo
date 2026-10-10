@@ -110,7 +110,7 @@ Then open http://localhost:5173. The API itself is at http://localhost:5080.
 
 ### Step 10: Frontend 5, generated API types
 Needs backend 2.
-- [ ] **Prompt:** "Do frontend task 5 (generated API types)."
+- [x] **Prompt:** "Do frontend task 5 (generated API types)."
 - **Check:** with the API running, `npm run gen:api` then `npm run build` both pass. `src/lib/api.ts` no longer hand-writes the response types.
 
 ### Step 11: Backend 6, PostgreSQL

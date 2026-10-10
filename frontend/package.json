@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "gen:api": "npx --yes openapi-typescript@7.13.0 http://localhost:5080/openapi/v1.json -o src/lib/api.generated.ts",
+    "gen:api:file": "npx --yes openapi-typescript@7.13.0 ../backend/openapi/v1.json -o src/lib/api.generated.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.103.2",

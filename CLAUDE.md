@@ -54,7 +54,7 @@ The library is the team's engineering handbook. **Before designing any task, loo
 
 - The API runs at http://localhost:5080: `dotnet run --project backend/src/BookingApp.Api`.
 - The frontend runs at http://localhost:5173: `cd frontend`, then `npm run dev`. Vite proxies `/api` to the API.
-- **The contract** is `backend/src/BookingApp.Api/Contracts.cs`, mirrored in `frontend/src/lib/api.ts`. Change both in the same task. After backend task 2 adds OpenAPI, generate the frontend types instead.
+- **The contract** is `backend/src/BookingApp.Api/Contracts.cs`, published as `backend/openapi/v1.json` (a backend test fails if it drifts: regenerate with `UPDATE_OPENAPI=1 dotnet test`). The frontend types in `frontend/src/lib/api.generated.ts` are generated from it with `npm run gen:api:file` (or `npm run gen:api` with the API running). Never hand-write them. Change and regenerate both sides in the same task.
 - A frontend task marked **Needs backend N** waits for that backend task. If it isn't ticked, stop and tell the user.
 
 ## Backend style

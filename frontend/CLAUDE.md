@@ -7,7 +7,8 @@ The goal is a **clean, fast, usable UI**, not a showpiece. The backend does the 
 ## Code map
 
 ```
-src/lib/api.ts          the only place that calls fetch; types mirror backend Contracts.cs; ApiError has status + code
+src/lib/api.ts          the only place that calls fetch; re-exports the generated types under short names; ApiError has status, code, traceId, fieldErrors
+src/lib/api.generated.ts  GENERATED from backend/openapi/v1.json by openapi-typescript. Do not edit; run npm run gen:api:file
 src/lib/queries.ts      TanStack Query: query keys, hooks (useBasics, useAvailability(ies), useMyBookings, useBooking),
                         mutations (useBook, useCancelBooking: optimistic) and what each one invalidates
 src/lib/router.ts       hash routes: #/  #/r/:id[/:date][/week][?at=start]  #/mine   (add routes here; view and selection live in the URL)
@@ -44,4 +45,5 @@ src/index.css           all styles; colour tokens on :root, dark mode below
 - `npm run dev`: http://localhost:5173. It needs the backend running.
 - `npm run build`: type check plus production build
 - `npm run lint`
+- `npm run gen:api:file`: regenerate `src/lib/api.generated.ts` from `../backend/openapi/v1.json` (`npm run gen:api` reads the running API instead). openapi-typescript runs through npx, pinned, because it does not yet accept TypeScript 6 as a peer.
 - `npm run test` (from task 11)

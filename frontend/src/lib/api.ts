@@ -1,27 +1,29 @@
 // Typed client for the .NET API in ../backend. In development Vite proxies /api to http://localhost:5080
 // (vite.config.ts), so the browser sees one origin and the customer cookie works without CORS.
-// These types mirror backend/src/BookingApp.Api/Contracts.cs. Change both together (TASKS.md: generate from OpenAPI).
+// The types come from the API's OpenAPI document: never write them by hand (library 9.3 "Sharing types with the
+// backend"). After a backend contract change run `npm run gen:api` (API running) or `npm run gen:api:file`.
+// They describe what should arrive, not what does; the API is ours and tested against the same contract.
 
+import type { components } from './api.generated';
 import { messageFor } from './errors';
 
-export type SlotState = 'free' | 'booked' | 'past' | 'closed';
-export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'noShow';
-export type ResourceKind = 'court' | 'room' | 'table' | 'other';
-
-export interface Policy { maxDaysAhead: number; minLeadMinutes: number; cancellationCutoffHours: number; maxActiveBookingsPerCustomer: number }
-export interface Venue { name: string; timeZone: string; policy: Policy }
-export interface OpeningHours { day: string; open: string; close: string }
-export interface Resource { id: string; name: string; kind: ResourceKind; capacity: number; slotMinutes: number; maxSlotsPerBooking: number; hours: OpeningHours[] }
+type Schemas = components['schemas'];
+export type SlotState = Schemas['SlotState'];
+export type BookingStatus = Schemas['BookingStatus'];
+export type ResourceKind = Schemas['ResourceKind'];
+export type Policy = Schemas['PolicyResponse'];
+export type Venue = Schemas['VenueResponse'];
+export type OpeningHours = Schemas['OpeningHoursResponse'];
+export type Resource = Schemas['ResourceResponse'];
 /** start/end are UTC instants; localStart/localEnd are venue wall-clock "HH:mm", for display. */
-export interface Slot { start: string; end: string; localStart: string; localEnd: string; state: SlotState }
+export type Slot = Schemas['SlotResponse'];
 /** A time the resource (or, with resourceId null, the whole venue) is closed. local* are venue wall-clock "yyyy-MM-ddTHH:mm". */
-export interface Closure { id: string; resourceId: string | null; start: string; end: string; localStart: string; localEnd: string; reason: string }
-export interface Availability { resourceId: string; date: string; timeZone: string; slots: Slot[]; closures: Closure[] }
-export interface Booking {
-  id: string; resourceId: string; resourceName: string; start: string; end: string;
-  /** venue wall-clock "yyyy-MM-ddTHH:mm" */ localStart: string; localEnd: string;
-  status: BookingStatus; customerName: string; createdAt: string; cancelledAt: string | null; canCancel: boolean;
-}
+export type Closure = Schemas['ClosureResponse'];
+export type Availability = Schemas['AvailabilityResponse'];
+/** localStart/localEnd are venue wall-clock "yyyy-MM-ddTHH:mm". */
+export type Booking = Schemas['BookingResponse'];
+type CreateBookingRequest = Schemas['CreateBookingRequest'];
+type Problem = Schemas['ValidationProblemDetails'] & { traceId?: string };
 
 /**
  * An RFC 9457 problem response. `code` is stable (e.g. "slot_taken") and is what the UI switches on; `message` is
@@ -54,7 +56,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(0, messageFor('network', 'Network error'), 'network');
   }
   if (!res.ok) {
-    const p = await res.json().catch(() => null) as { title?: string; code?: string; traceId?: string; errors?: Record<string, string[]> } | null;
+    const p = await res.json().catch(() => null) as Problem | null;
     const code = res.status === 429 ? 'rate_limited' : p?.code ?? null;
     throw new ApiError(res.status, messageFor(code, p?.title ?? `${res.status} ${res.statusText}`), code, p?.traceId ?? null, p?.errors ?? {});
   }
@@ -67,7 +69,7 @@ export const api = {
   availability: (resourceId: string, date: string) =>
     request<Availability>(`/api/resources/${encodeURIComponent(resourceId)}/availability?date=${date}`),
   book: (resourceId: string, start: string, slots: number, name: string) =>
-    request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ resourceId, start, slots, name }) }),
+    request<Booking>('/api/bookings', { method: 'POST', body: JSON.stringify({ resourceId, start, slots, name } satisfies CreateBookingRequest) }),
   mine: () => request<Booking[]>('/api/bookings/mine'),
   booking: (id: string) => request<Booking>(`/api/bookings/${encodeURIComponent(id)}`),
   cancel: (id: string) => request<Booking>(`/api/bookings/${id}/cancel`, { method: 'POST' }),
