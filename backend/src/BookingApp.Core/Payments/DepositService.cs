@@ -40,6 +40,15 @@ public sealed class DepositService(
     /// </summary>
     public async Task<Result<Booking>> ConfirmAsync(CustomerId customer, Guid bookingId, string? paymentToken, CancellationToken cancellationToken)
     {
+        using var activity = Telemetry.Source.StartActivity("pay-and-confirm");
+        activity?.SetTag("booking.id", bookingId);
+        var result = await PayAndConfirmAsync(customer, bookingId, paymentToken, cancellationToken);
+        Telemetry.Outcome(activity, result);
+        return result;
+    }
+
+    private async Task<Result<Booking>> PayAndConfirmAsync(CustomerId customer, Guid bookingId, string? paymentToken, CancellationToken cancellationToken)
+    {
         if (Deposit.IsZero) return await bookingService.ConfirmAsync(customer, bookingId, cancellationToken);
 
         var booking = await bookings.FindAsync(bookingId, cancellationToken);

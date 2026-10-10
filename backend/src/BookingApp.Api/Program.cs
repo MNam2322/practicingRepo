@@ -47,7 +47,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddBookingOpenApi();
 builder.Services.AddExceptionHandler<BadRequestHandler>();
 builder.Services.AddBookingAuth();
-builder.Services.AddHealthChecks();
+builder.AddBookingTelemetry();
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -76,9 +76,9 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 // Operational routes only; application endpoints are controllers (Controllers/).
-app.MapGet("/", () => TypedResults.Ok(new { name = "Booking API", requests = "see backend/http/booking.http", health = "/health", docs = "/scalar (Development)" }))
+app.MapGet("/", () => TypedResults.Ok(new { name = "Booking API", requests = "see backend/http/booking.http", health = "/health/live, /health/ready", docs = "/scalar (Development)" }))
     .ExcludeFromDescription();
-app.MapHealthChecks("/health");
+app.MapBookingHealth();
 app.MapBookingApiDocs();
 app.MapControllers();
 

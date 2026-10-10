@@ -15,7 +15,7 @@ public sealed record DaySchedule(Venue Venue, DateOnly Date, IReadOnlyList<Sched
 /// reason, and blocking time. Every state change goes through the Booking aggregate's transition table.
 /// Callers must hold the ViewSchedule policy (checked by the controller).
 /// </summary>
-public sealed class StaffService(IResourceRepository resources, IBookingRepository bookings, TimeProvider time)
+public sealed class StaffService(IResourceRepository resources, IBookingRepository bookings, TimeProvider time, IBookingMetrics? metrics = null)
 {
     public async Task<DaySchedule> ScheduleAsync(DateOnly localDay, CancellationToken cancellationToken)
     {
@@ -41,8 +41,15 @@ public sealed class StaffService(IResourceRepository resources, IBookingReposito
     public Task<Result<Booking>> MarkNoShowAsync(Guid bookingId, CancellationToken cancellationToken) =>
         ChangeAsync(bookingId, b => b.MarkNoShow(time.GetUtcNow()), cancellationToken);
 
-    public Task<Result<Booking>> CancelAsync(Guid bookingId, string reason, CancellationToken cancellationToken) =>
-        ChangeAsync(bookingId, b => b.CancelByStaff(reason, time.GetUtcNow()), cancellationToken);
+    public async Task<Result<Booking>> CancelAsync(Guid bookingId, string reason, CancellationToken cancellationToken)
+    {
+        using var activity = Telemetry.Source.StartActivity("staff.cancel");
+        activity?.SetTag("booking.id", bookingId);
+        var result = await ChangeAsync(bookingId, b => b.CancelByStaff(reason, time.GetUtcNow()), cancellationToken);
+        Telemetry.Outcome(activity, result);
+        if (result.IsSuccess) metrics?.Cancelled(result.Value!.ResourceId, "staff");
+        return result;
+    }
 
     /// <summary>
     /// Blocks time on a resource (maintenance, coaching) as a closure, so customers cannot book it. Refused while

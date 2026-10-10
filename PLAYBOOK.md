@@ -201,7 +201,7 @@ Needs backend 14 and 15.
 - **Check:** `dotnet test` includes a test showing availability is never stale after booking or cancelling.
 
 ### Step 27: Backend 17, observability
-- [ ] **Prompt:** "Do backend task 17 (observability)."
+- [x] **Prompt:** "Do backend task 17 (observability)."
 - **Check:** ask Claude Code how to see the traces locally (for example the .NET Aspire dashboard in Docker). A booking shows up as one trace from the HTTP request to the database, and the `slot_taken` counter goes up when you double book.
 
 ### Step 28: Backend 18, performance

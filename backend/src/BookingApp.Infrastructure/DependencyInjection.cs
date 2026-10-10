@@ -8,6 +8,7 @@ using BookingApp.Core.Waitlist;
 using BookingApp.Infrastructure.Caching;
 using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Notifications;
+using BookingApp.Infrastructure.Observability;
 using BookingApp.Infrastructure.Payments;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Infrastructure.Repositories;
@@ -40,6 +41,10 @@ public static class DependencyInjection
         // The "Booking" section only seeds the rules: after the first run they live with the venue (admins change them).
         services.AddOptions<BookingPolicy>().Bind(configuration.GetSection("Booking"));
 
+        services.AddSingleton<IBookingMetrics, BookingMetrics>();
+        // Readiness: can the app reach its database? (Liveness checks nothing: Program.cs.)
+        services.AddHealthChecks().AddDbContextCheck<BookingDbContext>("database", tags: ["ready"]);
+
         // Availability reads go through HybridCache; the booking repositories invalidate it on every write.
         services.AddHybridCache();
         services.AddSingleton<OccupancyVersions>();
@@ -55,8 +60,8 @@ public static class DependencyInjection
                 services.AddSingleton<IVenueAdminRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<InMemoryOutbox>();
                 services.AddSingleton<INotificationOutbox>(sp => sp.GetRequiredService<InMemoryOutbox>());
-                services.AddSingleton<IBookingRepository>(sp =>
-                    new InMemoryBookingRepository(sp.GetRequiredService<InMemoryOutbox>(), sp.GetRequiredService<OccupancyVersions>()));
+                services.AddSingleton<IBookingRepository>(sp => new InMemoryBookingRepository(
+                    sp.GetRequiredService<InMemoryOutbox>(), sp.GetRequiredService<OccupancyVersions>(), sp.GetRequiredService<IBookingMetrics>()));
                 services.AddSingleton<IWaitlistRepository, InMemoryWaitlistRepository>();
                 services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
                 services.AddSingleton<IPaymentRepository, InMemoryPaymentRepository>();

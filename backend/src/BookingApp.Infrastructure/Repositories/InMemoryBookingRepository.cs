@@ -1,4 +1,5 @@
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Common;
 using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Caching;
@@ -13,7 +14,9 @@ namespace BookingApp.Infrastructure.Repositories;
 /// </summary>
 /// <param name="outbox">Where notifications go, in the same step as the change; null drops them (tests that do not care).</param>
 /// <param name="occupancy">Told about every change, so cached availability is never stale.</param>
-internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null, OccupancyVersions? occupancy = null) : IBookingRepository
+/// <param name="metrics">Counts expired holds.</param>
+internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null, OccupancyVersions? occupancy = null, IBookingMetrics? metrics = null)
+    : IBookingRepository
 {
     private readonly Lock _gate = new();
     private readonly Dictionary<Guid, Booking> _bookings = [];
@@ -62,6 +65,7 @@ internal sealed class InMemoryBookingRepository(InMemoryOutbox? outbox = null, O
         var expired = 0;
         foreach (var b in _bookings.Values.Where(b => b.Status == BookingStatus.Pending && b.HoldExpiresAt <= now))
             if (b.Expire(now).IsSuccess) { b.MarkSaved(); expired++; }
+        if (expired > 0) metrics?.HoldsExpired(expired);
         return expired;
     }
 

@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using BookingApp.Core.Bookings;
+using BookingApp.Core.Common;
 using BookingApp.Core.Notifications;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Caching;
@@ -16,7 +17,8 @@ namespace BookingApp.Infrastructure.Repositories;
 /// (library 7.7 "Where data access code belongs"). Reads are no-tracking; writes are guarded as described on each method.
 /// </summary>
 /// <param name="occupancy">Told about every committed change, so cached availability is never stale (null in tests that do not cache).</param>
-internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions? occupancy = null) : IBookingRepository
+/// <param name="metrics">Counts expired holds, wherever they expire (the job, or in passing before an insert).</param>
+internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions? occupancy = null, IBookingMetrics? metrics = null) : IBookingRepository
 {
     /// <summary>
     /// The overlap check and the insert must be one atomic step; a read-then-insert would let two requests both see
@@ -164,10 +166,14 @@ internal sealed class EfBookingRepository(BookingDbContext db, OccupancyVersions
     /// One conditional UPDATE: only holds that are still Pending and past their time change, so it is safe to run twice
     /// and a confirm racing it either wins (the row is no longer Pending) or loses (its version check fails).
     /// </summary>
-    private Task<int> ExpireDueHoldsAsync(string? resourceId, DateTimeOffset now, CancellationToken cancellationToken) =>
-        db.Bookings
+    private async Task<int> ExpireDueHoldsAsync(string? resourceId, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var expired = await db.Bookings
             .Where(b => b.Status == BookingStatus.Pending && b.HoldExpiresAt <= now && (resourceId == null || b.ResourceId == resourceId))
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.Status, BookingStatus.Expired).SetProperty(b => b.Version, b => b.Version + 1), cancellationToken);
+        if (expired > 0) metrics?.HoldsExpired(expired);
+        return expired;
+    }
 
     public async Task<IReadOnlyList<Booking>> InWindowAsync(TimeRange window, CancellationToken cancellationToken)
     {

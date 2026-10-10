@@ -8,6 +8,8 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />

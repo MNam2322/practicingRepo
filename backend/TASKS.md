@@ -145,8 +145,8 @@ Read first: 8.6 Caching, 8.6 "Invalidation".
 
 ### 17. Observability
 Read first: 11.6 Observability.
-- [ ] OpenTelemetry tracing, metrics and logs. Custom metrics: bookings created, conflicts (`slot_taken`), cancellations, and hold expiries.
-- [ ] Add a database health check.
+- [x] OpenTelemetry tracing, metrics and logs. Custom metrics: bookings created, conflicts (`slot_taken`), cancellations, and hold expiries.
+- [x] Add a database health check.
 
 ### 18. Performance
 Read first: 7.9 Database optimisation casebook, 7.3 Indexes and query plans, 12.4 Scaling and performance.
@@ -193,3 +193,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 14: weekly series (`/api/series`, 2–12 weeks, idempotent): each date is booked on its own at the same venue-local time (DST-safe expansion) and reported as held or failed with its code; `bookings.series_id`; confirm (pay each date) and cancel (refund each date the rules allow) report per date; one date can still be cancelled alone; a series counts once toward the upcoming-bookings limit.
 - Task 15: waitlist (`/api/waitlist`: join a taken time, mine with places in line, leave): `waitlist` table with one waiting entry per customer and time; `WaitlistSweep` tells the first in line when the time is free again (any cause), marking the entry and writing its email to the outbox in one transaction; the next in line is told after 30 minutes if it is still free; outbox messages can carry pre-rendered text and no booking.
 - Task 16: availability's occupancy read is cached per resource-day in HybridCache (`IOccupancyReader` / `CachedOccupancyReader`); the booking repositories bump per resource-day versions after every committed write and the versions are in the cache key, so a read after a booking change is never stale (tests on every provider, plus the slow-reader race); holds carry their expiry; exact checks bypass the cache.
+- Task 17: OpenTelemetry traces (ASP.NET Core, HttpClient, EF Core, and `BookingApp` spans per use case), metrics (ASP.NET Core, runtime, `BookingApp` counters: created, conflicts, confirmed, cancelled, holds expired) and logs, exported over OTLP when configured; Aspire dashboard in docker-compose (`observability` profile); `/health/live` and `/health/ready` (database); tests prove one trace from request to SQL and the counters.

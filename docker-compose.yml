@@ -17,5 +17,18 @@ services:
       timeout: 3s
       retries: 10
 
+  # Traces, metrics and logs, locally: docker compose --profile observability up -d aspire-dashboard
+  # Then run the API with OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 and open http://localhost:18888.
+  # Development only: the dashboard accepts anyone (no login) and keeps telemetry in memory.
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.5
+    profiles: [observability]
+    environment:
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+    ports:
+      - "18888:18888"   # the dashboard
+      - "4317:18889"    # OTLP over gRPC
+
 volumes:
   postgres-data:
