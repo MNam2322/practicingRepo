@@ -1,0 +1,167 @@
+# Every push to main or dev, and every pull request: build, check, test, and prove the image works.
+# Fail fast, in cost order (library 11.4 "Pipeline stages"): compile and format, unit tests, integration tests with
+# PostgreSQL (Testcontainers), then the image, built once and tagged with the commit, started with PostgreSQL and
+# driven end to end in a browser.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes an older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (build, format, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend/Directory.Packages.props', 'backend/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore BookingApp.slnx
+
+      - name: Build (warnings are errors)
+        run: dotnet build BookingApp.slnx -c Release --no-restore
+
+      - name: Format check
+        run: dotnet format BookingApp.slnx --verify-no-changes --no-restore
+
+      - name: Unit tests (Core)
+        run: dotnet test tests/BookingApp.Core.Tests -c Release --no-build --logger trx --results-directory TestResults
+
+      # PostgreSQL runs in Testcontainers; REQUIRE_DOCKER makes a skipped PostgreSQL test a failure, not a silent pass.
+      - name: Integration tests (repositories on every provider)
+        run: dotnet test tests/BookingApp.Infrastructure.Tests -c Release --no-build --logger trx --results-directory TestResults
+        env:
+          REQUIRE_DOCKER: "1"
+
+      - name: API tests (every provider, architecture rules, contract)
+        run: dotnet test tests/BookingApp.Api.Tests -c Release --no-build --logger trx --results-directory TestResults
+        env:
+          REQUIRE_DOCKER: "1"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-results
+          path: backend/TestResults
+          retention-days: 7
+
+  frontend:
+    name: Frontend (lint, build, component tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - name: Type check and production build
+        run: npm run build
+      - name: Component tests (Vitest, the API mocked with MSW)
+        run: npm run test
+
+  image:
+    name: Docker image (build once, start, browser tests)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Built once and tagged with the commit (never "latest"): the image that was tested is the image to ship.
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          push: false
+          tags: |
+            booking-app:${{ github.sha }}
+            booking-app:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start the app with PostgreSQL (docker-compose.yml)
+        run: docker compose up -d --no-build --wait --wait-timeout 120
+
+      - name: Wait until the app is ready
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/health/ready; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "The app did not become ready." >&2
+          exit 1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Playwright and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Browser tests against the image (booking, keyboard only, accessibility)
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:8080
+        run: npx playwright test
+
+      - name: App logs
+        if: failure()
+        run: docker compose logs app
+
+      - name: Upload Playwright results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: frontend/test-results
+          retention-days: 7
+
+      - name: Stop
+        if: always()
+        run: docker compose down -v

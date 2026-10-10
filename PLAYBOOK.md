@@ -230,7 +230,7 @@ Needs backend 20.
 
 ### Step 33: Backend 21, CI
 Do this only after you add a GitHub remote. When you do, tell Claude Code to remove the "No git remote yet" note from `CLAUDE.md`.
-- [ ] **Prompt:** "Do backend task 21 (CI)."
+- [x] **Prompt:** "Do backend task 21 (CI)."
 - **Check:** push, then open the Actions tab on GitHub. The workflow is green.
 
 ### Step 34: Backend 22, architecture guard rails

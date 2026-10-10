@@ -150,7 +150,17 @@ node library/show.mjs 7-4                       # list a chapter's sections
 | `backend/` | `dotnet format` | Fix the formatting |
 | `frontend/` | `npm run build` | Type check and build |
 | `frontend/` | `npm run lint` | Lint |
+| `frontend/` | `npm run test` | Component tests |
+| `frontend/` | `npm run e2e` | Browser tests against the running app |
+| root | `docker compose up --build` | The whole app in Docker on http://localhost:8080 |
 | root | `git log --oneline` | See what has been done |
+
+**Branches and CI.** Work happens on `dev`. `main` only moves forward by merging `dev` once CI is green.
+- Every push to `main` or `dev`, and every pull request, runs `.github/workflows/ci.yml` (the **Actions** tab on GitHub):
+  1. Backend build, format check and tests, including PostgreSQL.
+  2. Frontend lint, build and component tests.
+  3. The Docker image is built, started and tested in a browser.
+- To have GitHub enforce that, protect `main`: **Settings → Branches → Add rule**, require a pull request, and require the **Backend**, **Frontend** and **Docker image** checks to pass.
 
 `backend/http/booking.http` has one request per endpoint. In VS Code, install the **REST Client** extension, then click **Send Request** above any request.
 
