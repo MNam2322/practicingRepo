@@ -1,0 +1,18 @@
+# Only what the image build needs goes to Docker: no dependencies, build output, local data or the library.
+.git
+library
+**/node_modules
+**/bin
+**/obj
+**/.data
+**/dist
+**/test-results
+**/playwright-report
+**/*.db
+**/*.db-*
+backend/tests
+backend/tools
+backend/perf
+backend/docs
+.env
+**/appsettings.*.local.json

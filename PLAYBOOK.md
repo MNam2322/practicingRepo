@@ -220,7 +220,7 @@ Needs backend 14 and 15.
 
 ### Step 31: Backend 20, Docker
 You need Docker Desktop for this step.
-- [ ] **Prompt:** "Do backend task 20 (Docker)."
+- [x] **Prompt:** "Do backend task 20 (Docker)."
 - **Check:** stop everything else. `docker compose up --build` from the repo root starts the whole app, and http://localhost:8080 (or the port Claude Code tells you) shows the UI and books.
 
 ### Step 32: Frontend 12, production build

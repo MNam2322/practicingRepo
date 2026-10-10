@@ -1,12 +1,35 @@
-# Local services for development. Start with: docker compose up -d   Stop with: docker compose down
-# The password is for this local container only (see backend/src/BookingApp.Api/appsettings.Development.json).
+# The whole app:              docker compose up --build        http://localhost:8080   (stop: docker compose down)
+# Only the database, for dev:  docker compose up -d postgres    (then dotnet run --launch-profile http-postgres)
+# The PostgreSQL password and the webhook secret below are local defaults, for this machine only. Anywhere else set
+# POSTGRES_PASSWORD and WEBHOOK_SECRET in the environment (or a .env file, which git ignores): nothing secret is baked
+# into the image (library 11.3 "Container security").
 services:
+  app:
+    build: .
+    image: booking-app:local
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=booking;Username=booking;Password=${POSTGRES_PASSWORD:-booking-dev-only};Maximum Pool Size=40"
+      Storage__Provider: Postgres
+      Payments__Fake__WebhookSecret: "${WEBHOOK_SECRET:-whsec_local_docker_only_change_me}"
+      Notifications__AppUrl: http://localhost:8080
+      Cors__AllowedOrigins__0: http://localhost:8080
+      # Telemetry to the Aspire dashboard when it runs (docker compose --profile observability up).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    volumes:
+      - app-data:/data          # Data Protection keys (sign-ins survive a restart) and the .eml files
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: booking
       POSTGRES_USER: booking
-      POSTGRES_PASSWORD: booking-dev-only
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-booking-dev-only}
     ports:
       - "5432:5432"
     volumes:
@@ -32,3 +55,4 @@ services:
 
 volumes:
   postgres-data:
+  app-data:

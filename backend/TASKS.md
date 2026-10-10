@@ -161,8 +161,8 @@ Read first: 10.4 Common web vulnerabilities, 12.5 "Rate limiting".
 
 ### 20. Docker
 Read first: 11.3 Containers and Docker.
-- [ ] Build one image that contains the API and the built frontend (`UseStaticFiles` + `MapFallbackToFile`).
-- [ ] Use `docker-compose.yml` to run the app with PostgreSQL.
+- [x] Build one image that contains the API and the built frontend (`UseStaticFiles` + `MapFallbackToFile`).
+- [x] Use `docker-compose.yml` to run the app with PostgreSQL.
 
 ### 21. CI (when a GitHub remote exists)
 Read first: 11.4 CI/CD pipelines.
@@ -196,3 +196,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 17: OpenTelemetry traces (ASP.NET Core, HttpClient, EF Core, and `BookingApp` spans per use case), metrics (ASP.NET Core, runtime, `BookingApp` counters: created, conflicts, confirmed, cancelled, holds expired) and logs, exported over OTLP when configured; Aspire dashboard in docker-compose (`observability` profile); `/health/live` and `/health/ready` (database); tests prove one trace from request to SQL and the counters.
 - Task 18: `tools/BookingApp.Perf` seeds a year (114k bookings, 30 courts) and measures `BookingQueries`; overlap queries bounded by the 24-hour maximum booking length (now a rule); `ix_bookings_resource_start` partial on blocking statuses, new `ix_bookings_start`: availability reads 10 rows instead of 501 (1.25 → 0.06 ms in the database), the staff schedule an index range instead of a 114k-row scan (p50 14.1 → 2.8 ms); a (customer, start) index measured and rejected; k6 race (100 customers, 15 slots): exactly 15 bookings, 1,485 slot_taken, 0 errors; Npgsql pool capped below max_connections. Details: docs/performance.md.
 - Task 19: antiforgery on every controller write (XSRF-TOKEN cookie + X-XSRF-TOKEN header, `GET /api/antiforgery`, new token on sign-in/up/out, 400 `antiforgery_failed`; the signed webhook exempt); security headers (strict CSP and no-store on /api, nosniff, DENY framing, no-referrer, no Server header, HSTS outside Development, 1 MB body limit); rate limits per account or per IP (never per client-sent cookie), a global per-caller limit, 429 problem details with Retry-After, logged; development secrets moved to dotnet user-secrets (`tools/dev-secrets.mjs`).
+- Task 20: one image (root `Dockerfile`): the web app built with Node, the API published with the SDK, run on `aspnet:10.0.12-noble-chiseled-extra` as a non-root user; the API serves `wwwroot` (hashed assets cached for a year, `index.html` no-cache, an `index.html` fallback, unknown `/api` paths still 404 problems); `docker compose up --build` runs it on :8080 with PostgreSQL; secrets and paths from the environment, Data Protection keys and emails on a `/data` volume (sign-ins survive a restart); forwarded headers trusted only from configured proxies; SQL command logging off outside Development.

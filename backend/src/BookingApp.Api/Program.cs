@@ -50,6 +50,7 @@ builder.Services.AddExceptionHandler<BadRequestHandler>();
 builder.Services.AddBookingAuth();
 builder.AddBookingTelemetry();
 builder.AddBookingSecurity();
+builder.AddBookingHosting();
 // The React app calls the API through the Vite proxy in development, so CORS only matters when it is
 // served from another origin. Origins come from configuration ("Cors:AllowedOrigins").
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -58,6 +59,7 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 
 var app = builder.Build();
 
+app.UseBookingForwardedHeaders();
 app.UseSecurityHeaders();
 if (!app.Environment.IsDevelopment()) app.UseHsts();   // only ever sent over HTTPS
 app.UseExceptionHandler();
@@ -68,11 +70,10 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 // Operational routes only; application endpoints are controllers (Controllers/).
-app.MapGet("/", () => TypedResults.Ok(new { name = "Booking API", requests = "see backend/http/booking.http", health = "/health/live, /health/ready", docs = "/scalar (Development)" }))
-    .ExcludeFromDescription();
 app.MapBookingHealth();
 app.MapBookingApiDocs();
 app.MapControllers();
+app.MapBookingWebApp();
 
 app.Run();
 

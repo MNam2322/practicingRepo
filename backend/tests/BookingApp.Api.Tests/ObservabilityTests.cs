@@ -74,9 +74,16 @@ public sealed class ObservabilityTestsSqlite() : ObservabilityTests(StorageProvi
         request0.Headers.Add("traceparent", $"00-{traceId}-{ActivitySpanId.CreateRandom()}-01");
         var response = await client.SendAsync(request0, Ct);
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        traced.Services.GetRequiredService<TracerProvider>().ForceFlush();
-        // A copy: the background jobs keep exporting their own spans while the test reads.
-        var spans = exported.ToArray().Where(s => s.TraceId == traceId).ToList();
+        // The request's own span ends just after the response reaches the client: wait for it to be exported.
+        List<Activity> spans = [];
+        for (var i = 0; i < 50; i++)
+        {
+            traced.Services.GetRequiredService<TracerProvider>().ForceFlush();
+            // A copy: the background jobs keep exporting their own spans while the test reads.
+            spans = [.. exported.ToArray().Where(s => s.TraceId == traceId)];
+            if (spans.Any(s => s.Kind == ActivityKind.Server)) break;
+            await Task.Delay(100, Ct);
+        }
 
         var request = Assert.Single(spans, s => s.Kind == ActivityKind.Server && s.DisplayName == "POST api/bookings");
         var book = Assert.Single(spans, s => s.Source.Name == Core.Common.Telemetry.Name && s.DisplayName == "book");

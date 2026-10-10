@@ -96,7 +96,7 @@ docker run --rm -i -e BASE=http://host.docker.internal:5080 -v "<backend>/perf:/
 ## Reproduce
 
 ```text
-docker compose up -d                                                   # repo root
+docker compose up -d postgres                                          # repo root
 cd backend
 dotnet run -c Release --project tools/BookingApp.Perf -- seed         # about 10 s
 dotnet run -c Release --project tools/BookingApp.Perf -- measure --label now
