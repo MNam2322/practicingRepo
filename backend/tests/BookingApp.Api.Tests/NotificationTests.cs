@@ -17,6 +17,12 @@ public abstract class NotificationTests(StorageProvider provider) : ApiTest(prov
 
     private FileEmailSender Sender => Factory.Services.GetRequiredService<FileEmailSender>();
 
+    /// <summary>
+    /// The background relay polls hourly here, so the passes these tests make themselves (<see cref="Relay"/>) are the
+    /// only ones while they move the clock by minutes; one test lets the background relay do the work.
+    /// </summary>
+    protected override IReadOnlyDictionary<string, string?> Settings => new Dictionary<string, string?> { ["Notifications:PollSeconds"] = "3600" };
+
     /// <summary>One pass of the relay, as the background service runs it.</summary>
     private async Task<int> Relay()
     {
@@ -170,7 +176,7 @@ public abstract class NotificationTests(StorageProvider provider) : ApiTest(prov
     public async Task The_relay_sends_in_the_background()
     {
         await BookOk(10, email: Email);
-        Factory.Time.Advance(TimeSpan.FromSeconds(5));   // one poll on the fake clock
+        Factory.Time.Advance(TimeSpan.FromHours(1));   // one poll on the fake clock
         for (var i = 0; i < 100 && Factory.Emails().Count == 0; i++) await Task.Delay(50, Ct);
         Assert.Single(Factory.Emails());
     }

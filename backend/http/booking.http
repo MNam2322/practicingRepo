@@ -42,6 +42,27 @@ Content-Type: application/json
 ### Payment webhooks are signed by the provider, so send them with: node tools/payment-webhook.mjs <type> <paymentId>
 ### (payment.succeeded, payment.failed, refund.succeeded; --event evt_1 twice to see "duplicate"; --bad-signature for 401)
 
+### --- Weekly series: the same time every week, 2 to 12 weeks. Each date is held on its own; the answer lists the
+### dates that failed (slot_taken, resource_closed, too_far_ahead …) and holds the rest. A series counts once toward
+### the limit of upcoming bookings.
+# @name series
+POST {{base}}/api/series
+Content-Type: application/json
+
+{ "resourceId": "court-1", "start": "2026-10-20T11:00:00Z", "weeks": 4, "name": "Nam", "email": "nam@example.com" }
+
+### The series' bookings
+GET {{base}}/api/series/{{series.response.body.seriesId}}
+
+### Pay for and confirm every held date (each succeeds or fails on its own)
+POST {{base}}/api/series/{{series.response.body.seriesId}}/confirm
+Content-Type: application/json
+
+{ "paymentToken": "tok_visa" }
+
+### Cancel every date still on (refunds as for one booking; dates past the cut-off stay booked). One date: cancel that booking.
+POST {{base}}/api/series/{{series.response.body.seriesId}}/cancel
+
 ### My bookings
 GET {{base}}/api/bookings/mine
 

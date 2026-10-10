@@ -25,8 +25,13 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
     }
 
     /// <param name="contactEmail">Where confirmations and reminders go; null for none.</param>
+    public Task<Result<Booking>> BookAsync(CustomerId customer, string customerName, string? contactEmail, string resourceId, DateTimeOffset start, int slots,
+        CancellationToken cancellationToken) =>
+        BookAsync(customer, customerName, contactEmail, resourceId, start, slots, seriesId: null, cancellationToken);
+
+    /// <summary>Holds a time, as one date of a weekly series when <paramref name="seriesId"/> is given (SeriesService).</summary>
     public async Task<Result<Booking>> BookAsync(CustomerId customer, string customerName, string? contactEmail, string resourceId, DateTimeOffset start, int slots,
-        CancellationToken cancellationToken)
+        Guid? seriesId, CancellationToken cancellationToken)
     {
         var catalog = await resources.GetCatalogAsync(cancellationToken);
         var resource = catalog.Find(resourceId);
@@ -43,12 +48,14 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         if (closures.Count > 0)
             return new Error(ErrorKind.RuleViolation, "resource_closed", $"{resource.Name} is closed at that time: {closures[0].Reason}.");
 
-        var active = (await bookings.ForCustomerAsync(customer, cancellationToken)).Count(b => b.BlocksAt(now) && b.Time.End > now);
-        if (active >= policy.MaxActiveBookingsPerCustomer)
+        // A weekly series is one commitment: its dates count once toward the limit.
+        var active = (await bookings.ForCustomerAsync(customer, cancellationToken))
+            .Where(b => b.BlocksAt(now) && b.Time.End > now).Select(b => b.SeriesId ?? b.Id).ToHashSet();
+        if (active.Count >= policy.MaxActiveBookingsPerCustomer && !(seriesId is { } series && active.Contains(series)))
             return new Error(ErrorKind.RuleViolation, "too_many_bookings", $"You can hold up to {policy.MaxActiveBookingsPerCustomer} upcoming bookings.");
 
         // A hold: it blocks the slot until the customer confirms, releases it, or it expires.
-        var booking = Booking.CreateHold(resource.Id, range, customer, customerName, now, holds.HoldFor, contactEmail);
+        var booking = Booking.CreateHold(resource.Id, range, customer, customerName, now, holds.HoldFor, contactEmail, seriesId);
         return await bookings.TryAddAsync(booking, cancellationToken)
             ? Result<Booking>.Ok(booking)
             : new Error(ErrorKind.Conflict, "slot_taken", "Someone has just booked that time. Pick another slot.");

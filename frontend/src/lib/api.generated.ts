@@ -350,6 +350,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Holds the same time every week ("every Tuesday 18:00 for 8 weeks"), date by date.
+         * @description Each date is booked on its own, under the same rules as one booking: the answer lists every date as held, or
+         *     failed with a code (slot_taken, resource_closed, too_far_ahead …), and one failed date does not stop the rest.
+         *     Held dates are holds: confirm the series to pay the deposits. A series counts once toward the limit of upcoming
+         *     bookings. Send an Idempotency-Key and a retry returns the first answer instead of booking again.
+         */
+        post: operations["CreateSeries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/series/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The bookings of one of the current customer's series, in date order. */
+        get: operations["GetSeries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/series/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pays the deposit for and confirms every date of the series that is still held, date by date.
+         * @description Each date is charged and confirmed on its own; the answer says which succeeded (a declined card or an expired hold fails that date).
+         */
+        post: operations["ConfirmSeries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/series/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancels every date of the series that is still on, refunding deposits as for one booking.
+         * @description A date past the cancellation cut-off stays booked and is listed with too_late_to_cancel. To cancel one date, cancel that booking.
+         */
+        post: operations["CancelSeries"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/staff/schedule": {
         parameters: {
             query?: never;
@@ -539,6 +619,8 @@ export interface components {
             canConfirm: boolean;
             deposit: null | components["schemas"]["DepositResponse"];
             email: null | string;
+            /** Format: uuid */
+            seriesId: null | string;
         };
         /**
          * @description Where a booking is in its life. Transitions are in Booking's table; anything not there is illegal.
@@ -603,6 +685,28 @@ export interface components {
             slotMinutes: null | number;
             /** Format: int32 */
             maxSlotsPerBooking: null | number;
+        };
+        /** @description A weekly series: the first date and time, and how many weeks. Each date is booked on its own. */
+        CreateSeriesRequest: {
+            /** @description The resource to book, such as court-1. */
+            resourceId: null | string;
+            /**
+             * Format: date-time
+             * @description The UTC start of the first date, exactly as returned by the availability endpoint. Later weeks keep the same venue-local time.
+             */
+            start: null | string;
+            /**
+             * Format: int32
+             * @description How many consecutive slots each week. Leave it out for one.
+             */
+            slots?: null | number;
+            /**
+             * Format: int32
+             * @description How many weeks, the first included: 2 to 12.
+             */
+            weeks: null | number;
+            name: null | string;
+            email?: null | string;
         };
         /** @enum {unknown} */
         DayOfWeek: "sunday" | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday";
@@ -705,6 +809,50 @@ export interface components {
             date: string;
             timeZone: string;
             resources: components["schemas"]["ScheduleColumnResponse"][];
+        };
+        /** @description What confirming or cancelling did to one booking of a series. */
+        SeriesChangeResponse: {
+            /** Format: uuid */
+            bookingId: string;
+            ok: boolean;
+            code: null | string;
+            message: null | string;
+            booking: components["schemas"]["BookingResponse"];
+        };
+        SeriesChangesResponse: {
+            /** Format: int32 */
+            succeeded: number;
+            /** Format: int32 */
+            failed: number;
+            results: components["schemas"]["SeriesChangeResponse"][];
+        };
+        /** @enum {unknown} */
+        SeriesDateOutcome: "held" | "failed";
+        SeriesDateResponse: {
+            /**
+             * Format: int32
+             * @description 0 for the first week, as in the request.
+             */
+            index: number;
+            /** @description The venue-local date, yyyy-MM-dd. */
+            localDate: string;
+            /** Format: date-time */
+            start: null | string;
+            outcome: components["schemas"]["SeriesDateOutcome"];
+            booking: null | components["schemas"]["BookingResponse"];
+            /** @description Why it failed, such as slot_taken or resource_closed. */
+            code: null | string;
+            message: null | string;
+        };
+        /** @description A series request's outcome, date by date. Held dates are holds: confirm the series to pay and book them. */
+        SeriesResponse: {
+            /** Format: uuid */
+            seriesId: string;
+            /** Format: int32 */
+            held: number;
+            /** Format: int32 */
+            failed: number;
+            dates: components["schemas"]["SeriesDateResponse"][];
         };
         /** @description The whole week. Days that are left out are closed. */
         SetHoursRequest: {
@@ -1959,6 +2107,215 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateSeries: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Cancelled when the client goes away. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSeriesRequest"];
+                "application/*+json": components["schemas"]["CreateSeriesRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description resource_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description request_in_progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description invalid_weeks, idempotency_key_reused */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetSeries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The series id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BookingResponse"][];
+                };
+            };
+            /** @description series_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ConfirmSeries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The series id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** @description The payment token, as for one booking. */
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["ConfirmBookingRequest"];
+                "text/json": null | components["schemas"]["ConfirmBookingRequest"];
+                "application/*+json": null | components["schemas"]["ConfirmBookingRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesChangesResponse"];
+                };
+            };
+            /** @description validation_failed */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ValidationProblemDetails"];
+                };
+            };
+            /** @description series_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CancelSeries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The series id. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SeriesChangesResponse"];
+                };
+            };
+            /** @description series_not_found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                    "application/json": components["schemas"]["ProblemDetails"];
+                    "text/json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

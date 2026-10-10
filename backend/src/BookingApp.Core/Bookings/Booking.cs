@@ -66,7 +66,7 @@ public sealed class Booking
 
     private Booking(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName, BookingStatus status,
         DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason, DateTimeOffset? holdExpiresAt,
-        string? contactEmail)
+        string? contactEmail, Guid? seriesId)
     {
         Id = id;
         ResourceId = resourceId;
@@ -80,6 +80,7 @@ public sealed class Booking
         CancellationReason = cancellationReason;
         HoldExpiresAt = holdExpiresAt;
         ContactEmail = contactEmail;
+        SeriesId = seriesId;
     }
 
     public Guid Id { get; }
@@ -99,6 +100,9 @@ public sealed class Booking
 
     /// <summary>Where confirmations, reminders and cancellations go. Null: the customer is not emailed.</summary>
     public string? ContactEmail { get; }
+
+    /// <summary>The weekly series this booking is one date of, if any (SeriesService).</summary>
+    public Guid? SeriesId { get; }
 
     /// <summary>
     /// What happened since the booking was loaded, for the repository to turn into notifications in the same save
@@ -133,19 +137,19 @@ public sealed class Booking
 
     /// <summary>A confirmed booking straight away (staff and demo data; customers start with a hold).</summary>
     public static Booking Create(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now) =>
-        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null, null, null);
+        new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Confirmed, now, null, 0, null, null, null, null);
 
     /// <summary>A hold: it blocks the slot for <paramref name="holdFor"/>, until it is confirmed or released.</summary>
     public static Booking CreateHold(string resourceId, TimeRange time, CustomerId customer, string customerName, DateTimeOffset now, TimeSpan holdFor,
-        string? contactEmail = null) =>
+        string? contactEmail = null, Guid? seriesId = null) =>
         new(Guid.CreateVersion7(), resourceId, time, customer, customerName.Trim(), BookingStatus.Pending, now, null, 0, null, now + holdFor,
-            string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim());
+            string.IsNullOrWhiteSpace(contactEmail) ? null : contactEmail.Trim(), seriesId);
 
     /// <summary>For repositories rebuilding a booking they saved. Not for creating new bookings.</summary>
     public static Booking Restore(Guid id, string resourceId, TimeRange time, CustomerId customer, string customerName,
         BookingStatus status, DateTimeOffset createdAt, DateTimeOffset? cancelledAt, int version, string? cancellationReason = null,
-        DateTimeOffset? holdExpiresAt = null, string? contactEmail = null) =>
-        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason, holdExpiresAt, contactEmail);
+        DateTimeOffset? holdExpiresAt = null, string? contactEmail = null, Guid? seriesId = null) =>
+        new(id, resourceId, time, customer, customerName, status, createdAt, cancelledAt, version, cancellationReason, holdExpiresAt, contactEmail, seriesId);
 
     /// <summary>
     /// The customer confirms their hold before it expires. Confirming a booking that is already confirmed changes nothing

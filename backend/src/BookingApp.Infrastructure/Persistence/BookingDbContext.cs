@@ -141,6 +141,8 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         booking.Property(b => b.CancellationReason).HasColumnName("cancellation_reason").HasMaxLength(Booking.MaxReasonLength);
         booking.Property(b => b.HoldExpiresAt).HasColumnName("hold_expires_at");
         booking.Property(b => b.ContactEmail).HasColumnName("contact_email").HasMaxLength(Booking.MaxEmailLength);
+        booking.Property(b => b.SeriesId).HasColumnName("series_id");
+        booking.HasIndex(b => b.SeriesId, "ix_bookings_series").HasFilter("series_id IS NOT NULL");
         // The expiry job's query: holds still Pending, by expiry time.
         booking.HasIndex(b => new { b.Status, b.HoldExpiresAt }).HasDatabaseName("ix_bookings_status_hold_expires");
         booking.Property(b => b.Version).HasColumnName("version").IsConcurrencyToken();

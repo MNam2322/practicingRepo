@@ -25,6 +25,8 @@ internal sealed class BookingRow
     public DateTimeOffset? HoldExpiresAt { get; set; }
     /// <summary>Where notifications go; null when the customer gave none.</summary>
     public string? ContactEmail { get; set; }
+    /// <summary>The weekly series this booking belongs to, if any.</summary>
+    public Guid? SeriesId { get; set; }
     /// <summary>Optimistic concurrency token: every update checks it in its WHERE clause and increments it.</summary>
     public int Version { get; set; }
 
@@ -42,9 +44,10 @@ internal sealed class BookingRow
         CancellationReason = b.CancellationReason,
         HoldExpiresAt = b.HoldExpiresAt,
         ContactEmail = b.ContactEmail,
+        SeriesId = b.SeriesId,
         Version = b.Version,
     };
 
     public Booking ToDomain() => Booking.Restore(Id, ResourceId, TimeRange.Create(StartUtc, EndUtc), new CustomerId(CustomerId),
-        CustomerName, Status, CreatedAt, CancelledAt, Version, CancellationReason, HoldExpiresAt, ContactEmail);
+        CustomerName, Status, CreatedAt, CancelledAt, Version, CancellationReason, HoldExpiresAt, ContactEmail, SeriesId);
 }

@@ -1499,6 +1499,338 @@
         }
       }
     },
+    "/api/series": {
+      "post": {
+        "tags": [
+          "Series"
+        ],
+        "summary": "Holds the same time every week (\"every Tuesday 18:00 for 8 weeks\"), date by date.",
+        "description": "Each date is booked on its own, under the same rules as one booking: the answer lists every date as held, or\nfailed with a code (slot_taken, resource_closed, too_far_ahead …), and one failed date does not stop the rest.\nHeld dates are holds: confirm the series to pay the deposits. A series counts once toward the limit of upcoming\nbookings. Send an Idempotency-Key and a retry returns the first answer instead of booking again.",
+        "operationId": "CreateSeries",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Cancelled when the client goes away.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSeriesRequest"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSeriesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "resource_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "request_in_progress",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "invalid_weeks, idempotency_key_reused",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/series/{id}": {
+      "get": {
+        "tags": [
+          "Series"
+        ],
+        "summary": "The bookings of one of the current customer's series, in date order.",
+        "operationId": "GetSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The series id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookingResponse"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "series_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/series/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Series"
+        ],
+        "summary": "Pays the deposit for and confirms every date of the series that is still held, date by date.",
+        "description": "Each date is charged and confirmed on its own; the answer says which succeeded (a declined card or an expired hold fails that date).",
+        "operationId": "ConfirmSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The series id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The payment token, as for one booking.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            },
+            "text/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConfirmBookingRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesChangesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "validation_failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "series_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/series/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Series"
+        ],
+        "summary": "Cancels every date of the series that is still on, refunding deposits as for one booking.",
+        "description": "A date past the cancellation cut-off stays booked and is listed with too_late_to_cancel. To cancel one date, cancel that booking.",
+        "operationId": "CancelSeries",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The series id.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesChangesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "series_not_found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/staff/schedule": {
       "get": {
         "tags": [
@@ -2183,7 +2515,8 @@
           "holdExpiresAt",
           "canConfirm",
           "deposit",
-          "email"
+          "email",
+          "seriesId"
         ],
         "type": "object",
         "properties": {
@@ -2262,6 +2595,13 @@
               "null",
               "string"
             ]
+          },
+          "seriesId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -2455,6 +2795,71 @@
           }
         },
         "description": "A new resource. The id becomes part of URLs and cannot change later."
+      },
+      "CreateSeriesRequest": {
+        "required": [
+          "resourceId",
+          "start",
+          "weeks",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "resourceId": {
+            "maxLength": 64,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The resource to book, such as court-1."
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The UTC start of the first date, exactly as returned by the availability endpoint. Later weeks keep the same venue-local time.",
+            "format": "date-time"
+          },
+          "slots": {
+            "maximum": 24,
+            "minimum": 1,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "How many consecutive slots each week. Leave it out for one.",
+            "format": "int32"
+          },
+          "weeks": {
+            "maximum": 12,
+            "minimum": 2,
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "How many weeks, the first included: 2 to 12.",
+            "format": "int32"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "maxLength": 254,
+            "minLength": 0,
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A weekly series: the first date and time, and how many weeks. Each date is booked on its own."
       },
       "DayOfWeek": {
         "enum": [
@@ -2823,6 +3228,157 @@
           }
         },
         "description": "The day schedule: one column per resource."
+      },
+      "SeriesChangeResponse": {
+        "required": [
+          "bookingId",
+          "ok",
+          "code",
+          "message",
+          "booking"
+        ],
+        "type": "object",
+        "properties": {
+          "bookingId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "booking": {
+            "$ref": "#/components/schemas/BookingResponse"
+          }
+        },
+        "description": "What confirming or cancelling did to one booking of a series."
+      },
+      "SeriesChangesResponse": {
+        "required": [
+          "succeeded",
+          "failed",
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesChangeResponse"
+            }
+          }
+        }
+      },
+      "SeriesDateOutcome": {
+        "enum": [
+          "held",
+          "failed"
+        ]
+      },
+      "SeriesDateResponse": {
+        "required": [
+          "index",
+          "localDate",
+          "start",
+          "outcome",
+          "booking",
+          "code",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "description": "0 for the first week, as in the request.",
+            "format": "int32"
+          },
+          "localDate": {
+            "type": "string",
+            "description": "The venue-local date, yyyy-MM-dd."
+          },
+          "start": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/SeriesDateOutcome"
+          },
+          "booking": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BookingResponse"
+              }
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Why it failed, such as slot_taken or resource_closed."
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SeriesResponse": {
+        "required": [
+          "seriesId",
+          "held",
+          "failed",
+          "dates"
+        ],
+        "type": "object",
+        "properties": {
+          "seriesId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "held": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeriesDateResponse"
+            }
+          }
+        },
+        "description": "A series request's outcome, date by date. Held dates are holds: confirm the series to pay and book them."
       },
       "SetHoursRequest": {
         "required": [
@@ -3232,6 +3788,9 @@
     },
     {
       "name": "Resources"
+    },
+    {
+      "name": "Series"
     },
     {
       "name": "Staff"

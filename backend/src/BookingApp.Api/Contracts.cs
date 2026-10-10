@@ -64,6 +64,51 @@ public sealed record ConfirmBookingRequest
     public string? PaymentToken { get; init; }
 }
 
+/// <summary>A weekly series: the first date and time, and how many weeks. Each date is booked on its own.</summary>
+public sealed record CreateSeriesRequest
+{
+    /// <summary>The resource to book, such as court-1.</summary>
+    [Required(ErrorMessage = "Choose what to book.")]
+    [StringLength(CreateBookingRequest.MaxResourceIdLength, ErrorMessage = "That resource id is too long.")]
+    public string? ResourceId { get; init; }
+
+    /// <summary>The UTC start of the first date, exactly as returned by the availability endpoint. Later weeks keep the same venue-local time.</summary>
+    [Required(ErrorMessage = "Choose a start time.")]
+    public DateTimeOffset? Start { get; init; }
+
+    /// <summary>How many consecutive slots each week. Leave it out for one.</summary>
+    [Range(1, CreateBookingRequest.MaxSlots, ErrorMessage = "Book between 1 and 24 slots.")]
+    public int? Slots { get; init; }
+
+    /// <summary>How many weeks, the first included: 2 to 12.</summary>
+    [Required(ErrorMessage = "Choose how many weeks.")]
+    [Range(SeriesService.MinWeeks, SeriesService.MaxWeeks, ErrorMessage = "A series is 2 to 12 weeks.")]
+    public int? Weeks { get; init; }
+
+    [Required(ErrorMessage = "Enter the name for the booking.")]
+    [StringLength(CreateBookingRequest.MaxNameLength, ErrorMessage = "Keep the name to 80 characters or fewer.")]
+    public string? Name { get; init; }
+
+    [EmailAddress(ErrorMessage = "Enter an email address such as name@example.com, or leave it empty.")]
+    [StringLength(Booking.MaxEmailLength, ErrorMessage = "That email address is too long.")]
+    public string? Email { get; init; }
+}
+
+public enum SeriesDateOutcome { Held, Failed }
+
+/// <param name="Index">0 for the first week, as in the request.</param>
+/// <param name="LocalDate">The venue-local date, yyyy-MM-dd.</param>
+/// <param name="Code">Why it failed, such as slot_taken or resource_closed.</param>
+public sealed record SeriesDateResponse(int Index, string LocalDate, DateTimeOffset? Start, SeriesDateOutcome Outcome, BookingResponse? Booking, string? Code, string? Message);
+
+/// <summary>A series request's outcome, date by date. Held dates are holds: confirm the series to pay and book them.</summary>
+public sealed record SeriesResponse(Guid SeriesId, int Held, int Failed, IReadOnlyList<SeriesDateResponse> Dates);
+
+/// <summary>What confirming or cancelling did to one booking of a series.</summary>
+public sealed record SeriesChangeResponse(Guid BookingId, bool Ok, string? Code, string? Message, BookingResponse Booking);
+
+public sealed record SeriesChangesResponse(int Succeeded, int Failed, IReadOnlyList<SeriesChangeResponse> Results);
+
 /// <summary>What the webhook endpoint answers: the event id, and whether it changed anything.</summary>
 public sealed record WebhookAck(string EventId, WebhookOutcome Outcome);
 
@@ -136,7 +181,7 @@ public sealed record BookingResponse(
     Guid Id, string ResourceId, string ResourceName, DateTimeOffset Start, DateTimeOffset End,
     string LocalStart, string LocalEnd, BookingStatus Status, string CustomerName,
     DateTimeOffset CreatedAt, DateTimeOffset? CancelledAt, bool CanCancel, string? CancellationReason,
-    DateTimeOffset? HoldExpiresAt, bool CanConfirm, DepositResponse? Deposit, string? Email)
+    DateTimeOffset? HoldExpiresAt, bool CanConfirm, DepositResponse? Deposit, string? Email, Guid? SeriesId)
 {
     /// <param name="now">The moment the answers (canCancel, canConfirm) are worked out for.</param>
     /// <param name="payment">The booking's current payment (DepositService.Current), if any.</param>
@@ -151,7 +196,7 @@ public sealed record BookingResponse(
             b.CustomerName, b.CreatedAt, b.CancelledAt,
             // A live hold can always be released; a confirmed booking until the cut-off.
             liveHold || (b.Status == BookingStatus.Confirmed && b.Time.Start - now >= policy.CancellationCutoff),
-            b.CancellationReason, b.HoldExpiresAt, liveHold, DepositResponse.For(b, payment, deposit, now), b.ContactEmail);
+            b.CancellationReason, b.HoldExpiresAt, liveHold, DepositResponse.For(b, payment, deposit, now), b.ContactEmail, b.SeriesId);
     }
 }
 

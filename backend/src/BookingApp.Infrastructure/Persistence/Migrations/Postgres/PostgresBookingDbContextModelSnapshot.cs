@@ -210,6 +210,10 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .HasColumnType("character varying(64)")
                         .HasColumnName("resource_id");
 
+                    b.Property<Guid?>("SeriesId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("series_id");
+
                     b.Property<DateTimeOffset>("StartUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_utc");
@@ -235,6 +239,9 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
 
                     b.HasIndex("Status", "HoldExpiresAt")
                         .HasDatabaseName("ix_bookings_status_hold_expires");
+
+                    b.HasIndex(new[] { "SeriesId" }, "ix_bookings_series")
+                        .HasFilter("series_id IS NOT NULL");
 
                     b.ToTable("bookings", null, t =>
                         {

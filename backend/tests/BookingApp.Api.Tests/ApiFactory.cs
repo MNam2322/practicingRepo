@@ -23,7 +23,9 @@ namespace BookingApp.Api.Tests;
 /// ("replace as little as possible") and "TimeProvider — testing time-dependent code".
 /// </summary>
 /// <param name="postgres">For the Postgres provider: a connection string to the test database (PostgresTestServer).</param>
-public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemory, string? databaseFile = null, string? postgres = null)
+/// <param name="settings">Extra configuration for this app, such as a slower poll for a background service.</param>
+public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemory, string? databaseFile = null, string? postgres = null,
+    IReadOnlyDictionary<string, string?>? settings = null)
     : WebApplicationFactory<Program>
 {
     /// <summary>Monday 1 June 2026, 07:00 at the venue (Asia/Ho_Chi_Minh, UTC+7).</summary>
@@ -65,6 +67,7 @@ public sealed class ApiFactory(StorageProvider provider = StorageProvider.InMemo
         if (postgres is not null) builder.UseSetting("ConnectionStrings:Postgres", postgres);
         builder.UseSetting("Payments:Fake:WebhookSecret", WebhookSecret);
         builder.UseSetting("Email:Folder", EmailFolder);
+        foreach (var (key, value) in settings ?? new Dictionary<string, string?>()) builder.UseSetting(key, value);
         builder.ConfigureLogging(logging => logging.AddProvider(new ErrorCollector(ServerErrors)));
         builder.ConfigureTestServices(services =>
         {
@@ -119,11 +122,14 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
     public async ValueTask InitializeAsync()
     {
         _postgres = provider == StorageProvider.Postgres ? await PostgresTestServer.NewDatabaseAsync() : null;
-        Factory = new ApiFactory(provider, postgres: _postgres);
+        Factory = new ApiFactory(provider, postgres: _postgres, settings: Settings);
         Client = Factory.CreateClient();
     }
 
     protected ApiFactory Factory { get; private set; } = null!;
+
+    /// <summary>Configuration a test class needs on top of the defaults.</summary>
+    protected virtual IReadOnlyDictionary<string, string?> Settings => new Dictionary<string, string?>();
 
     /// <summary>A client that keeps cookies, like a browser.</summary>
     protected HttpClient Client { get; private set; } = null!;
