@@ -72,3 +72,43 @@ POST {{base}}/api/staff/closures
 Content-Type: application/json
 
 { "resourceId": "court-1", "start": "2026-10-20T07:00:00Z", "end": "2026-10-20T08:00:00Z", "reason": "Net repair" }
+
+### --- Admin (Admin role). In development: add your email to Accounts:Bootstrap:Admin, restart, sign in again.
+### Every change below is recorded in the audit log with your account.
+
+### Change a court's weekly opening hours (days left out are closed)
+PUT {{base}}/api/admin/resources/court-1/hours
+Content-Type: application/json
+
+{ "hours": [
+  { "day": "monday", "open": "08:00", "close": "20:00" }, { "day": "tuesday", "open": "08:00", "close": "20:00" },
+  { "day": "wednesday", "open": "08:00", "close": "20:00" }, { "day": "thursday", "open": "08:00", "close": "20:00" },
+  { "day": "friday", "open": "08:00", "close": "20:00" }, { "day": "saturday", "open": "09:00", "close": "18:00" },
+  { "day": "sunday", "open": "09:00", "close": "18:00" } ] }
+
+### Add a resource (closed until its hours are set)
+POST {{base}}/api/admin/resources
+Content-Type: application/json
+
+{ "id": "court-3", "name": "Tennis court 3", "kind": "court", "capacity": 4, "slotMinutes": 60, "maxSlotsPerBooking": 2 }
+
+### A holiday: close every resource for whole days (leave out resourceId)
+POST {{base}}/api/admin/closures
+Content-Type: application/json
+
+{ "from": "2026-12-25", "to": "2026-12-26", "reason": "Christmas" }
+
+### Closures in a date range
+GET {{base}}/api/admin/closures?from=2026-12-01&to=2026-12-31
+
+### The booking rules, and changing them
+GET {{base}}/api/admin/policy
+
+###
+PUT {{base}}/api/admin/policy
+Content-Type: application/json
+
+{ "maxDaysAhead": 30, "minLeadMinutes": 15, "cancellationCutoffHours": 2, "maxActiveBookingsPerCustomer": 5 }
+
+### The audit log: who changed what (newest first)
+GET {{base}}/api/admin/audit?take=20

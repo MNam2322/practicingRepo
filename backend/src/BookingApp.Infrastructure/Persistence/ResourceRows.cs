@@ -2,13 +2,64 @@ using BookingApp.Core.Scheduling;
 
 namespace BookingApp.Infrastructure.Persistence;
 
-/// <summary>The one venue. The table holds a single row (id = 1, enforced by a CHECK).</summary>
+/// <summary>The one venue and its booking rules. The table holds a single row (id = 1, enforced by a CHECK).</summary>
 internal sealed class VenueRow
 {
     public const int SingletonId = 1;
     public int Id { get; set; } = SingletonId;
     public string Name { get; set; } = "";
     public string TimeZoneId { get; set; } = "UTC";
+    public int MaxDaysAhead { get; set; } = 30;
+    public int MinLeadMinutes { get; set; } = 15;
+    public double CancellationCutoffHours { get; set; } = 2;
+    public int MaxActiveBookingsPerCustomer { get; set; } = 5;
+
+    public Core.Bookings.BookingPolicy Policy() => new()
+    {
+        MaxDaysAhead = MaxDaysAhead,
+        MinLeadMinutes = MinLeadMinutes,
+        CancellationCutoffHours = CancellationCutoffHours,
+        MaxActiveBookingsPerCustomer = MaxActiveBookingsPerCustomer,
+    };
+
+    public void SetPolicy(Core.Bookings.BookingPolicy p)
+    {
+        MaxDaysAhead = p.MaxDaysAhead;
+        MinLeadMinutes = p.MinLeadMinutes;
+        CancellationCutoffHours = p.CancellationCutoffHours;
+        MaxActiveBookingsPerCustomer = p.MaxActiveBookingsPerCustomer;
+    }
+}
+
+/// <summary>One audit log row. Append-only: a database trigger refuses UPDATE and DELETE.</summary>
+internal sealed class AuditRow
+{
+    public Guid Id { get; set; }
+    public DateTimeOffset OccurredAt { get; set; }
+    public Guid ActorId { get; set; }
+    public string ActorEmail { get; set; } = "";
+    public string? RequestId { get; set; }
+    public string Action { get; set; } = "";
+    public string Entity { get; set; } = "";
+    public string EntityId { get; set; } = "";
+    public string? Before { get; set; }
+    public string? After { get; set; }
+
+    public static AuditRow From(Core.Admin.AuditEntry e) => new()
+    {
+        Id = e.Id,
+        OccurredAt = e.OccurredAt,
+        ActorId = e.Actor.AccountId,
+        ActorEmail = e.Actor.Email,
+        RequestId = e.Actor.RequestId,
+        Action = e.Action,
+        Entity = e.Entity,
+        EntityId = e.EntityId,
+        Before = e.Before,
+        After = e.After,
+    };
+
+    public Core.Admin.AuditEntry ToDomain() => new(Id, OccurredAt, new Core.Admin.Actor(ActorId, ActorEmail, RequestId), Action, Entity, EntityId, Before, After);
 }
 
 internal sealed class ResourceRow

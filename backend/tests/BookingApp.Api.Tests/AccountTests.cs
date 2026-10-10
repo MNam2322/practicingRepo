@@ -8,7 +8,6 @@ namespace BookingApp.Api.Tests;
 /// <summary>Sign up, sign in, sign out, /api/me, and anonymous bookings following the person into their account.</summary>
 public abstract class AccountTests(StorageProvider provider) : ApiTest(provider)
 {
-    private const string Password = "correct horse battery";
 
     private static string NewEmail() => $"nam.{Guid.NewGuid():N}@example.com";
 

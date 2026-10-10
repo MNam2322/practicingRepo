@@ -1,3 +1,4 @@
+using BookingApp.Core.Admin;
 using BookingApp.Core.Bookings;
 using BookingApp.Core.Scheduling;
 using BookingApp.Infrastructure.Identity;
@@ -28,14 +29,17 @@ public static class DependencyInjection
             .Validate(o => o.Resources.Select(r => r.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() == o.Resources.Count, "Resource ids must be unique.")
             .ValidateOnStart();
 
-        services.AddSingleton(configuration.GetSection("Booking").Get<BookingPolicy>() ?? new BookingPolicy());
+        // The "Booking" section only seeds the rules: after the first run they live with the venue (admins change them).
+        services.AddOptions<BookingPolicy>().Bind(configuration.GetSection("Booking"));
 
         var storage = configuration.GetSection(StorageOptions.Section).Get<StorageOptions>() ?? new StorageOptions();
         services.AddOptions<StorageOptions>().Bind(configuration.GetSection(StorageOptions.Section));
         switch (storage.Provider)
         {
             case StorageProvider.InMemory:
-                services.AddSingleton<IResourceRepository, ConfigurationResourceRepository>();
+                services.AddSingleton<ConfigurationResourceRepository>();
+                services.AddSingleton<IResourceRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
+                services.AddSingleton<IVenueAdminRepository>(sp => sp.GetRequiredService<ConfigurationResourceRepository>());
                 services.AddSingleton<IBookingRepository, InMemoryBookingRepository>();
                 // Accounts only; one in-memory database per app instance.
                 var name = $"accounts-{Guid.NewGuid():N}";
@@ -99,6 +103,7 @@ public static class DependencyInjection
         services.AddScoped<BookingDbContext>(sp => sp.GetRequiredService<TContext>());
         services.AddScoped<IBookingRepository, EfBookingRepository>();
         services.AddScoped<IResourceRepository, EfResourceRepository>();
+        services.AddScoped<IVenueAdminRepository, EfVenueAdminRepository>();
         // First hosted service: the schema exists before anything else (such as the demo seeder) uses it.
         services.AddHostedService<DatabaseInitializer>();
     }

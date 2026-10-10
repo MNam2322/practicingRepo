@@ -94,6 +94,68 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("BookingApp.Infrastructure.Persistence.AuditRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ActorEmail")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("actor_email");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<string>("After")
+                        .HasColumnType("text")
+                        .HasColumnName("after");
+
+                    b.Property<string>("Before")
+                        .HasColumnType("text")
+                        .HasColumnName("before");
+
+                    b.Property<string>("Entity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("entity");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("entity_id");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("RequestId")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt")
+                        .HasDatabaseName("ix_audit_log_occurred_at");
+
+                    b.HasIndex("Entity", "EntityId", "OccurredAt")
+                        .HasDatabaseName("ix_audit_log_entity");
+
+                    b.ToTable("audit_log", (string)null);
+                });
+
             modelBuilder.Entity("BookingApp.Infrastructure.Persistence.BookingRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -292,6 +354,22 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
                         .HasColumnType("integer")
                         .HasColumnName("id");
 
+                    b.Property<double>("CancellationCutoffHours")
+                        .HasColumnType("double precision")
+                        .HasColumnName("cancellation_cutoff_hours");
+
+                    b.Property<int>("MaxActiveBookingsPerCustomer")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_active_bookings");
+
+                    b.Property<int>("MaxDaysAhead")
+                        .HasColumnType("integer")
+                        .HasColumnName("max_days_ahead");
+
+                    b.Property<int>("MinLeadMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("min_lead_minutes");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -308,6 +386,14 @@ namespace BookingApp.Infrastructure.Persistence.Migrations.Postgres
 
                     b.ToTable("venue", null, t =>
                         {
+                            t.HasCheckConstraint("ck_venue_cancellation_cutoff", "cancellation_cutoff_hours BETWEEN 0 AND 168");
+
+                            t.HasCheckConstraint("ck_venue_max_active", "max_active_bookings BETWEEN 1 AND 100");
+
+                            t.HasCheckConstraint("ck_venue_max_days_ahead", "max_days_ahead BETWEEN 1 AND 365");
+
+                            t.HasCheckConstraint("ck_venue_min_lead_minutes", "min_lead_minutes BETWEEN 0 AND 1440");
+
                             t.HasCheckConstraint("ck_venue_single_row", "id = 1");
                         });
                 });

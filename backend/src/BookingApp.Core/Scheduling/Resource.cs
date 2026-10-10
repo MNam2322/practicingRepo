@@ -40,13 +40,16 @@ public sealed record Closure(Guid Id, string? ResourceId, TimeRange Time, string
     public bool AppliesTo(string resourceId) => ResourceId is null || string.Equals(ResourceId, resourceId, StringComparison.OrdinalIgnoreCase);
 }
 
-/// <summary>The venue and its resources as read at one moment: one load per request, then plain lookups.</summary>
-public sealed class ResourceCatalog(Venue venue, IReadOnlyList<Resource> resources)
+/// <summary>The venue, its resources and its booking rules as read at one moment: one load per request, then plain lookups.</summary>
+public sealed class ResourceCatalog(Venue venue, IReadOnlyList<Resource> resources, Bookings.BookingPolicy policy)
 {
     private readonly Dictionary<string, Resource> _byId = resources.ToDictionary(r => r.Id, StringComparer.OrdinalIgnoreCase);
 
     public Venue Venue { get; } = venue;
     public IReadOnlyList<Resource> Resources { get; } = resources;
+
+    /// <summary>The booking rules. Stored with the venue, so an admin can change them (AdminService).</summary>
+    public Bookings.BookingPolicy Policy { get; } = policy;
     public Resource? Find(string id) => _byId.GetValueOrDefault(id);
 }
 

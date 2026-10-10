@@ -177,3 +177,116 @@ public sealed record BlockTimeRequest
     [StringLength(200, ErrorMessage = "Keep the reason to 200 characters or fewer.")]
     public string? Reason { get; init; }
 }
+
+// ---- admin ----
+
+/// <summary>A new resource. The id becomes part of URLs and cannot change later.</summary>
+public sealed record CreateResourceRequest
+{
+    /// <summary>Lowercase letters, digits and dashes, such as court-3.</summary>
+    [Required(ErrorMessage = "Give the resource an id, such as court-3.")]
+    [RegularExpression("^[a-z0-9][a-z0-9-]{1,62}$", ErrorMessage = "Use 2 to 63 lowercase letters, digits and dashes, such as court-3.")]
+    public string? Id { get; init; }
+
+    [Required(ErrorMessage = "Give the resource a name.")]
+    [StringLength(100, ErrorMessage = "Keep the name to 100 characters or fewer.")]
+    public string? Name { get; init; }
+
+    [Required(ErrorMessage = "Choose what kind of resource it is.")]
+    public ResourceKind? Kind { get; init; }
+
+    [Required, Range(1, 1000, ErrorMessage = "Capacity is between 1 and 1000 people.")]
+    public int? Capacity { get; init; }
+
+    [Required, Range(5, 240, ErrorMessage = "Slots last between 5 and 240 minutes.")]
+    public int? SlotMinutes { get; init; }
+
+    [Required, Range(1, 48, ErrorMessage = "The longest booking is between 1 and 48 slots.")]
+    public int? MaxSlotsPerBooking { get; init; }
+}
+
+/// <summary>Changes to a resource. The id stays the same.</summary>
+public sealed record UpdateResourceRequest
+{
+    [Required(ErrorMessage = "Give the resource a name.")]
+    [StringLength(100, ErrorMessage = "Keep the name to 100 characters or fewer.")]
+    public string? Name { get; init; }
+
+    [Required(ErrorMessage = "Choose what kind of resource it is.")]
+    public ResourceKind? Kind { get; init; }
+
+    [Required, Range(1, 1000, ErrorMessage = "Capacity is between 1 and 1000 people.")]
+    public int? Capacity { get; init; }
+
+    [Required, Range(5, 240, ErrorMessage = "Slots last between 5 and 240 minutes.")]
+    public int? SlotMinutes { get; init; }
+
+    [Required, Range(1, 48, ErrorMessage = "The longest booking is between 1 and 48 slots.")]
+    public int? MaxSlotsPerBooking { get; init; }
+}
+
+/// <summary>One day's opening hours, in venue-local time.</summary>
+public sealed record OpeningHoursRequest
+{
+    [Required(ErrorMessage = "Choose the day.")]
+    public DayOfWeek? Day { get; init; }
+
+    /// <summary>Venue-local "HH:mm".</summary>
+    [Required, RegularExpression("^([01][0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Use HH:mm, such as 07:00.")]
+    public string? Open { get; init; }
+
+    /// <summary>Venue-local "HH:mm", after Open.</summary>
+    [Required, RegularExpression("^([01][0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "Use HH:mm, such as 21:00.")]
+    public string? Close { get; init; }
+}
+
+/// <summary>The whole week. Days that are left out are closed.</summary>
+public sealed record SetHoursRequest
+{
+    [Required, MaxLength(7, ErrorMessage = "There are only seven days.")]
+    public List<OpeningHoursRequest>? Hours { get; init; }
+}
+
+/// <summary>Close one resource, or the whole venue when resourceId is left out, for whole venue-local days.</summary>
+public sealed record AdminClosureRequest
+{
+    /// <summary>Leave out to close every resource (a holiday).</summary>
+    [StringLength(CreateBookingRequest.MaxResourceIdLength)]
+    public string? ResourceId { get; init; }
+
+    /// <summary>The first closed day (venue-local yyyy-MM-dd).</summary>
+    [Required(ErrorMessage = "Choose the first day.")]
+    public DateOnly? From { get; init; }
+
+    /// <summary>The last closed day, inclusive.</summary>
+    [Required(ErrorMessage = "Choose the last day.")]
+    public DateOnly? To { get; init; }
+
+    [Required(ErrorMessage = "Say why it is closed.")]
+    [StringLength(200, ErrorMessage = "Keep the reason to 200 characters or fewer.")]
+    public string? Reason { get; init; }
+}
+
+/// <summary>The booking rules.</summary>
+public sealed record PolicyRequest
+{
+    [Required, Range(1, 365, ErrorMessage = "Between 1 and 365 days.")]
+    public int? MaxDaysAhead { get; init; }
+
+    [Required, Range(0, 1440, ErrorMessage = "Between 0 and 1440 minutes.")]
+    public int? MinLeadMinutes { get; init; }
+
+    [Required, Range(0, 168, ErrorMessage = "Between 0 and 168 hours.")]
+    public double? CancellationCutoffHours { get; init; }
+
+    [Required, Range(1, 100, ErrorMessage = "Between 1 and 100 bookings.")]
+    public int? MaxActiveBookingsPerCustomer { get; init; }
+}
+
+/// <summary>One audit log entry: who changed what, and what it was before and after (JSON).</summary>
+public sealed record AuditEntryResponse(Guid Id, DateTimeOffset OccurredAt, Guid ActorId, string ActorEmail, string? RequestId,
+    string Action, string Entity, string EntityId, string? Before, string? After)
+{
+    public static AuditEntryResponse From(BookingApp.Core.Admin.AuditEntry e) =>
+        new(e.Id, e.OccurredAt, e.Actor.AccountId, e.Actor.Email, e.Actor.RequestId, e.Action, e.Entity, e.EntityId, e.Before, e.After);
+}

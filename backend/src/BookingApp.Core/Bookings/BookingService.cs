@@ -7,7 +7,7 @@ namespace BookingApp.Core.Bookings;
 public sealed record DayAvailability(Venue Venue, IReadOnlyList<Slot> Slots, IReadOnlyList<Closure> Closures);
 
 /// <summary>The booking use cases. Controllers call these; they never touch a repository directly.</summary>
-public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, BookingPolicy policy, TimeProvider time)
+public sealed class BookingService(IResourceRepository resources, IBookingRepository bookings, TimeProvider time)
 {
     public async Task<Result<DayAvailability>> AvailabilityAsync(string resourceId, DateOnly localDay, CancellationToken cancellationToken)
     {
@@ -17,7 +17,7 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         var window = AvailabilityCalculator.DayWindow(catalog.Venue, localDay);
         var blocking = await bookings.BlockingAsync(resource.Id, window, cancellationToken);
         var closures = await resources.ClosuresAsync(resource.Id, window, cancellationToken);
-        var notBefore = time.GetUtcNow().AddMinutes(policy.MinLeadMinutes);
+        var notBefore = time.GetUtcNow().AddMinutes(catalog.Policy.MinLeadMinutes);
         var slots = AvailabilityCalculator.ForDay(resource, catalog.Venue, localDay, blocking.Select(b => b.Time), notBefore, closures.Select(c => c.Time));
         return Result<DayAvailability>.Ok(new DayAvailability(catalog.Venue, slots, closures));
     }
@@ -30,6 +30,7 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
         if (slots < 1) return new Error(ErrorKind.RuleViolation, "not_whole_slots", "Book at least one slot.");
         if (string.IsNullOrWhiteSpace(customerName)) return new Error(ErrorKind.RuleViolation, "name_required", "Enter the name for the booking.");
 
+        var policy = catalog.Policy;
         var now = time.GetUtcNow();
         var range = TimeRange.FromStart(start, resource.SlotLength * slots);
         if (policy.Check(resource, catalog.Venue, range, now) is { } broken) return broken;
@@ -52,6 +53,7 @@ public sealed class BookingService(IResourceRepository resources, IBookingReposi
     {
         var booking = await bookings.FindAsync(bookingId, cancellationToken);
         if (booking is null) return new Error(ErrorKind.NotFound, "booking_not_found", "There is no such booking.");
+        var policy = (await resources.GetCatalogAsync(cancellationToken)).Policy;
         var result = booking.Cancel(customer, time.GetUtcNow(), policy);
         if (!result.IsSuccess) return result;
         return await bookings.UpdateAsync(booking, cancellationToken)

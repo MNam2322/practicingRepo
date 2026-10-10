@@ -16,7 +16,7 @@ namespace BookingApp.Infrastructure.Persistence;
 /// The DbContext is scoped, so this singleton creates its own scope (library 4.3 "Scoped services inside a background worker").
 /// </summary>
 internal sealed partial class DatabaseInitializer(IServiceScopeFactory scopes, IOptions<StorageOptions> options, IOptions<VenueOptions> venue,
-    ILogger<DatabaseInitializer> logger) : IHostedService
+    IOptions<Core.Bookings.BookingPolicy> policy, ILogger<DatabaseInitializer> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -58,15 +58,17 @@ internal sealed partial class DatabaseInitializer(IServiceScopeFactory scopes, I
     }
 
     /// <summary>
-    /// First run only (no venue row yet): copy the venue and resources from configuration. After that the database is
+    /// First run only (no venue row yet): copy the venue, its booking rules and the resources from configuration. After that the database is
     /// the source. A resource row may already exist as a placeholder made by a migration for older bookings; it is
     /// overwritten with the configured values.
     /// </summary>
     private async Task SeedVenueAsync(BookingDbContext db, CancellationToken cancellationToken)
     {
         if (await db.Venue.AnyAsync(cancellationToken)) return;
-        var catalog = ConfigurationResourceRepository.BuildCatalog(venue.Value);
-        db.Venue.Add(new VenueRow { Name = catalog.Venue.Name, TimeZoneId = catalog.Venue.TimeZoneId });
+        var catalog = ConfigurationResourceRepository.BuildCatalog(venue.Value, policy.Value);
+        var venueRow = new VenueRow { Name = catalog.Venue.Name, TimeZoneId = catalog.Venue.TimeZoneId };
+        venueRow.SetPolicy(catalog.Policy);
+        db.Venue.Add(venueRow);
         var existing = await db.Resources.Include(r => r.Hours).ToDictionaryAsync(r => r.Id, cancellationToken);
         foreach (var (resource, order) in catalog.Resources.Select((r, i) => (r, i)))
         {

@@ -14,7 +14,7 @@ internal sealed class EfResourceRepository(BookingDbContext db, TimeProvider tim
         var resources = await db.Resources.AsNoTracking().Include(r => r.Hours)
             .OrderBy(r => r.SortOrder).ThenBy(r => r.Id)
             .ToListAsync(cancellationToken);
-        return new ResourceCatalog(new Venue(venue.Name, venue.TimeZoneId), [.. resources.Select(r => r.ToDomain())]);
+        return new ResourceCatalog(new Venue(venue.Name, venue.TimeZoneId), [.. resources.Select(r => r.ToDomain())], venue.Policy());
     }
 
     public async Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken)

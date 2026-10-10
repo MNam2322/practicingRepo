@@ -98,7 +98,7 @@ Read first: 4.7 "Example 2: A booking lifecycle as a state machine", 12.6 "State
 **Unblocks frontend 7.**
 
 ### 9. Admin features
-- [ ] An admin-only `AdminController`, backed by a service, to manage resources, opening hours, closures and booking policy, with an audit log of who changed what.
+- [x] An admin-only `AdminController`, backed by a service, to manage resources, opening hours, closures and booking policy, with an audit log of who changed what.
 
 **Unblocks frontend 8.**
 
@@ -185,3 +185,4 @@ Read first: 12.1 Monoliths, modules and services, 12.6 Domain modeling and appli
 - Task 6: PostgreSQL 17 (`docker-compose.yml`, `http-postgres` profile) with a generated `tstzrange` period and `EXCLUDE USING gist (resource_id WITH =, period WITH &&) WHERE status = Confirmed`; 23P01 → `slot_taken`, no app-side check; per-provider contexts and migrations; Testcontainers tests on PostgreSQL (raw-SQL proof that the database blocks overlaps).
 - Task 7: ASP.NET Core Identity (cookie `bk-auth`, roles Customer/Staff/Admin, capability policies, deny-by-default filter); `AccountController` sign up/in/out and `GET /api/me`; anonymous bookings move to the account through the aggregate; lockout and per-IP sign-in rate limit. PostgreSQL inserts now lock the resource row first (no exclusion-check deadlocks) inside a retrying execution strategy.
 - Task 8: staff tools under the ViewSchedule policy: day schedule (all resources, any status, allowed actions per booking), complete / no-show after start, staff cancel with a reason the customer sees, block time (refused over confirmed bookings); the booking lifecycle is a transition table with an exhaustive test; Accounts:Bootstrap grants Staff/Admin by email.
+- Task 9: admin API (ManageVenue policy): resources create/update/delete, weekly hours, whole-day closures incl. venue-wide holidays, booking rules moved into the database; every change saved with an audit entry (actor, request id, before/after) in the same transaction; `audit_log` append-only by database triggers.

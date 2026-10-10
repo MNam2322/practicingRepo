@@ -15,6 +15,6 @@ public sealed class VenueController(VenueService venue) : ApiControllerBase
     public async Task<ActionResult<VenueResponse>> Get(CancellationToken ct)
     {
         var catalog = await venue.CatalogAsync(ct);
-        return new VenueResponse(catalog.Venue.Name, catalog.Venue.TimeZoneId, PolicyResponse.From(venue.Policy));
+        return new VenueResponse(catalog.Venue.Name, catalog.Venue.TimeZoneId, PolicyResponse.From(catalog.Policy));
     }
 }

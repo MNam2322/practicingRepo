@@ -28,9 +28,12 @@ internal static class TestData
 
 internal sealed class TestResources(params Resource[] resources) : IResourceRepository
 {
+    /// <summary>The booking rules the catalog carries; tests may change them.</summary>
+    public Bookings.BookingPolicy Policy { get; set; } = new();
+
     private readonly List<Closure> _closures = [];
 
-    public Task<ResourceCatalog> GetCatalogAsync(CancellationToken cancellationToken) => Task.FromResult(new ResourceCatalog(TestData.Club, resources));
+    public Task<ResourceCatalog> GetCatalogAsync(CancellationToken cancellationToken) => Task.FromResult(new ResourceCatalog(TestData.Club, resources, Policy));
 
     public Task<IReadOnlyList<Closure>> ClosuresAsync(string resourceId, TimeRange window, CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<Closure>>([.. _closures.Where(c => c.AppliesTo(resourceId) && c.Time.Overlaps(window)).OrderBy(c => c.Time.Start)]);

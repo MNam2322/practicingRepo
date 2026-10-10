@@ -20,6 +20,8 @@ src/BookingApp.Core            domain, services and repository ports. Base class
   Bookings/IBookingRepository.cs  repository port; TryAddAsync is the atomic overlap check + insert
   Accounts/Account.cs          Account, Roles (Customer, Staff, Admin)
   Staff/StaffService.cs        service: day schedule, complete / no-show / staff cancel (through the aggregate), block time
+  Admin/AdminService.cs        service: resources, hours, closures, booking rules; every change saved with an AuditEntry
+  Admin/IVenueAdminRepository.cs  port: each write takes its audit entry and saves both in one transaction
 src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMemory | Sqlite | Postgres)
   Identity/                    AppUser, AccountService (sign up/in/out over ASP.NET Core Identity; moves anonymous bookings)
   Repositories/                EfBookingRepository, EfResourceRepository (Sqlite, Postgres); InMemoryBookingRepository, ConfigurationResourceRepository (InMemory)
@@ -28,7 +30,7 @@ src/BookingApp.Infrastructure  adapters, DemoSeeder, DI (Storage:Provider = InMe
                                DatabaseInitializer (migrate, WAL, first-run seed of venue and resources from the Venue settings),
                                Migrations/Sqlite and Migrations/Postgres (generated per provider; read every one before committing)
 src/BookingApp.Api             HTTP: Program.cs (pipeline), Authorization.cs (auth cookie, policies), Controllers/ (ApiControllerBase,
-                               Venue, Resources, Bookings, Account, Staff),
+                               Venue, Resources, Bookings, Account, Staff, Admin),
                                Contracts.cs (request/response records), Customers.cs (cookie identity + model binder)
 tests/                         Core.Tests (domain, services), Infrastructure.Tests (repository contract on every provider),
                                Api.Tests (WebApplicationFactory; booking and concurrency tests run on InMemory and Sqlite)
@@ -66,7 +68,8 @@ Dependencies point inwards: Api → Core and Infrastructure; Infrastructure → 
 - New use cases go in a service in Core; new storage goes behind a repository interface in Core with its implementation in `Infrastructure/Repositories/`. Name them `XxxService`, `IXxxRepository`, `XxxRepository`.
 - Use file-scoped namespaces, `sealed` classes, and records for contracts and value objects.
 - Every async path takes a `CancellationToken`. Log with `[LoggerMessage]`.
-- Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`. The `Venue` section only seeds the database on first run; after that the venue, resources, opening hours and closures live in the database.
+- Options are bound from configuration and validated on start. Booking rules live in `appsettings.json` under `Booking`. The `Venue` and `Booking` sections only seed the database on first run; after that the venue, its booking rules (`ResourceCatalog.Policy`), resources, opening hours and closures live in the database and admins change them.
+- **Audit:** every admin change is written with an `AuditEntry` (actor = the signed-in account, request id, before/after JSON) in the same transaction. `audit_log` is append-only in the database (triggers on SQLite and PostgreSQL).
 - Rules any writer must obey are database constraints (keys, foreign keys, CHECKs, NOT NULL) as well as code. Migrations must upgrade a database that already has data: test the upgrade path, not just an empty database.
 - NuGet versions go in `Directory.Packages.props` (central package management), never in a `.csproj`.
 - Warnings are errors. Keep `dotnet format --verify-no-changes` clean.

@@ -18,8 +18,11 @@ public sealed class BookingServiceTests
     private readonly TestResources _resources = new(Court("court-1"), Court("court-2"));
     private readonly BookingService _service;
 
-    public BookingServiceTests() =>
-        _service = new BookingService(_resources, new InMemoryBookingRepository(), _policy, _time);
+    public BookingServiceTests()
+    {
+        _resources.Policy = _policy;
+        _service = new BookingService(_resources, new InMemoryBookingRepository(), _time);
+    }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 

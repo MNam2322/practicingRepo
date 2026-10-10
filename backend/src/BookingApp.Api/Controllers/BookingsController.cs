@@ -45,7 +45,7 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         var now = time.GetUtcNow();
         var list = await bookings.MineAsync(customer.Id, ct);
         var catalog = await venue.CatalogAsync(ct);
-        return list.Select(b => BookingResponse.From(b, catalog, venue.Policy, now)).ToList();
+        return list.Select(b => BookingResponse.From(b, catalog, catalog.Policy, now)).ToList();
     }
 
     /// <summary>One of the current customer's bookings.</summary>
@@ -77,6 +77,9 @@ public sealed class BookingsController(BookingService bookings, VenueService ven
         return result.IsSuccess ? await ToResponseAsync(result.Value!, ct) : Failure(result.Error!);
     }
 
-    private async Task<BookingResponse> ToResponseAsync(Booking booking, CancellationToken ct) =>
-        BookingResponse.From(booking, await venue.CatalogAsync(ct), venue.Policy, time.GetUtcNow());
+    private async Task<BookingResponse> ToResponseAsync(Booking booking, CancellationToken ct)
+    {
+        var catalog = await venue.CatalogAsync(ct);
+        return BookingResponse.From(booking, catalog, catalog.Policy, time.GetUtcNow());
+    }
 }

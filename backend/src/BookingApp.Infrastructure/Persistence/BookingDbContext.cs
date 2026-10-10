@@ -20,6 +20,7 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
     public DbSet<VenueRow> Venue => Set<VenueRow>();
     public DbSet<ResourceRow> Resources => Set<ResourceRow>();
     public DbSet<ClosureRow> Closures => Set<ClosureRow>();
+    public DbSet<AuditRow> AuditLog => Set<AuditRow>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -28,11 +29,41 @@ internal abstract class BookingDbContext(DbContextOptions options) : IdentityDbC
         model.Entity<AppUser>().Property(u => u.DisplayName).HasMaxLength(AppUser.MaxNameLength).IsRequired();
 
         var venue = model.Entity<VenueRow>();
-        venue.ToTable("venue", t => t.HasCheckConstraint("ck_venue_single_row", "id = 1"));
+        venue.ToTable("venue", t =>
+        {
+            t.HasCheckConstraint("ck_venue_single_row", "id = 1");
+            t.HasCheckConstraint("ck_venue_max_days_ahead", "max_days_ahead BETWEEN 1 AND 365");
+            t.HasCheckConstraint("ck_venue_min_lead_minutes", "min_lead_minutes BETWEEN 0 AND 1440");
+            t.HasCheckConstraint("ck_venue_cancellation_cutoff", "cancellation_cutoff_hours BETWEEN 0 AND 168");
+            t.HasCheckConstraint("ck_venue_max_active", "max_active_bookings BETWEEN 1 AND 100");
+        });
         venue.HasKey(v => v.Id);
         venue.Property(v => v.Id).HasColumnName("id").ValueGeneratedNever();
         venue.Property(v => v.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
         venue.Property(v => v.TimeZoneId).HasColumnName("time_zone_id").HasMaxLength(64).IsRequired();
+        // The booking rules live with the venue so an admin can change them (the migration fills existing rows).
+        venue.Property(v => v.MaxDaysAhead).HasColumnName("max_days_ahead");
+        venue.Property(v => v.MinLeadMinutes).HasColumnName("min_lead_minutes");
+        venue.Property(v => v.CancellationCutoffHours).HasColumnName("cancellation_cutoff_hours");
+        venue.Property(v => v.MaxActiveBookingsPerCustomer).HasColumnName("max_active_bookings");
+
+        // Who changed what (library 10.6 "Auditing and compliance"): the actor is the signed-in account, not the
+        // connection. Append-only: the migration adds a trigger that refuses UPDATE and DELETE.
+        var audit = model.Entity<AuditRow>();
+        audit.ToTable("audit_log");
+        audit.HasKey(a => a.Id);
+        audit.Property(a => a.Id).HasColumnName("id").ValueGeneratedNever();
+        audit.Property(a => a.OccurredAt).HasColumnName("occurred_at");
+        audit.Property(a => a.ActorId).HasColumnName("actor_id");
+        audit.Property(a => a.ActorEmail).HasColumnName("actor_email").HasMaxLength(254).IsRequired();
+        audit.Property(a => a.RequestId).HasColumnName("request_id").HasMaxLength(64);
+        audit.Property(a => a.Action).HasColumnName("action").HasMaxLength(64).IsRequired();
+        audit.Property(a => a.Entity).HasColumnName("entity").HasMaxLength(32).IsRequired();
+        audit.Property(a => a.EntityId).HasColumnName("entity_id").HasMaxLength(64).IsRequired();
+        audit.Property(a => a.Before).HasColumnName("before");
+        audit.Property(a => a.After).HasColumnName("after");
+        audit.HasIndex(a => a.OccurredAt).HasDatabaseName("ix_audit_log_occurred_at");
+        audit.HasIndex(a => new { a.Entity, a.EntityId, a.OccurredAt }).HasDatabaseName("ix_audit_log_entity");
 
         var resource = model.Entity<ResourceRow>();
         resource.ToTable("resources", t =>
@@ -127,7 +158,8 @@ internal sealed class SqliteBookingDbContext(DbContextOptions<SqliteBookingDbCon
         var booking = model.Entity<BookingRow>();
         var closure = model.Entity<ClosureRow>();
         UtcTicks(booking.Property(b => b.StartUtc), booking.Property(b => b.EndUtc), booking.Property(b => b.CreatedAt),
-            closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt));
+            closure.Property(c => c.StartUtc), closure.Property(c => c.EndUtc), closure.Property(c => c.CreatedAt),
+            model.Entity<AuditRow>().Property(a => a.OccurredAt));
         booking.Property(b => b.CancelledAt).HasConversion(new ValueConverter<DateTimeOffset?, long?>(
             v => v.HasValue ? v.Value.UtcTicks : null, v => v.HasValue ? new DateTimeOffset(v.Value, TimeSpan.Zero) : null));
     }

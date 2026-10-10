@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BookingApp.Infrastructure.Identity;
 using BookingApp.Infrastructure.Persistence;
 using BookingApp.Tests.Shared;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -107,15 +108,34 @@ public abstract class ApiTest(StorageProvider provider = StorageProvider.InMemor
 
     protected static CancellationToken Ct => TestContext.Current.CancellationToken;
 
+    protected const string Password = "correct horse battery";
+
+    /// <summary>A browser signed in as a new account with the given role (the role is added, then the person signs in again).</summary>
+    protected async Task<HttpClient> SignedInAs(string? role)
+    {
+        var client = Factory.CreateClient();
+        var email = $"{role ?? "customer"}.{Guid.NewGuid():N}@example.com";
+        Assert.Equal(System.Net.HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/account/signup", new { email, password = Password, name = role ?? "Customer" }, Ct)).StatusCode);
+        if (role is null) return client;
+        using (var scope = Factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            await users.AddToRoleAsync((await users.FindByEmailAsync(email))!, role);
+        }
+        // Roles travel in the auth cookie, so sign in again to pick up the new one.
+        Assert.Equal(System.Net.HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/account/signin", new { email, password = Password }, Ct)).StatusCode);
+        return client;
+    }
+
     protected static object BookingBody(int hour, int slots = 1, string resourceId = "court-1", string name = "Nam", DateOnly? day = null) =>
         new { resourceId, start = ApiFactory.At(day ?? ApiFactory.Tomorrow, hour), slots, name };
 
     protected Task<HttpResponseMessage> Book(int hour, int slots = 1, string resourceId = "court-1", HttpClient? client = null) =>
         (client ?? Client).PostAsJsonAsync("/api/bookings", BookingBody(hour, slots, resourceId), Ct);
 
-    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null)
+    protected async Task<BookingResponse> BookOk(int hour, int slots = 1, HttpClient? client = null, string resourceId = "court-1")
     {
-        var response = await Book(hour, slots, client: client);
+        var response = await Book(hour, slots, resourceId, client);
         Assert.Equal(System.Net.HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<BookingResponse>(Json, Ct))!;
     }

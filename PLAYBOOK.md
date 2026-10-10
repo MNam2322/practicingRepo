@@ -143,7 +143,7 @@ Needs backend 8.
 - **Check:** as staff, the schedule shows every resource for the day. Block an hour for maintenance, then check that customers can't book it.
 
 ### Step 16: Backend 9, admin features
-- [ ] **Prompt:** "Do backend task 9 (admin features)."
+- [x] **Prompt:** "Do backend task 9 (admin features)."
 - **Check:** as admin, change a court's opening hours through `booking.http`. Availability changes, and the audit log shows who changed it.
 
 ### Step 17: Frontend 8, admin pages

@@ -12,24 +12,6 @@ namespace BookingApp.Api.Tests;
 /// <summary>Staff tools: who may use them, the day schedule, booking outcomes, staff cancel with a reason, and blocking time.</summary>
 public abstract class StaffTests(StorageProvider provider) : ApiTest(provider)
 {
-    private const string Password = "correct horse battery";
-
-    /// <summary>A browser signed in as a new account with the given role (the role is added, then the person signs in again).</summary>
-    private async Task<HttpClient> SignedInAs(string? role)
-    {
-        var client = Factory.CreateClient();
-        var email = $"{role ?? "customer"}.{Guid.NewGuid():N}@example.com";
-        Assert.Equal(HttpStatusCode.Created, (await client.PostAsJsonAsync("/api/account/signup", new { email, password = Password, name = role ?? "Customer" }, Ct)).StatusCode);
-        if (role is null) return client;
-        using (var scope = Factory.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            await users.AddToRoleAsync((await users.FindByEmailAsync(email))!, role);
-        }
-        // Roles travel in the auth cookie, so sign in again to pick up the new one.
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/account/signin", new { email, password = Password }, Ct)).StatusCode);
-        return client;
-    }
 
     private static string Day => $"{ApiFactory.Tomorrow:yyyy-MM-dd}";
 
