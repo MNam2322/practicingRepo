@@ -39,7 +39,13 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
     public async Task<Result<SignedIn>> SignInAsync(string email, string password, CustomerId? anonymous, CancellationToken cancellationToken)
     {
         var user = await users.FindByEmailAsync(email.Trim());
-        if (user is null) return InvalidCredentials;
+        if (user is null)
+        {
+            // Same answer and about the same time as a wrong password, so sign-in cannot be used to find out which
+            // emails have accounts (library 10.1 "A login form that confirmed which emails exist").
+            users.PasswordHasher.HashPassword(TimingDummy, password);
+            return InvalidCredentials;
+        }
         var result = await signIn.PasswordSignInAsync(user, password, isPersistent: true, lockoutOnFailure: true);
         if (result.IsLockedOut)
             return new Error(ErrorKind.Unauthenticated, "account_locked", "Too many failed attempts. Try again in a few minutes.");
@@ -68,4 +74,5 @@ public sealed class AccountService(UserManager<AppUser> users, SignInManager<App
 
     private static readonly Error InvalidCredentials = new(ErrorKind.Unauthenticated, "invalid_credentials", "That email and password do not match an account.");
     private static readonly IReadOnlyDictionary<string, string[]> Empty = new Dictionary<string, string[]>();
+    private static readonly AppUser TimingDummy = new();
 }
