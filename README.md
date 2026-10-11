@@ -1,172 +1,358 @@
 # Booking app
 
-A booking app for a sports club's courts and rooms. Customers see free slots in the venue's local time, book, and cancel. The double-booking guard and the booking rules all live in the backend.
+A booking app for a sports club's courts and rooms. Customers see free slots in the venue's local time, hold a slot,
+pay a deposit and get a confirmation email. They can cancel, book weekly series, and join a waitlist. Staff run the
+day's schedule; admins manage courts, opening hours, closures and booking rules.
 
-- **backend/**: a .NET 10 C# API. This is the heavy part.
-- **frontend/**: React, TypeScript and Vite. A clean, usable UI.
-- **library/**: the programming library, used as a read-only knowledge base. Claude Code looks things up in it before designing each feature.
-- **PLAYBOOK.md**: the order to build the remaining features in, step by step.
+- **backend/**: a .NET 10 C# API (ASP.NET Core controllers, EF Core, SQLite or PostgreSQL)
+- **frontend/**: React 19, TypeScript and Vite
+- **docs/adr/**: why the big design choices were made
+- **library/**: a read-only programming handbook that the design was built from
 
-The starter works today: resources, a day's slots, booking, My bookings, cancelling, light and dark themes, and a mobile layout. `PLAYBOOK.md` takes it from there: a real database, accounts, staff and admin tools, holds and payments, emails, tests, and Docker.
+Payments and email are **fakes** for development. No real money moves: a fake provider takes test cards, and emails
+are written as `.eml` files.
+
+---
 
 ## 1. Install the tools (once)
 
-### Windows
+| Tool | Version | Needed for |
+|---|---|---|
+| [.NET SDK](https://dotnet.microsoft.com/download) | 10.0.100 or newer | the backend |
+| [Node.js](https://nodejs.org) | 22 or newer | the frontend |
+| [Git](https://git-scm.com) | any | getting the code |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | any recent | PostgreSQL, the PostgreSQL tests, and running everything as one image |
 
-Open **PowerShell** and run:
+Without Docker the app still runs: development uses SQLite, a database in a single file, and the PostgreSQL tests are
+skipped.
+
+**Windows** (PowerShell):
 
 ```
 winget install Microsoft.DotNet.SDK.10
 winget install OpenJS.NodeJS.LTS
 winget install Git.Git
-winget install Microsoft.VisualStudioCode
+winget install Docker.DockerDesktop
 ```
 
-Then close PowerShell and open it again, so it finds the new tools.
-
-### Mac
-
-Install Homebrew from https://brew.sh if you don't have it, then in **Terminal** run:
+**Mac** (with [Homebrew](https://brew.sh)):
 
 ```
-brew install --cask dotnet-sdk
+brew install --cask dotnet-sdk docker
 brew install node git
-brew install --cask visual-studio-code
 ```
 
-### Both
-
-Check the versions. .NET must be 10.x and Node must be 22 or newer.
+Close and reopen the terminal, then check the versions:
 
 ```
-dotnet --version
-node --version
-git --version
+dotnet --version     # 10.x
+node --version       # v22 or newer
+docker --version
 ```
 
-Then install Claude Code by following https://docs.claude.com/en/docs/claude-code. Either use the VS Code extension, or run `claude` in the terminal.
-
-You only need Docker Desktop for PostgreSQL (playbook step 11 onwards). Without it the app runs on SQLite, and the PostgreSQL tests are skipped.
-
-## 2. Put the project in place
-
-Unzip `booking-app.zip` where you keep your code, for example `D:\source\booking-app` on Windows or `~/source/booking-app` on a Mac. Then set your Git name once, if you haven't already:
+## 2. Get the code
 
 ```
-git config --global user.name "Your Name"
-git config --global user.email "you@example.com"
+git clone https://github.com/MNam2322/practicingRepo.git booking-app
+cd booking-app
+git switch dev
 ```
 
-The project is already a Git repository with one commit. It stays **local only**: there is no remote, and nothing is pushed anywhere.
+Day-to-day work happens on `dev` (see [Branches and CI](#7-branches-and-ci)).
+
+---
 
 ## 3. Run it
 
-You need two terminals. In VS Code, open the `booking-app` folder, then **Terminal → New Terminal**. The **+** button opens a second terminal.
+There are two ways. **A** is the quickest; **B** is what you use while changing code.
+
+### A. Everything in Docker (one command)
+
+Start Docker Desktop, then from the repository root:
+
+```
+docker compose up --build
+```
+
+Open **http://localhost:8080**. One container holds the API and the built web app, next to a PostgreSQL container.
+
+| Command | What it does |
+|---|---|
+| `docker compose up --build` | build the image and start everything |
+| `docker compose up -d` | start in the background, without rebuilding |
+| `docker compose logs -f app` | follow the app's logs |
+| `docker compose down` | stop (the data is kept) |
+| `docker compose down -v` | stop and delete all data (database, emails, sign-in keys) |
+
+The first build takes a few minutes. Later builds reuse the cached layers.
+
+### B. Development mode (two terminals)
 
 **Terminal 1, the API:**
 
 ```
 cd backend
-node tools/dev-secrets.mjs        # once per machine: puts the development secrets in dotnet user-secrets
+node tools/dev-secrets.mjs                  # once per machine: puts the development secrets in dotnet user-secrets
 dotnet run --project src/BookingApp.Api
 ```
 
 Wait for `Now listening on: http://localhost:5080`.
 
-**Terminal 2, the UI:**
+**Terminal 2, the web app:**
 
 ```
 cd frontend
-npm install
+npm install                                 # first time, and after package.json changes
 npm run dev
 ```
 
-You only need `npm install` the first time. Then open http://localhost:5173.
+Open **http://localhost:5173**. Vite forwards every `/api` request to the API on port 5080. If 5173 is busy, Vite picks
+the next free port and prints it.
 
-In Development the API books two demo slots per resource for tomorrow, so you can see booked slots straight away. Bookings are stored in a SQLite file, `backend/src/BookingApp.Api/.data/bookings.db`, so they survive restarts. Stop the API and delete the `.data` folder to start with an empty database.
+Press **Ctrl+C** in a terminal to stop that half.
 
-To stop either one, press **Ctrl+C** in its terminal.
+**Useful in development:**
 
-**Staff and admin in development.** Add your account email to `Accounts:Bootstrap:Staff` (or `Admin`) in `backend/src/BookingApp.Api/appsettings.Development.json`, restart the API and sign in again. In Development the demo data includes bookings earlier today, so you can try marking one completed or a no-show.
+- **The API reference:** http://localhost:5080/scalar lists every endpoint, and you can try them from the page.
+- **Hand-written requests:** `backend/http/booking.http` has one request per endpoint. Use it with the VS Code
+  **REST Client** extension.
+- **Demo data:** demo bookings are created for today and tomorrow, so some slots are already booked.
 
-**Optional: PostgreSQL instead of SQLite.** With Docker Desktop running, from the repo root: `docker compose up -d postgres`, then in terminal 1 run `dotnet run --project src/BookingApp.Api --launch-profile http-postgres` instead. `docker compose down` stops the database (add `-v` to delete its data).
+### Use PostgreSQL instead of SQLite in development
 
-**Optional: the whole app in Docker.** From the repo root: `docker compose up --build`, then open http://localhost:8080. One image holds the API and the built web app, next to PostgreSQL. Stop the two dev terminals first. How that image serves the web app is explained below.
+```
+docker compose up -d postgres                                   # repository root: only the database
+cd backend
+dotnet run --project src/BookingApp.Api --launch-profile http-postgres
+```
 
-### How the Docker image serves the web app
+The frontend is unchanged. `docker compose stop postgres` stops the database.
 
-In development there are two servers: Vite serves the React app on port 5173 and forwards `/api` to the .NET API on port 5080. In the image there is one, the API, and no Node at all.
+---
 
-1. **Build.** The `Dockerfile` (repo root) builds the web app in a Node stage. `npm ci`, then `npm run build`, type-checks and writes `frontend/dist`: an `index.html` and the JavaScript and CSS in `assets/`, with a content hash in each file name (`index-DkkM4mBp.js`).
-2. **Copy.** The final stage puts `dist` into the API's `wwwroot` folder, next to the published API.
+## 4. Build
+
+### Backend
+
+```
+cd backend
+dotnet build                                # Debug build; warnings are errors
+dotnet build -c Release                     # Release build
+dotnet publish src/BookingApp.Api -c Release -o out   # a deployable folder
+```
+
+### Frontend
+
+```
+cd frontend
+npm ci                                      # clean install, exactly from package-lock.json
+npm run build                               # type check, then a production build in frontend/dist
+npm run preview                             # serve dist locally (it still forwards /api to port 5080)
+```
+
+### The Docker image
+
+```
+docker build -t booking-app:local .         # repository root
+```
+
+The `Dockerfile` has three stages:
+
+1. Node builds the web app.
+2. The .NET SDK publishes the API.
+3. The final image is the small "chiseled" ASP.NET runtime, running as a non-root user. The web build sits in the
+   API's `wwwroot`.
+
+See [How the image serves the web app](#how-the-image-serves-the-web-app).
+
+---
+
+## 5. Test and check
+
+| Where | Command | What it runs |
+|---|---|---|
+| `backend/` | `dotnet test` | every backend test (unit, repository and API tests) |
+| `backend/` | `dotnet format --verify-no-changes` | the formatting check (run `dotnet format` to fix) |
+| `frontend/` | `npm run lint` | the linter |
+| `frontend/` | `npm run build` | the type check and build |
+| `frontend/` | `npm run test` | component tests (Vitest, with the API mocked) |
+| `frontend/` | `npm run e2e` | browser tests (Playwright) against the running app |
+
+**Notes:**
+
+- **PostgreSQL tests need Docker.** They start a throwaway PostgreSQL through Testcontainers. Without Docker they're
+  skipped; with `REQUIRE_DOCKER=1` a skip counts as a failure (CI sets this).
+- **Browser tests need a browser.** Run `npx playwright install chromium` once. Start the app first: development mode
+  (port 5173), or set `E2E_BASE_URL=http://localhost:8080` to test the Docker app.
+- **After an intended API change,** regenerate the contract and the frontend types:
+
+  ```
+  cd backend
+  UPDATE_OPENAPI=1 dotnet test        # rewrites openapi/v1.json (PowerShell: $env:UPDATE_OPENAPI=1; dotnet test)
+  cd ../frontend
+  npm run gen:api:file                # regenerates src/lib/api.generated.ts from it
+  ```
+
+---
+
+## 6. Using the app
+
+### Ports
+
+| Address | What |
+|---|---|
+| http://localhost:8080 | the whole app, in Docker |
+| http://localhost:5173 | the web app, in development |
+| http://localhost:5080 | the API, in development (`/scalar` is the API reference) |
+| `localhost:5432` | PostgreSQL in Docker (database `booking`, user `booking`, password `booking-dev-only`) |
+| http://localhost:18888 | the Aspire dashboard for traces, metrics and logs (optional, see below) |
+
+The PostgreSQL password is a local default from `docker-compose.yml`. Anywhere other than your own machine, set
+`POSTGRES_PASSWORD` and `WEBHOOK_SECRET` in the environment, or in a `.env` file (which git ignores).
+
+### Test cards (the fake payment provider)
+
+| Card token | Result |
+|---|---|
+| `tok_visa` | approved |
+| `tok_declined` | declined |
+| `tok_insufficient_funds` | declined: not enough funds |
+| `tok_expired_card` | declined: expired card |
+| `tok_unavailable` | the provider is down; nothing is charged |
+| `tok_timeout` | charged, but the answer is lost; retrying finds the charge instead of charging twice |
+
+### Emails
+
+| Run | Where the `.eml` files go |
+|---|---|
+| development | `backend/src/BookingApp.Api/.data/emails/` |
+| Docker | the `app-data` volume, at `/data/emails` |
+
+Open them with any mail program.
+
+### Staff and admin accounts
+
+1. Sign up in the app.
+2. Add your email to `Accounts:Bootstrap:Staff` or `Accounts:Bootstrap:Admin` in
+   `backend/src/BookingApp.Api/appsettings.Development.json`.
+3. Restart the API and sign in again. The **Schedule** (staff) and **Admin** links appear in the top bar.
+
+### Looking inside the database
+
+**PostgreSQL**, from the terminal:
+
+```
+docker compose exec postgres psql -U booking -d booking
+```
+
+Then `\dt` lists the tables and `\d bookings` describes one. Or use a GUI such as DBeaver, pgAdmin or the VS Code
+PostgreSQL extension, with the settings in the ports table.
+
+**SQLite** (development): open `backend/src/BookingApp.Api/.data/bookings.db` with the VS Code **SQLite Viewer**
+extension or **DB Browser for SQLite**. Times are stored as integers (UTC ticks). To start with an empty database, stop
+the API and delete the `.data` folder.
+
+### Traces and metrics (optional)
+
+```
+docker compose --profile observability up -d aspire-dashboard
+```
+
+Then run the API with the endpoint set:
+
+```
+# PowerShell
+$env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"; dotnet run --project src/BookingApp.Api
+# bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 dotnet run --project src/BookingApp.Api
+```
+
+Open http://localhost:18888. Every request shows up as a trace, with the SQL underneath it.
+
+---
+
+## 7. Branches and CI
+
+- **Branches:** work happens on `dev`. `main` only moves forward by merging `dev` once CI is green.
+- **CI** (`.github/workflows/ci.yml`, the **Actions** tab on GitHub) runs on every push to `main` or `dev`, and on every
+  pull request:
+  1. **Backend:** build, the format check, then the tests, including PostgreSQL.
+  2. **Frontend:** lint, build, component tests.
+  3. **Docker image:** built once, started with PostgreSQL, then tested in a real browser.
+- **Protecting `main`:** to have GitHub enforce this, go to **Settings → Branches → Add rule** for `main`. Require a
+  pull request, and require the **Backend**, **Frontend** and **Docker image** checks to pass.
+
+---
+
+## 8. Project layout
+
+```
+backend/
+  src/BookingApp.Core/            business rules and use cases (no database or web code)
+  src/BookingApp.Infrastructure/  database (EF Core), fake payments and email, background jobs
+  src/BookingApp.Api/             HTTP: controllers, security, serving the web app
+  tests/                          unit, repository and API tests
+  openapi/v1.json                 the API contract (generated; a test checks it)
+  http/booking.http               one request per endpoint
+  tools/                          dev-secrets.mjs, payment-webhook.mjs, the performance tool
+  docs/performance.md             query measurements
+frontend/
+  src/pages/                      screens
+  src/components/                 shared UI pieces
+  src/lib/                        API client, data hooks (TanStack Query), router, error messages
+  e2e/                            Playwright tests
+docs/adr/                         architecture decision records
+Dockerfile, docker-compose.yml    the image, and the app with PostgreSQL
+```
+
+The conventions for changing code are in `CLAUDE.md`, `backend/CLAUDE.md` and `frontend/CLAUDE.md`. The history of
+what was built, task by task, is in `PLAYBOOK.md` and the two `TASKS.md` files.
+
+---
+
+## How the image serves the web app
+
+In development there are two servers: Vite serves the React app on 5173 and forwards `/api` to the API on 5080. In the
+image there is only one, the API, and no Node at all.
+
+1. **Build.** A Node stage runs `npm ci` and `npm run build`. That writes `frontend/dist`: an `index.html`, plus
+   JavaScript and CSS in `assets/`, each with a content hash in its name (such as `index-DkkM4mBp.js`).
+2. **Copy.** The final stage puts `dist` into the API's `wwwroot` folder.
 3. **Serve.** At start-up the API sees `wwwroot` (`backend/src/BookingApp.Api/WebApp.cs`) and serves it.
    - `/` returns `index.html`.
-   - Files under `/assets/` are served as they are.
-   - Every response gets the security headers, and the web app's Content-Security-Policy allows scripts and styles from the same site only. Keep `index.html` free of inline scripts.
-4. **Caching.**
-   - `/assets/*` files are sent with `Cache-Control: public, max-age=31536000, immutable`. Their names change whenever their content does, so browsers can keep them for a year.
-   - `index.html` is sent with `no-cache`, so the browser asks again each time and picks up a new release (with its new asset names) at once.
-5. **Refreshing a page.** The app's routes are after the `#` (`/#/mine`, `/#/b/<id>`). The browser never sends that part to the server: refreshing `/#/mine` asks for `/`, gets `index.html`, and the app shows My bookings again.
-6. **Other paths.**
-   - Any other path that is not the API also gets `index.html`, so an old or mistyped link lands in the app instead of an error page.
-   - Unknown `/api/...` paths still answer with a JSON 404 problem (`code: not_found`), never with the page.
-7. **One origin.** The page and the API share an origin (http://localhost:8080). The cookies (sign-in, the customer cookie, antiforgery) and the API calls work exactly as they do through the Vite proxy in development, with no CORS involved.
+   - `/assets/*` files are sent with `Cache-Control: public, max-age=31536000, immutable`. Their names change whenever
+     their content does, so browsers can keep them for a year.
+   - `index.html` is sent with `no-cache`, so a new release shows up immediately.
+   - The page's Content-Security-Policy allows only same-site scripts and styles, so keep `index.html` free of inline
+     scripts.
+4. **Refreshing works.** The app's routes are after the `#` (`/#/mine`, `/#/b/<id>`), and the browser never sends that
+   part to the server. Refreshing `/#/mine` asks for `/`, gets `index.html`, and the app shows My bookings again.
+5. **Other paths.**
+   - Any other non-API path also gets `index.html`, so an old or mistyped link lands in the app.
+   - Unknown `/api/...` paths still answer with a JSON 404 (`code: not_found`).
+6. **One origin.** The page and the API share an origin, so cookies (sign-in, the customer cookie, antiforgery) work
+   exactly as they do through the Vite proxy, with no CORS involved.
 
-To build only the web app the way the image does: `cd frontend`, then `npm ci` and `npm run build`. `npm run preview` serves `dist` locally, again forwarding `/api` to the API on port 5080.
-
-## 4. Build the rest with Claude Code
-
-Open Claude Code in the `booking-app` folder (the root, not `backend` or `frontend`), and say:
-
-> Read PLAYBOOK.md and do the next step.
-
-For each step, Claude Code:
-
-1. searches the library for the topic
-2. shows you a plan that names the library sections it used
-3. waits for your OK
-4. builds the change, tests it, ticks the step, and commits it locally
-
-Each step in `PLAYBOOK.md` says what to check yourself afterwards. Then say "do the next step" again.
-
-## Using the library yourself
-
-From the repo root:
-
-```
-node library/find.mjs "time zones and DST"     # search: shows chapter, heading and line number
-node library/show.mjs 1-2 1234                  # read one section
-node library/show.mjs 7-4                       # list a chapter's sections
-```
-
-`library/quick-look.md` has a few lines on every chapter.
-
-## Useful commands
-
-| Where | Command | What it does |
-|---|---|---|
-| `backend/` | `dotnet build` | Build |
-| `backend/` | `dotnet test` | Run the tests (from playbook step 1) |
-| `backend/` | `dotnet format` | Fix the formatting |
-| `frontend/` | `npm run build` | Type check and build |
-| `frontend/` | `npm run lint` | Lint |
-| `frontend/` | `npm run test` | Component tests |
-| `frontend/` | `npm run e2e` | Browser tests against the running app |
-| root | `docker compose up --build` | The whole app in Docker on http://localhost:8080 |
-| root | `git log --oneline` | See what has been done |
-
-**Branches and CI.** Work happens on `dev`. `main` only moves forward by merging `dev` once CI is green.
-- Every push to `main` or `dev`, and every pull request, runs `.github/workflows/ci.yml` (the **Actions** tab on GitHub):
-  1. Backend build, format check and tests, including PostgreSQL.
-  2. Frontend lint, build and component tests.
-  3. The Docker image is built, started and tested in a browser.
-- To have GitHub enforce that, protect `main`: **Settings → Branches → Add rule**, require a pull request, and require the **Backend**, **Frontend** and **Docker image** checks to pass.
-
-`backend/http/booking.http` has one request per endpoint. In VS Code, install the **REST Client** extension, then click **Send Request** above any request.
+---
 
 ## Troubleshooting
 
-- **`dotnet` or `node` is "not recognized":** close and reopen the terminal, or VS Code, after installing.
-- **Port 5080 or 5173 is in use:** an old copy is still running. Close its terminal, or restart VS Code.
-- **The UI says it can't reach the API:** start the API in terminal 1 first.
+- **`dotnet`, `node` or `docker` is "not recognized":** close and reopen the terminal, or VS Code, after installing.
+- **Port 5080, 5173, 8080 or 5432 is in use:** an old copy is still running. Stop it, or run `docker compose down` if
+  it's the Docker app.
+- **The web app says it can't reach the API:** start the API in terminal 1 first.
+- **Writes fail with `antiforgery_failed`:** reload the page to get a fresh token. After a sign-in, the app does this by
+  itself.
+- **The PostgreSQL tests are skipped:** start Docker Desktop.
 - **`npm install` fails on Windows with a path error:** keep the folder path short, for example `D:\source\booking-app`.
+- **Docker runs out of disk space:** `docker system prune` removes old images and build cache. Add `--volumes` only if
+  you also want to delete the data.
+
+## The library
+
+From the repository root:
+
+```
+node library/find.mjs "time zones and DST"     # search: shows the chapter, heading and line number
+node library/show.mjs 1-2 1234                  # read one section
+```
